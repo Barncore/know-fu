@@ -96,6 +96,10 @@ The current WSL deployment stores FalkorDB persistence under `/var/lib/research-
 
 QMD maintains the local keyword/vector index, using generated Markdown grouped by maintenance module. It has its own internal search storage; it does not replace FalkorDB with a SQLite research graph. QMD configuration/model-cache directories are selected under the configured state directory (`KB_STATE_DIR`, default engine `.runtime/`); its status command reports its index details. Generated projections can be rebuilt from the canonical corpus.
 
+The engine reuses verified canonical file contents in a bounded cache. It rereads access policy, the deletion ledger, generation and release pointer for each request and checks them again before returning. A canonical file's path and metadata fingerprint are rechecked before reusing its verified bytes; changed files are reread and checked against their expected hash. This speeds repeated reads without making the cache an authority. It assumes ordinary local filesystem semantics, not an adversary able to falsify file identity and every timestamp.
+
+Graph writes use bounded batches, validate record/edge counts and write the release marker last. Search uses QMD's official SDK in a reusable local worker. The worker closes its database and model handles after each request, stops after 60 seconds idle and restarts after a timeout or crash. Reindex and purge stop it first. This is an internal process, not an additional service to install. CPU embedding and semantic lookup still have their own costs; no local reasoning model is added.
+
 ## Scope and recovery
 
 One corpus can have multiple maintenance modules and domain tags. Project bindings restrict the modules a calling project can read or write. These are application checks, not an OS security boundary against someone with direct filesystem access. Cross-domain use remains scoped rather than merging all sources into unqualified universal advice.

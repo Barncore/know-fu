@@ -1,6 +1,8 @@
 """Lossless original retention is handled by the coordinator; this produces versioned locators."""
 import sys,json,hashlib,re,os,zipfile
 from pathlib import Path
+# JSON is consumed as UTF-8 by Node, including under a Windows cp1252 console.
+sys.stdout.reconfigure(encoding='utf-8')
 source=Path(sys.argv[1]); output=Path(sys.argv[2]); units=[]; limitations=[]
 digest=lambda b:hashlib.sha256(b).hexdigest()
 def add(kind,text,locator,asset=None):

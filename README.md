@@ -47,7 +47,7 @@ Download or clone this repository, open it in your coding assistant, and say:
 
 Setup should fit your environment. The [decision matrix](plugin/docs/setup-choices.md) distinguishes architectural requirements from the first owner's preferences: WSL versus a separately managed FalkorDB service, storage paths, native/WSL media utilities, API versus local transcript preparation, and retrieval tradeoffs.
 
-**Status:** local research engine and Codex adapter implemented; 39 automated tests pass. The original deployment uses Windows, Ubuntu WSL2, FalkorDB and CPU QMD. A different machine still needs dependency provisioning and its own live checks. Docker deployment and an integrated local speech-decoding adapter are not claimed as end-to-end tested. See [validation](docs/VALIDATION.md).
+**Status:** local research engine and Codex adapter implemented; 54 automated tests pass on the development installation. The original deployment uses Windows, Ubuntu WSL2, FalkorDB and CPU QMD. A different machine still needs dependency provisioning and its own live checks. Docker deployment and an integrated local speech-decoding adapter are not claimed as end-to-end tested. See [validation](docs/VALIDATION.md) and the measured [performance boundaries](docs/PERFORMANCE.md).
 
 ## Repository versus your data
 
@@ -81,10 +81,11 @@ Use the pinned Node version in `package.json` and install from `package-lock.jso
 npm ci
 npm run build
 npm test
+npm run format:check
 npm run check:package
 ```
 
-These build/test the engine; they do not provision a graph server, Python converter, model cache or a real library. Tests use synthetic sources. See the [setup guide](plugin/docs/setup.md) for runtime requirements and the [schema reference](plugin/contracts/README.md) for the data model.
+These build/test the engine; they do not provision a graph server, Python converter, model cache or a real library. Automated tests use synthetic sources; the optional document-conversion test reports a skip if its Python/BeautifulSoup runtime is absent. See the [setup guide](plugin/docs/setup.md) for runtime requirements and the [schema reference](plugin/contracts/README.md) for the data model.
 
 Changes belong in [CHANGELOG.md](CHANGELOG.md); durable findings belong in [LESSONS.md](LESSONS.md). [Maintenance guidance](docs/MAINTENANCE.md) maps implementation changes to documentation. Before committing, run `npm run check:release -- --staged` and review the staged files.
 

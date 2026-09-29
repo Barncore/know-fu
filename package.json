@@ -1,6 +1,6 @@
 {
   "name": "know-fu",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "engines": {
@@ -12,7 +12,9 @@
     "kb": "node dist/cli.js",
     "mcp": "node dist/mcp.js",
     "check:package": "node scripts/package-plugin.mjs --check",
-    "check:release": "node scripts/check-release.mjs"
+    "check:release": "node scripts/check-release.mjs",
+    "format": "prettier --write \"src/*.ts\" \"test/*.ts\"",
+    "format:check": "prettier --check \"src/*.ts\" \"test/*.ts\""
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.31.0",
@@ -25,6 +27,7 @@
   "devDependencies": {
     "@types/node": "26.6.3",
     "json-schema-to-typescript": "16.0.0",
+    "prettier": "3.9.9",
     "tsx": "4.23.15",
     "typescript": "5.9.3"
   },

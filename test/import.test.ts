@@ -1,5 +1,32 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {published,fixture} from './helpers.js';
-import {Maintenance} from '../src/maintenance.js';
-test('portable import retains exact old premises after a source definition revision',async()=>{const a=await published(),old=await a.store.exact({id:'concept:ready-handbook',revision:1});await a.store.publish([{...old,revision:2,change_reason:'Refined source definition'}],{},await a.store.current(),'Changed definition',a.scope);const bundle=await new Maintenance(a.store).exportBundle(),b=await fixture();const domain=b.records[0].scope.domains[0],out=await new Maintenance(b.store).importBundle(bundle.path,b.scope.write_modules[0],[domain]);assert(out.release_id);const records=[...(await b.store.records()).values()],definitions=records.filter(r=>r.provenance.method.includes('concept:ready-handbook@'));assert.equal(definitions.length,2);assert(definitions.some(r=>r.archived));assert(definitions.some(r=>!r.archived));assert.equal((await new Maintenance(b.store).verify()).errors.length,0);});
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { published, fixture } from "./helpers.js";
+import { Maintenance } from "../src/maintenance.js";
+test("portable import retains exact old premises after a source definition revision", async () => {
+  const a = await published(),
+    old = await a.store.exact({ id: "concept:ready-handbook", revision: 1 });
+  await a.store.publish(
+    [{ ...old, revision: 2, change_reason: "Refined source definition" }],
+    {},
+    await a.store.current(),
+    "Changed definition",
+    a.scope,
+  );
+  const bundle = await new Maintenance(a.store).exportBundle(),
+    b = await fixture();
+  const domain = b.records[0].scope.domains[0],
+    out = await new Maintenance(b.store).importBundle(
+      bundle.path,
+      b.scope.write_modules[0],
+      [domain],
+    );
+  assert(out.release_id);
+  const records = [...(await b.store.records()).values()],
+    definitions = records.filter((r) =>
+      r.provenance.method.includes("concept:ready-handbook@"),
+    );
+  assert.equal(definitions.length, 2);
+  assert(definitions.some((r) => r.archived));
+  assert(definitions.some((r) => !r.archived));
+  assert.equal((await new Maintenance(b.store).verify()).errors.length, 0);
+});

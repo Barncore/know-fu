@@ -9,6 +9,7 @@ Use this repository as the development source. The installed user-profile plugin
 | Setup defaults, paths, backend/runtime support | Setup guide, setup-choices, setup-ai, configuration examples, CHANGELOG |
 | Copied code or new dependency | Lockfiles, lineage/dependency notes, applicable notices, CHANGELOG |
 | Validation/capability status | VALIDATION and any README/setup claims it changes |
+| Retrieval/indexing performance | PERFORMANCE, relevant architecture notes and correctness regressions for affected routes |
 | Durable implementation lesson | LESSONS, with reason and practical implication |
 
 Run package generation after engine contract or transcription-example changes. `npm run check:package` checks bundled contract parity, the corpus example and local links. `npm run check:release -- --staged` checks the actual staged tree for excluded material, private-machine paths, common credential signatures, broken documentation links and change-log/doc accompaniment. These checks reduce mistakes; they cannot prove semantic correctness or catch every possible secret.

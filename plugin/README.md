@@ -25,7 +25,7 @@ Ingest specialized research into a connected library that an AI can retrieve fro
 
 The schema files bundled here are verified copies of the engine contracts. They explain the data model; they do not replace the engine or configure FalkorDB by themselves. See [the contract manifest](engine-contracts.json) for versions and hashes.
 
-In an installed chat, `kb_status` reports the actual engine and corpus paths. On disk, `.mcp.json` identifies the engine's `dist/mcp.js` and the corpus through `KB_CORPUS`. Its absolute paths belong to the local deployment. The engine's own `README.md`, `ACCEPTANCE.md` and `DEPENDENCIES.md` describe that installation and its measured limits.
+In an installed chat, `kb_status` reports the actual engine and corpus paths. On disk, `.mcp.json` identifies the engine's `dist/mcp.js` and the corpus through `KB_CORPUS`. Its absolute paths belong to the local deployment. The engine repository's `README.md`, `docs/VALIDATION.md` and `docs/PERFORMANCE.md` describe its dependencies, checks and measured limits; these paths are relative to that repository, not this adapter folder.
 
 ## Sharing or keeping a private repository
 

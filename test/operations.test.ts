@@ -1,44 +1,331 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import * as fs from 'node:fs/promises';
-import path from 'node:path';
-import {published,fixture} from './helpers.js';
-import {Jobs} from '../src/jobs.js';
-import {Governance} from '../src/governance.js';
-import {Projections} from '../src/projections.js';
-import {Lifecycle} from '../src/lifecycle.js';
-import {Maintenance} from '../src/maintenance.js';
-import {KnowledgeSystem} from '../src/api.js';
-import {Store} from '../src/store.js';
-import {Retrieval} from '../src/retrieval.js';
-import {atomic,json,hash,readJson,ref,key,emptyScope,VERSION} from '../src/core.js';
-test('a partial reading receipt checkpoints remaining source units and resumes exactly',async()=>{
- const f=await published(),jobs=new Jobs(f.store),source=f.store.p('long-source.txt');await fs.writeFile(source,Array.from({length:250},(_,i)=>`Observation ${i}.`).join('\n'));const a=await jobs.ingest({paths:[source],module:f.scope.write_modules[0],domains:['lumen'],idempotency_key:'partial',authorization:'Ingest this fixture'});const id=a.job.job_id;await jobs.convert(id);let j=await jobs.load(id);assert(j.coverage.length>1);await jobs.submit(id,{step_id:'first',stage:'reconstruct',summary:'Read the first contiguous section and retained its meaning.',coverage:[{unit_id:j.coverage[0].unit_id,status:'complete'}]});j=await jobs.load(id);assert.equal(j.stage,'reconstruct');assert.equal(j.coverage[0].read,'complete');await jobs.action(id,'cancel');await jobs.action(id,'resume');assert.equal((await jobs.load(id)).coverage[0].read,'complete');await jobs.submit(id,{step_id:'rest',stage:'reconstruct',summary:'Read the rest and reconstructed the entire argument.',coverage:j.coverage.slice(1).map(u=>({unit_id:u.unit_id,status:'complete'}))});assert.equal((await jobs.load(id)).stage,'integrate');
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import * as fs from "node:fs/promises";
+import path from "node:path";
+import { published, fixture } from "./helpers.js";
+import { Jobs } from "../src/jobs.js";
+import { Governance } from "../src/governance.js";
+import { Projections } from "../src/projections.js";
+import { Lifecycle } from "../src/lifecycle.js";
+import { Maintenance } from "../src/maintenance.js";
+import { KnowledgeSystem } from "../src/api.js";
+import { Store } from "../src/store.js";
+import { Retrieval } from "../src/retrieval.js";
+import {
+  atomic,
+  json,
+  hash,
+  readJson,
+  ref,
+  key,
+  emptyScope,
+  VERSION,
+} from "../src/core.js";
+test("a partial reading receipt checkpoints remaining source units and resumes exactly", async () => {
+  const f = await published(),
+    jobs = new Jobs(f.store),
+    source = f.store.p("long-source.txt");
+  await fs.writeFile(
+    source,
+    Array.from({ length: 250 }, (_, i) => `Observation ${i}.`).join("\n"),
+  );
+  const a = await jobs.ingest({
+    paths: [source],
+    module: f.scope.write_modules[0],
+    domains: ["lumen"],
+    idempotency_key: "partial",
+    authorization: "Ingest this fixture",
+  });
+  const id = a.job.job_id;
+  await jobs.convert(id);
+  let j = await jobs.load(id);
+  assert(j.coverage.length > 1);
+  await jobs.submit(id, {
+    step_id: "first",
+    stage: "reconstruct",
+    summary: "Read the first contiguous section and retained its meaning.",
+    coverage: [{ unit_id: j.coverage[0].unit_id, status: "complete" }],
+  });
+  j = await jobs.load(id);
+  assert.equal(j.stage, "reconstruct");
+  assert.equal(j.coverage[0].read, "complete");
+  await jobs.action(id, "cancel");
+  await jobs.action(id, "resume");
+  assert.equal((await jobs.load(id)).coverage[0].read, "complete");
+  await jobs.submit(id, {
+    step_id: "rest",
+    stage: "reconstruct",
+    summary: "Read the rest and reconstructed the entire argument.",
+    coverage: j.coverage
+      .slice(1)
+      .map((u) => ({ unit_id: u.unit_id, status: "complete" })),
+  });
+  assert.equal((await jobs.load(id)).stage, "integrate");
 });
-test('metadata tampering is rejected by exact reads, not only manifest enumeration',async()=>{const f=await published(),r=f.records[0],p=f.store.p(`objects/${r.id.replace(':','_')}/${r.revision}/record.json`);const changed={...r,title:'Undetected tampering must fail'};await atomic(p,json(changed));await assert.rejects(()=>f.store.exact(ref(r)),{code:'VALIDATION_FAILED'});});
-test('a partly failed purge resumes with its original inventory and keeps access blocked',async()=>{const f=await published();let fail=true;const life=new Lifecycle(f.store,{graph:async()=>{if(fail)throw Error('Service stopped');return {graph:{query:async()=>({})},db:{close:async()=>{}}};},indexName:async()=>'purge-resume-fixture'} as any);const plan=await life.plan('purge',[{id:'source:handbook',revision:1}],'Delete this fixture');const auth={action:'purge',targets:plan.targets,user_instruction:'Delete the fixture and its previewed dependencies'};const a=await life.execute(plan.plan_id,auth);assert.equal(a.plan.state,'incomplete');await assert.rejects(()=>f.store.read({id:'source:handbook',revision:1}),{code:'CONTENT_PURGED'});fail=false;const b=await life.execute(plan.plan_id,auth);assert.equal(b.plan.state,'complete');assert.equal((await f.store.ledger()).generation,1);});
-test('an unmanaged pre-purge backup cannot resurrect deleted research',async()=>{const f=await published(),m=new Maintenance(f.store),b=await m.exportBundle(),external=f.store.root+'-external-backup';await fs.cp(b.path,external,{recursive:true});const life=new Lifecycle(f.store,{graph:async()=>({graph:{query:async()=>({})},db:{close:async()=>{}}}),indexName:async()=>'purge-backup-fixture'} as any);const p=await life.plan('purge',[{id:'source:handbook',revision:1}],'Delete this fixture');await life.execute(p.plan_id,{action:'purge',targets:p.targets,user_instruction:'Delete the exact targets and previewed dependencies'});await assert.rejects(()=>m.restoreBundle(external,f.store.root+'-restored'),{code:'LEDGER_UNAVAILABLE'});});
-test('same-count wiki edits block overwrite and index text has a checksum',async()=>{const f=await published(),r=f.records.find(r=>r.body)!,rel=f.publication.release_id,p=`views/${rel}/wiki/${hash(r.id).slice(0,24)}.md`;await atomic(f.store.p(p),'edited meaning');await atomic(f.store.p(`views/${rel}/file-hashes.json`),json({[p]:hash('original meaning')}));await atomic(f.store.p('views/receipt.json'),json({release_id:rel,wiki:{state:'ready'}}));await assert.rejects(()=>new Projections(f.store).build(),{code:'WIKI_EDIT_PENDING'});assert.equal(await fs.readFile(f.store.p(p),'utf8'),'edited meaning');});
-test('scoped concept merge preserves exact history and marks dependencies for reassessment',async()=>{const f=await published(),g=new Governance(f.store),all=[...(await f.store.records()).values()],concepts=all.filter(r=>r.record_type==='concept');const a=structuredClone(concepts[0]);a.revision++;a.epistemic='synthesis';await f.store.publish([a],{},await f.store.current(),'Permit synthesis-only merge fixture',f.scope);const plan=await g.plan('merge_concepts',ref(a),ref(concepts[1]),'Same scope and meaning confirmed for this controlled merge fixture');const out=await g.execute(plan.plan_id,plan.plan_hash,'Apply this reviewed fixture merge');assert.equal((await f.store.exact({id:a.id,revision:a.revision+1})).lifecycle,'superseded');assert.equal((await f.store.exact({id:a.id,revision:1})).lifecycle,'active');assert(out.impacts.length>0);});
-test('original source accounts cannot be superseded by a convenient preference',async()=>{const f=await published(),g=new Governance(f.store),a=f.records.find(r=>r.record_type==='knowledge'&&r.epistemic==='source_account')!,b=f.records.find(r=>r.record_type==='knowledge'&&r.id!==a.id)!;await assert.rejects(()=>g.plan('supersede',ref(a),ref(b),'Prefer the second account'),{code:'VALIDATION_FAILED'});});
-test('MCP source reads are paginated, scoped and separate from reading attestations',async()=>{
- const f=await published(),system=new KnowledgeSystem(f.store),source=f.store.p('readable-source.txt');await fs.writeFile(source,'A long explanation about source evidence and why its conditions matter.');
- const started=await system.call('kb_ingest',{paths:[source],module:f.scope.write_modules[0],domains:['lumen'],idempotency_key:'read-unit',authorization:'Read this acceptance source'});const id=started.job.job_id;
- const converted=await system.call('kb_job',{action:'convert',job_id:id}),unit=converted.job.coverage[0].unit_id;
- const first=await system.call('kb_read',{kind:'unit',job_id:id,unit_id:unit,limit:15});assert.equal(first.text,'A long explanat');assert.equal(first.next_offset,15);assert.equal((await system.jobs.load(id)).coverage[0].read,'pending');
- const rest=await system.call('kb_read',{kind:'unit',job_id:id,unit_id:unit,offset:15});assert.equal(first.text+rest.text,await fs.readFile(source,'utf8'));assert.equal(rest.next_offset,null);
- await assert.rejects(()=>system.call('kb_read',{kind:'unit',job_id:id,unit_id:'../../unregistered'}),{code:'VALIDATION_FAILED'});
- const denied=new KnowledgeSystem(new Store(f.store.root,'unbound_project',f.store.ledgerRoot));await assert.rejects(()=>denied.call('kb_read',{kind:'unit',job_id:id,unit_id:unit}),{code:'SCOPE_DENIED'});
- const guide=await system.call('kb_read',{kind:'guide',name:'ingestion'});assert.match(guide.text,/conversion is not reading/);await assert.rejects(()=>system.call('kb_read',{kind:'guide',name:'../../secret'}),{code:'VALIDATION_FAILED'});
+test("metadata tampering is rejected by exact reads, not only manifest enumeration", async () => {
+  const f = await published(),
+    r = f.records[0],
+    p = f.store.p(
+      `objects/${r.id.replace(":", "_")}/${r.revision}/record.json`,
+    );
+  const changed = { ...r, title: "Undetected tampering must fail" };
+  await atomic(p, json(changed));
+  await assert.rejects(() => f.store.exact(ref(r)), {
+    code: "VALIDATION_FAILED",
+  });
 });
-test('purge removes dependent meaning plans and redacts earlier authorization reasons',async()=>{
- const f=await published(),target={id:'source:handbook',revision:1};await atomic(f.store.p('lifecycle/meaning/meaning-fixture.json'),json({target,reason:'Private source wording'}));await atomic(f.store.p('lifecycle/authorizations/earlier.json'),json({targets:[target],user_instruction:'Private source wording'}));
- const life=new Lifecycle(f.store,{graph:async()=>({graph:{query:async()=>({})},db:{close:async()=>{}}}),indexName:async()=>'purge-auxiliary-fixture'} as any),plan=await life.plan('purge',[target],'Delete this source');await life.execute(plan.plan_id,{action:'purge',targets:plan.targets,user_instruction:'Delete this source and previewed dependencies'});
- await assert.rejects(()=>fs.access(f.store.p('lifecycle/meaning/meaning-fixture.json')));assert.doesNotMatch(await fs.readFile(f.store.p('lifecycle/authorizations/earlier.json'),'utf8'),/Private source wording/);
+test("a partly failed purge resumes with its original inventory and keeps access blocked", async () => {
+  const f = await published();
+  let fail = true;
+  const life = new Lifecycle(f.store, {
+    graph: async () => {
+      if (fail) throw Error("Service stopped");
+      return {
+        graph: { query: async () => ({}) },
+        db: { close: async () => {} },
+      };
+    },
+    indexName: async () => "purge-resume-fixture",
+  } as any);
+  const plan = await life.plan(
+    "purge",
+    [{ id: "source:handbook", revision: 1 }],
+    "Delete this fixture",
+  );
+  const auth = {
+    action: "purge",
+    targets: plan.targets,
+    user_instruction: "Delete the fixture and its previewed dependencies",
+  };
+  const a = await life.execute(plan.plan_id, auth);
+  assert.equal(a.plan.state, "incomplete");
+  await assert.rejects(
+    () => f.store.read({ id: "source:handbook", revision: 1 }),
+    { code: "CONTENT_PURGED" },
+  );
+  fail = false;
+  const b = await life.execute(plan.plan_id, auth);
+  assert.equal(b.plan.state, "complete");
+  assert.equal((await f.store.ledger()).generation, 1);
 });
-test('keyword-only projections never report semantic retrieval',async()=>{
- const f=await published();let semantic:any=null;const receipt={release_id:f.publication.release_id,search:{state:'ready',semantic:false,version:'fixture'},graph:{state:'ready'}};
- const r=new Retrieval(f.store,{fresh:async()=>true,receipt:async()=>receipt,search:async(_q:string,_m:string[],s:boolean)=>{semantic=s;return {items:[],elapsed_ms:0};}} as any);
- // A real search map is required even when its result set is empty.
- await atomic(f.store.p(`views/${f.publication.release_id}/search-map.json`),'{}');const p=await r.retrieve({query:'lumen',semantic:true,graph:false});assert.equal(semantic,false);assert.equal(p.fingerprints.semantic_mode,'keyword');assert(!p.route.includes('semantic'));assert(p.warnings.some(w=>w.includes('no confirmed embeddings')));
+test("an unmanaged pre-purge backup cannot resurrect deleted research", async () => {
+  const f = await published(),
+    m = new Maintenance(f.store),
+    b = await m.exportBundle(),
+    external = f.store.root + "-external-backup";
+  await fs.cp(b.path, external, { recursive: true });
+  const life = new Lifecycle(f.store, {
+    graph: async () => ({
+      graph: { query: async () => ({}) },
+      db: { close: async () => {} },
+    }),
+    indexName: async () => "purge-backup-fixture",
+  } as any);
+  const p = await life.plan(
+    "purge",
+    [{ id: "source:handbook", revision: 1 }],
+    "Delete this fixture",
+  );
+  await life.execute(p.plan_id, {
+    action: "purge",
+    targets: p.targets,
+    user_instruction: "Delete the exact targets and previewed dependencies",
+  });
+  await assert.rejects(
+    () => m.restoreBundle(external, f.store.root + "-restored"),
+    { code: "LEDGER_UNAVAILABLE" },
+  );
+});
+test("same-count wiki edits block overwrite and index text has a checksum", async () => {
+  const f = await published(),
+    r = f.records.find((r) => r.body)!,
+    rel = f.publication.release_id,
+    p = `views/${rel}/wiki/${hash(r.id).slice(0, 24)}.md`;
+  await atomic(f.store.p(p), "edited meaning");
+  await atomic(
+    f.store.p(`views/${rel}/file-hashes.json`),
+    json({ [p]: hash("original meaning") }),
+  );
+  await atomic(
+    f.store.p("views/receipt.json"),
+    json({ release_id: rel, wiki: { state: "ready" } }),
+  );
+  await assert.rejects(() => new Projections(f.store).build(), {
+    code: "WIKI_EDIT_PENDING",
+  });
+  assert.equal(await fs.readFile(f.store.p(p), "utf8"), "edited meaning");
+});
+test("scoped concept merge preserves exact history and marks dependencies for reassessment", async () => {
+  const f = await published(),
+    g = new Governance(f.store),
+    all = [...(await f.store.records()).values()],
+    concepts = all.filter((r) => r.record_type === "concept");
+  const a = structuredClone(concepts[0]);
+  a.revision++;
+  a.epistemic = "synthesis";
+  await f.store.publish(
+    [a],
+    {},
+    await f.store.current(),
+    "Permit synthesis-only merge fixture",
+    f.scope,
+  );
+  const plan = await g.plan(
+    "merge_concepts",
+    ref(a),
+    ref(concepts[1]),
+    "Same scope and meaning confirmed for this controlled merge fixture",
+  );
+  const out = await g.execute(
+    plan.plan_id,
+    plan.plan_hash,
+    "Apply this reviewed fixture merge",
+  );
+  assert.equal(
+    (await f.store.exact({ id: a.id, revision: a.revision + 1 })).lifecycle,
+    "superseded",
+  );
+  assert.equal(
+    (await f.store.exact({ id: a.id, revision: 1 })).lifecycle,
+    "active",
+  );
+  assert(out.impacts.length > 0);
+});
+test("original source accounts cannot be superseded by a convenient preference", async () => {
+  const f = await published(),
+    g = new Governance(f.store),
+    a = f.records.find(
+      (r) => r.record_type === "knowledge" && r.epistemic === "source_account",
+    )!,
+    b = f.records.find((r) => r.record_type === "knowledge" && r.id !== a.id)!;
+  await assert.rejects(
+    () => g.plan("supersede", ref(a), ref(b), "Prefer the second account"),
+    { code: "VALIDATION_FAILED" },
+  );
+});
+test("MCP source reads are paginated, scoped and separate from reading attestations", async () => {
+  const f = await published(),
+    system = new KnowledgeSystem(f.store),
+    source = f.store.p("readable-source.txt");
+  await fs.writeFile(
+    source,
+    "A long explanation about source evidence and why its conditions matter.",
+  );
+  const started = await system.call("kb_ingest", {
+    paths: [source],
+    module: f.scope.write_modules[0],
+    domains: ["lumen"],
+    idempotency_key: "read-unit",
+    authorization: "Read this acceptance source",
+  });
+  const id = started.job.job_id;
+  const converted = await system.call("kb_job", {
+      action: "convert",
+      job_id: id,
+    }),
+    unit = converted.job.coverage[0].unit_id;
+  const first = await system.call("kb_read", {
+    kind: "unit",
+    job_id: id,
+    unit_id: unit,
+    limit: 15,
+  });
+  assert.equal(first.text, "A long explanat");
+  assert.equal(first.next_offset, 15);
+  assert.equal((await system.jobs.load(id)).coverage[0].read, "pending");
+  const rest = await system.call("kb_read", {
+    kind: "unit",
+    job_id: id,
+    unit_id: unit,
+    offset: 15,
+  });
+  assert.equal(first.text + rest.text, await fs.readFile(source, "utf8"));
+  assert.equal(rest.next_offset, null);
+  await assert.rejects(
+    () =>
+      system.call("kb_read", {
+        kind: "unit",
+        job_id: id,
+        unit_id: "../../unregistered",
+      }),
+    { code: "VALIDATION_FAILED" },
+  );
+  const denied = new KnowledgeSystem(
+    new Store(f.store.root, "unbound_project", f.store.ledgerRoot),
+  );
+  await assert.rejects(
+    () => denied.call("kb_read", { kind: "unit", job_id: id, unit_id: unit }),
+    { code: "SCOPE_DENIED" },
+  );
+  const guide = await system.call("kb_read", {
+    kind: "guide",
+    name: "ingestion",
+  });
+  assert.match(guide.text, /conversion is not reading/);
+  await assert.rejects(
+    () => system.call("kb_read", { kind: "guide", name: "../../secret" }),
+    { code: "VALIDATION_FAILED" },
+  );
+});
+test("purge removes dependent meaning plans and redacts earlier authorization reasons", async () => {
+  const f = await published(),
+    target = { id: "source:handbook", revision: 1 };
+  await atomic(
+    f.store.p("lifecycle/meaning/meaning-fixture.json"),
+    json({ target, reason: "Private source wording" }),
+  );
+  await atomic(
+    f.store.p("lifecycle/authorizations/earlier.json"),
+    json({ targets: [target], user_instruction: "Private source wording" }),
+  );
+  const life = new Lifecycle(f.store, {
+      graph: async () => ({
+        graph: { query: async () => ({}) },
+        db: { close: async () => {} },
+      }),
+      indexName: async () => "purge-auxiliary-fixture",
+    } as any),
+    plan = await life.plan("purge", [target], "Delete this source");
+  await life.execute(plan.plan_id, {
+    action: "purge",
+    targets: plan.targets,
+    user_instruction: "Delete this source and previewed dependencies",
+  });
+  await assert.rejects(() =>
+    fs.access(f.store.p("lifecycle/meaning/meaning-fixture.json")),
+  );
+  assert.doesNotMatch(
+    await fs.readFile(
+      f.store.p("lifecycle/authorizations/earlier.json"),
+      "utf8",
+    ),
+    /Private source wording/,
+  );
+});
+test("keyword-only projections never report semantic retrieval", async () => {
+  const f = await published();
+  let semantic: any = null;
+  const receipt = {
+    release_id: f.publication.release_id,
+    search: { state: "ready", semantic: false, version: "fixture" },
+    graph: { state: "ready" },
+  };
+  const r = new Retrieval(f.store, {
+    fresh: async () => true,
+    receipt: async () => receipt,
+    search: async (_q: string, _m: string[], s: boolean) => {
+      semantic = s;
+      return { items: [], elapsed_ms: 0 };
+    },
+  } as any);
+  // A real search map is required even when its result set is empty.
+  await atomic(
+    f.store.p(`views/${f.publication.release_id}/search-map.json`),
+    "{}",
+  );
+  const p = await r.retrieve({ query: "lumen", semantic: true, graph: false });
+  assert.equal(semantic, false);
+  assert.equal(p.fingerprints.semantic_mode, "keyword");
+  assert(!p.route.includes("semantic"));
+  assert(p.warnings.some((w) => w.includes("no confirmed embeddings")));
 });

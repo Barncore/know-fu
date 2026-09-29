@@ -4,6 +4,17 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-09-29 — Version 1.0.1: faster verified retrieval and real-source acceptance
+
+- Added bounded reuse of verified canonical contents and request-scoped deduplication. Mutable access/deletion controls are reread and compared before returning; file identity/timestamp changes trigger revalidation. Existing scope, revision, withdrawal and purge behavior is retained.
+- Batched FalkorDB projection writes, verified node/edge counts and retained the final readiness marker. Added failure tests so an incomplete rebuild cannot report readiness.
+- Switched repeated QMD lookups to a reusable local worker using the official SDK. Database/model handles close between requests; reindex, purge, timeout and crash terminate stale workers. Fixed QMD URL suffix mapping that previously discarded indexed hits while fallback answers hid the defect.
+- Fixed document-conversion JSON output under Windows legacy console encodings. Applied pinned Prettier 3.9.9 to handwritten engine/test files and added format/check commands. Engine-version receipts now come from package metadata instead of repeated literals.
+- Measured unchanged canonical packets and live graph parity at 25/250/1,000 records, plus separate lexical/CPU-semantic search timings. Ran a public NIST technical-source acceptance in an isolated corpus; detailed scope and outcomes belong in the validation report, not a blanket mastery claim.
+- Corrected a mistaken source-reader note and evaluator rubric that had penalized correct table readings and prompted an incorrect test-library revision. Retained original answers and failed evaluation history, regraded against the original image and restored the correct knowledge. No production knowledge was affected.
+- Validation: 54 automated tests, TypeScript build, formatting and release/package checks; see [validation](docs/VALIDATION.md) and [performance](docs/PERFORMANCE.md). Schema remains 1.1.0. No corpus migration, production research import, storage move, added hosted service or paid transcription.
+- Documentation impact: README, architecture, validation, performance, maintenance, lineage tooling note and engineering lessons updated. Refresh the installed plugin and start a fresh host session to load the rebuilt engine.
+
 ### 2026-09-29 — README animation and attribution
 
 - Replaced the incorrect scene still with the owner's supplied knowledge-upload GIF, centred below the title at an 800-pixel requested width (2× the original). Preserved the animation bytes and updated image provenance.

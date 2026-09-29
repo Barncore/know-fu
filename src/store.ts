@@ -1,103 +1,1100 @@
-import * as fs from 'node:fs/promises';
-import path from 'node:path';
-import { APP, VERSION, KBError, ensure, exists, readJson, atomic, immutable, safePath, withLock, validate, hash, json, now, uid, key, ref, refs, recordRefs, uniqueRefs, objectPath, subset, emptyAssessment, STATE } from './core.js';
-import type { RecordData, CorpusData, ReleaseData, ProposalData, Ref, Scope } from './core.js';
+import * as fs from "node:fs/promises";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { VerifiedCache, mapLimit } from "./verified-cache.js";
+import path from "node:path";
+import {
+  APP,
+  VERSION,
+  ENGINE_VERSION,
+  KBError,
+  ensure,
+  exists,
+  readJson,
+  atomic,
+  immutable,
+  safePath,
+  withLock,
+  validate,
+  hash,
+  json,
+  now,
+  uid,
+  key,
+  ref,
+  refs,
+  recordRefs,
+  uniqueRefs,
+  objectPath,
+  subset,
+  emptyAssessment,
+  STATE,
+} from "./core.js";
+import type {
+  RecordData,
+  CorpusData,
+  ReleaseData,
+  ProposalData,
+  Ref,
+  Scope,
+} from "./core.js";
 
-export type Materialized={records:RecordData[];bodies:Record<string,string>;proposal_hash:string;local_refs:Record<string,Ref>};
-export type Ledger={version:1;corpus_id:string;generation:number;blocked_ids:string[];purged_hashes:string[];operations:unknown[]};
+export type Materialized = {
+  records: RecordData[];
+  bodies: Record<string, string>;
+  proposal_hash: string;
+  local_refs: Record<string, Ref>;
+};
+export type Ledger = {
+  version: 1;
+  corpus_id: string;
+  generation: number;
+  blocked_ids: string[];
+  purged_hashes: string[];
+  operations: unknown[];
+};
+type ReadSession = {
+  config: CorpusData;
+  ledger: Ledger;
+  current: string | null;
+  signature: string;
+  memo: Map<string, Promise<unknown>>;
+};
+
 export class Store {
-  private integrity=new Map<string,string>();
-  constructor(public root:string,public project:string,public ledgerRoot=path.join(STATE,'ledgers')){this.root=path.resolve(root);}
-  p(relative:string){return path.join(this.root,relative);}
-  async config(){const c=await readJson<CorpusData>(this.p('corpus.json'));await validate('corpus',c);return c;}
-  async scope(request?:Scope){const c=await this.config();const b=c.project_bindings.find(b=>b.project_id===this.project);ensure(b,'SCOPE_DENIED','Project is not bound to this corpus');const permitted={read_modules:b.read_modules,write_modules:b.write_modules,source_refs:c.default_scope.source_refs};return request?subset(request,permitted):permitted;}
-  async init(config:CorpusData){await validate('corpus',config);ensure(!await exists(this.p('corpus.json')),'REVISION_CONFLICT','Corpus already exists');
-    await fs.mkdir(this.root,{recursive:true});await immutable(this.p('corpus.json'),json(config));
-    const ledger:Ledger={version:1,corpus_id:config.corpus_id,generation:0,blocked_ids:[],purged_hashes:[],operations:[]};
-    await immutable(path.join(this.ledgerRoot,hash(config.corpus_id)+'.json'),json(ledger));await atomic(this.p('lifecycle/ledger-generation.json'),json({generation:0}));
-    await this.audit('initialize','Created an empty research library',[]);return config;
+  private integrity = new Map<string, string>();
+  private sessions = new AsyncLocalStorage<ReadSession>();
+  private files: VerifiedCache;
+  private controlSignature: string | null = null;
+
+  constructor(
+    public root: string,
+    public project: string,
+    public ledgerRoot = path.join(STATE, "ledgers"),
+    cacheBytes?: number,
+  ) {
+    this.root = path.resolve(root);
+    this.files = new VerifiedCache(this.root, cacheBytes);
   }
-  async ledger(){const c=await this.config();const p=path.join(this.ledgerRoot,hash(c.corpus_id)+'.json');ensure(await exists(p),'LEDGER_UNAVAILABLE','Independent deletion ledger is missing; reads and restores are blocked');const ledger=await readJson<Ledger>(p);const local=await readJson(this.p('lifecycle/ledger-generation.json')).catch(()=>null);ensure(local&&local.generation===ledger.generation,'LEDGER_UNAVAILABLE','Deletion ledger must be reconciled before serving this corpus');return ledger;}
-  async current(){return (await fs.readFile(this.p('CURRENT'),'utf8').catch((e:any)=>{if(e.code==='ENOENT')return '';throw e;})).trim()||null;}
-  async release(id?:string|null){const selected=id??await this.current();if(!selected)return null;ensure(/^[a-zA-Z0-9_-]+$/.test(selected),'VALIDATION_FAILED','Invalid release ID');const r=await readJson<ReleaseData>(this.p(`releases/${selected}.json`));await validate('release',r);ensure(r.corpus_id===(await this.config()).corpus_id,'SCOPE_DENIED','Release corpus mismatch');return r;}
-  async records(releaseId?:string|null){await this.scope();const ledger=await this.ledger();const release=await this.release(releaseId);const result=new Map<string,RecordData>();
-    for(const entry of release?.records??[]){if(ledger.blocked_ids.includes(entry.record_ref.id))continue;const p=await safePath(this.root,entry.metadata_path);const bytes=await fs.readFile(p);ensure(hash(bytes)===entry.sha256,'VALIDATION_FAILED','Canonical metadata hash mismatch',{record:entry.record_ref});const r=JSON.parse(bytes.toString()) as RecordData;await validate('record',r);ensure(key(r)===key(entry.record_ref),'VALIDATION_FAILED','Manifest reference mismatch');result.set(r.id,r);}return result;
+
+  p(relative: string) {
+    return path.join(this.root, relative);
   }
-  async exact(r:Ref){const ledger=await this.ledger();ensure(!ledger.blocked_ids.includes(r.id),'CONTENT_PURGED','Record is blocked by deletion policy');
-    if(!this.integrity.has(key(r))){for(const name of await fs.readdir(this.p('releases')).catch(()=>[])){if(!/^release-[a-z0-9-]+\.json$/.test(name))continue;const manifest=await readJson<ReleaseData>(this.p('releases/'+name));for(const e of manifest.records)this.integrity.set(key(e.record_ref),e.sha256);}}
-    const expected=this.integrity.get(key(r));ensure(expected,'VALIDATION_FAILED','Record revision is not in a published manifest',{record:r});const p=await safePath(this.root,objectPath(r)+'/record.json'),bytes=await fs.readFile(p);ensure(hash(bytes)===expected,'VALIDATION_FAILED','Canonical metadata hash mismatch',{record:r});const data=JSON.parse(bytes.toString()) as RecordData;await validate('record',data);ensure(key(data)===key(r)&&data.corpus_id===(await this.config()).corpus_id,'VALIDATION_FAILED','Record identity mismatch');return data;}
-  async body(r:RecordData){if(!r.body)return '';const bytes=await fs.readFile(await safePath(this.root,r.body.path));ensure(hash(bytes)===r.body.sha256,'VALIDATION_FAILED','Canonical prose hash mismatch',{record:ref(r)});return bytes.toString('utf8');}
-  async allowed(r:RecordData,scope:Scope,cache=new Map<string,boolean>(),trail=new Set<string>()):Promise<boolean>{
-    if(cache.has(key(r)))return cache.get(key(r))!;if(trail.has(key(r)))return true;
-    if(!scope.read_modules.includes(r.maintenance_module))return false;
-    if(scope.source_refs.length){const sources=r.record_type==='source'?[ref(r)]:r.provenance.source_refs;if(!sources.length||sources.some(s=>!scope.source_refs.some(a=>key(a)===key(s))))return false;}
-    trail.add(key(r));for(const target of recordRefs(r)){let dependency:RecordData;try{dependency=await this.exact(target);}catch{return false;}if(!await this.allowed(dependency,scope,cache,new Set(trail))){cache.set(key(r),false);return false;}}
-    cache.set(key(r),true);return true;
+  cacheStats() {
+    return this.files.stats();
   }
-  async read(r:Ref,request?:Scope){const scope=await this.scope(request),record=await this.exact(r);ensure(await this.allowed(record,scope),'SCOPE_DENIED','Record or its evidence exceeds the allowed scope');return {record,body:await this.body(record)};}
-  async audit(operation:string,description:string,affected:Ref[],release:string|null=null,outcome='completed',eventId=uid('event-')){
-    if(await exists(this.p(`audit/events/${eventId}.json`))){await this.renderAudit();return readJson(this.p(`audit/events/${eventId}.json`));}
-    const event={schema_version:VERSION,event_id:eventId,timestamp:now(),job_id:null,operation,description,actor:'know-fu',record_refs:affected,before_release:null,after_release:release,outcome:outcome==='completed'?'committed':outcome==='incomplete'?'failed':outcome,reason:description};await validate('audit-event',event);
+  clearReadCache() {
+    this.files.clear();
+    this.integrity.clear();
+  }
+
+  private memo<T>(name: string, read: () => Promise<T>): Promise<T> {
+    const session = this.sessions.getStore();
+    if (!session) return read();
+    let pending = session.memo.get(name) as Promise<T> | undefined;
+    if (!pending) {
+      pending = read();
+      session.memo.set(name, pending);
+      pending.catch(() => session.memo.delete(name));
+    }
+    return pending;
+  }
+
+  private async controls(): Promise<Omit<ReadSession, "memo">> {
+    // Mutable authorization and deletion policy are deliberately never served
+    // from the file cache. Check both copies of the independent ledger state.
+    const configText = await fs.readFile(this.p("corpus.json"), "utf8");
+    const config = JSON.parse(configText.replace(/^\uFEFF/, "")) as CorpusData;
+    await validate("corpus", config);
+    const ledgerPath = path.join(
+      this.ledgerRoot,
+      hash(config.corpus_id) + ".json",
+    );
+    const ledgerText = await fs.readFile(ledgerPath, "utf8").catch(() => null);
+    const generationText = await fs
+      .readFile(this.p("lifecycle/ledger-generation.json"), "utf8")
+      .catch(() => null);
+    ensure(
+      ledgerText && generationText,
+      "LEDGER_UNAVAILABLE",
+      "Independent deletion ledger is missing; reads and restores are blocked",
+    );
+    const ledger = JSON.parse(ledgerText) as Ledger;
+    const generation = JSON.parse(generationText);
+    ensure(
+      ledger.corpus_id === config.corpus_id &&
+        generation.generation === ledger.generation,
+      "LEDGER_UNAVAILABLE",
+      "Deletion ledger must be reconciled before serving this corpus",
+    );
+    const currentText = await fs
+      .readFile(this.p("CURRENT"), "utf8")
+      .catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return "";
+        throw error;
+      });
+    const dimensions = await fs
+      .readFile(this.p("dimensions.json"), "utf8")
+      .catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return "";
+        throw error;
+      });
+    return {
+      config,
+      ledger,
+      current: currentText.trim() || null,
+      signature: hash(
+        json([
+          this.project,
+          configText,
+          ledgerText,
+          generationText,
+          currentText,
+          dimensions,
+        ]),
+      ),
+    };
+  }
+
+  async withReadSession<T>(read: () => Promise<T>): Promise<T> {
+    if (this.sessions.getStore()) return read();
+    try {
+      const before = await this.controls();
+      if (before.signature !== this.controlSignature) this.clearReadCache();
+      this.controlSignature = before.signature;
+      return await this.sessions.run(
+        { ...before, memo: new Map() },
+        async () => {
+          const result = await read();
+          const after = await this.controls();
+          ensure(
+            before.signature === after.signature,
+            "REVISION_CONFLICT",
+            "Library or access policy changed during retrieval; retry",
+          );
+          return result;
+        },
+      );
+    } catch (error) {
+      this.clearReadCache();
+      throw error;
+    }
+  }
+
+  async config(): Promise<CorpusData> {
+    const snapshot = this.sessions.getStore();
+    if (snapshot) return snapshot.config;
+    const config = await readJson<CorpusData>(this.p("corpus.json"));
+    await validate("corpus", config);
+    return config;
+  }
+
+  async scope(request?: Scope) {
+    const config = await this.config();
+    const binding = config.project_bindings.find(
+      (binding) => binding.project_id === this.project,
+    );
+    ensure(binding, "SCOPE_DENIED", "Project is not bound to this corpus");
+    const permitted = {
+      read_modules: binding.read_modules,
+      write_modules: binding.write_modules,
+      source_refs: config.default_scope.source_refs,
+    };
+    return request ? subset(request, permitted) : permitted;
+  }
+
+  async init(config: CorpusData) {
+    await validate("corpus", config);
+    ensure(
+      !(await exists(this.p("corpus.json"))),
+      "REVISION_CONFLICT",
+      "Corpus already exists",
+    );
+    await fs.mkdir(this.root, { recursive: true });
+    await immutable(this.p("corpus.json"), json(config));
+    const ledger: Ledger = {
+      version: 1,
+      corpus_id: config.corpus_id,
+      generation: 0,
+      blocked_ids: [],
+      purged_hashes: [],
+      operations: [],
+    };
+    await immutable(
+      path.join(this.ledgerRoot, hash(config.corpus_id) + ".json"),
+      json(ledger),
+    );
+    await atomic(
+      this.p("lifecycle/ledger-generation.json"),
+      json({ generation: 0 }),
+    );
+    await this.audit("initialize", "Created an empty research library", []);
+    return config;
+  }
+
+  async ledger(): Promise<Ledger> {
+    const snapshot = this.sessions.getStore();
+    if (snapshot) return snapshot.ledger;
+    const config = await this.config();
+    const file = path.join(this.ledgerRoot, hash(config.corpus_id) + ".json");
+    ensure(
+      await exists(file),
+      "LEDGER_UNAVAILABLE",
+      "Independent deletion ledger is missing; reads and restores are blocked",
+    );
+    const ledger = await readJson<Ledger>(file);
+    const local = await readJson(
+      this.p("lifecycle/ledger-generation.json"),
+    ).catch(() => null);
+    ensure(
+      local &&
+        local.generation === ledger.generation &&
+        ledger.corpus_id === config.corpus_id,
+      "LEDGER_UNAVAILABLE",
+      "Deletion ledger must be reconciled before serving this corpus",
+    );
+    return ledger;
+  }
+
+  async current(): Promise<string | null> {
+    const snapshot = this.sessions.getStore();
+    if (snapshot) return snapshot.current;
+    return (
+      (
+        await fs
+          .readFile(this.p("CURRENT"), "utf8")
+          .catch((error: NodeJS.ErrnoException) => {
+            if (error.code === "ENOENT") return "";
+            throw error;
+          })
+      ).trim() || null
+    );
+  }
+
+  async release(id?: string | null): Promise<ReleaseData | null> {
+    const selected = id ?? (await this.current());
+    if (!selected) return null;
+    ensure(
+      /^[a-zA-Z0-9_-]+$/.test(selected),
+      "VALIDATION_FAILED",
+      "Invalid release ID",
+    );
+    return this.memo("release:" + selected, async () => {
+      const release = await this.files.json<ReleaseData>(
+        `releases/${selected}.json`,
+        "release",
+      );
+      ensure(
+        release.corpus_id === (await this.config()).corpus_id,
+        "SCOPE_DENIED",
+        "Release corpus mismatch",
+      );
+      return release;
+    });
+  }
+
+  async records(releaseId?: string | null): Promise<Map<string, RecordData>> {
+    await this.scope();
+    const ledger = await this.ledger();
+    const release = await this.release(releaseId);
+    return this.memo(
+      "records:" + (release?.release_id ?? "empty"),
+      async () => {
+        const blocked = new Set(ledger.blocked_ids);
+        const entries = (release?.records ?? []).filter(
+          (entry) => !blocked.has(entry.record_ref.id),
+        );
+        const records = await mapLimit(entries, async (entry) => {
+          const record = await this.memo("exact:" + key(entry.record_ref), () =>
+            this.files.json<RecordData>(
+              entry.metadata_path,
+              "record",
+              entry.sha256,
+            ),
+          );
+          ensure(
+            key(record) === key(entry.record_ref) &&
+              record.corpus_id === release!.corpus_id,
+            "VALIDATION_FAILED",
+            "Manifest reference mismatch",
+          );
+          this.integrity.set(key(entry.record_ref), entry.sha256);
+          return record;
+        });
+        return new Map(records.map((record) => [record.id, record]));
+      },
+    );
+  }
+
+  async exact(reference: Ref): Promise<RecordData> {
+    const ledger = await this.ledger();
+    ensure(
+      !ledger.blocked_ids.includes(reference.id),
+      "CONTENT_PURGED",
+      "Record is blocked by deletion policy",
+    );
+    return this.memo("exact:" + key(reference), async () => {
+      if (!this.integrity.has(key(reference))) {
+        for (const name of await fs
+          .readdir(this.p("releases"))
+          .catch(() => [])) {
+          if (!/^release-[a-z0-9-]+\.json$/.test(name)) continue;
+          const manifest = await this.files.json<ReleaseData>(
+            "releases/" + name,
+            "release",
+          );
+          ensure(
+            manifest.corpus_id === (await this.config()).corpus_id,
+            "SCOPE_DENIED",
+            "Release corpus mismatch",
+          );
+          for (const entry of manifest.records)
+            this.integrity.set(key(entry.record_ref), entry.sha256);
+        }
+      }
+      const expected = this.integrity.get(key(reference));
+      ensure(
+        expected,
+        "VALIDATION_FAILED",
+        "Record revision is not in a published manifest",
+        { record: reference },
+      );
+      const record = await this.files.json<RecordData>(
+        objectPath(reference) + "/record.json",
+        "record",
+        expected,
+      );
+      ensure(
+        key(record) === key(reference) &&
+          record.corpus_id === (await this.config()).corpus_id,
+        "VALIDATION_FAILED",
+        "Record identity mismatch",
+      );
+      return record;
+    });
+  }
+
+  async body(record: RecordData): Promise<string> {
+    if (!record.body) return "";
+    const body = record.body;
+    return this.memo("body:" + body.path + ":" + body.sha256, () =>
+      this.files.text(body.path, body.sha256),
+    );
+  }
+
+  async allowed(
+    record: RecordData,
+    scope: Scope,
+    cache = new Map<string, boolean>(),
+    trail = new Set<string>(),
+  ): Promise<boolean> {
+    if (cache.has(key(record))) return cache.get(key(record))!;
+    if (trail.has(key(record))) return true;
+    if (!scope.read_modules.includes(record.maintenance_module)) return false;
+    if (scope.source_refs.length) {
+      const sources =
+        record.record_type === "source"
+          ? [ref(record)]
+          : record.provenance.source_refs;
+      if (
+        !sources.length ||
+        sources.some(
+          (source) =>
+            !scope.source_refs.some((allowed) => key(allowed) === key(source)),
+        )
+      )
+        return false;
+    }
+    trail.add(key(record));
+    for (const target of recordRefs(record)) {
+      let dependency: RecordData;
+      try {
+        dependency = await this.exact(target);
+      } catch {
+        return false;
+      }
+      if (!(await this.allowed(dependency, scope, cache, new Set(trail)))) {
+        cache.set(key(record), false);
+        return false;
+      }
+    }
+    cache.set(key(record), true);
+    return true;
+  }
+
+  async read(reference: Ref, request?: Scope) {
+    return this.withReadSession(async () => {
+      const scope = await this.scope(request);
+      const record = await this.exact(reference);
+      ensure(
+        await this.allowed(record, scope),
+        "SCOPE_DENIED",
+        "Record or its evidence exceeds the allowed scope",
+      );
+      return { record, body: await this.body(record) };
+    });
+  }
+  async audit(
+    operation: string,
+    description: string,
+    affected: Ref[],
+    release: string | null = null,
+    outcome = "completed",
+    eventId = uid("event-"),
+  ) {
+    if (await exists(this.p(`audit/events/${eventId}.json`))) {
+      await this.renderAudit();
+      return readJson(this.p(`audit/events/${eventId}.json`));
+    }
+    const event = {
+      schema_version: VERSION,
+      event_id: eventId,
+      timestamp: now(),
+      job_id: null,
+      operation,
+      description,
+      actor: "know-fu",
+      record_refs: affected,
+      before_release: null,
+      after_release: release,
+      outcome:
+        outcome === "completed"
+          ? "committed"
+          : outcome === "incomplete"
+            ? "failed"
+            : outcome,
+      reason: description,
+    };
+    await validate("audit-event", event);
     // Each event is immutable; the readable journal is rebuilt under the caller's operation lock.
-    await immutable(this.p(`audit/events/${eventId}.json`),json(event));await this.renderAudit();return event;
+    await immutable(this.p(`audit/events/${eventId}.json`), json(event));
+    await this.renderAudit();
+    return event;
   }
-  async renderAudit(){const names=(await fs.readdir(this.p('audit/events')).catch(()=>[])).filter(x=>x.endsWith('.json'));const events=await Promise.all(names.map(n=>readJson(this.p('audit/events/'+n))));events.sort((a,b)=>a.timestamp.localeCompare(b.timestamp)||a.event_id.localeCompare(b.event_id));await atomic(this.p('audit/events.jsonl'),events.map(e=>JSON.stringify(e)).join('\n')+'\n');await atomic(this.p('log.md'),events.map(e=>`## [${e.timestamp.slice(0,10)}] ${e.operation} | ${e.description}\n\nOutcome: ${e.outcome}; release: ${e.after_release??'none'}.\n`).join('\n'));}
-  async recover(){const journal=await readJson(this.p('publication.json')).catch(()=>null);if(!journal)return;const current=await this.current();if(current===journal.release.release_id){if(journal.impacts)await atomic(this.p(`releases/${current}.impacts.json`),json(journal.impacts));await this.audit('publish','Committed research release',journal.changed_refs,current,'completed',journal.event_id);}await fs.rm(this.p('publication.json'),{force:true});}
-  async compile(proposal:ProposalData,existingStaged:RecordData[]=[]):Promise<Materialized>{
-    await validate('proposal',proposal);const scope=await this.scope(proposal.scope_policy);ensure(await this.current()===proposal.base_release,'REVISION_CONFLICT','Rebase the proposal against the current release');
-    const originals=await this.records();const local:Record<string,Ref>={};
-    for(const item of proposal.items){ensure(!local[item.local_id],'VALIDATION_FAILED','Duplicate local reference');ensure(scope.write_modules.includes(item.maintenance_module),'SCOPE_DENIED','Proposal writes outside its module');const old=item.existing_ref;if(old){ensure(key(originals.get(old.id)??{id:'',revision:0})===key(old),'REVISION_CONFLICT','Record changed since proposal');local[item.local_id]={id:old.id,revision:old.revision+1};}else local[item.local_id]={id:`${item.record_type}:${hash(proposal.proposal_id+':'+item.local_id).slice(0,28)}`,revision:1};}
-    const expand=(v:any):any=>{if(Array.isArray(v))return v.map(expand);if(v&&typeof v==='object'){if('local_ref'in v){ensure(local[v.local_ref],'VALIDATION_FAILED','Unknown local reference',{local_ref:v.local_ref});return local[v.local_ref];}return Object.fromEntries(Object.entries(v).map(([k,x])=>[k,expand(x)]));}return v;};
-    const config=await this.config(),records:RecordData[]=[],bodies:Record<string,string>={};
-    for(const original of proposal.items){const i=expand(original),identity=local[i.local_id],body=i.body_markdown as string|null;
-      const dependencies=uniqueRefs([...i.source_refs,...i.input_refs,...refs(i.payload),...refs(i.extensions??{})]).filter(r=>r.id!==identity.id);
-      const r={schema_version:VERSION,...identity,corpus_id:config.corpus_id,record_type:i.record_type,title:i.title,created_at:now(),lifecycle:'active',archived:false,maintenance_module:i.maintenance_module,epistemic:i.epistemic,scope:i.scope,provenance:{actor:'codex',method:'semantic_proposal',source_refs:i.source_refs,input_refs:i.input_refs,tool_versions:{coordinator:'1.0.0'}},assessments:i.assessments??{fidelity:emptyAssessment(),evidence:emptyAssessment(),applicability:emptyAssessment()},depends_on:dependencies,supersedes:[],change_reason:i.change_reason,body:body?{path:objectPath(identity)+'/body.md',sha256:hash(body)}:null,extensions:i.extensions??{},payload:i.payload} as RecordData;
-      if(body)bodies[key(r)]=body;records.push(r);
+  async renderAudit() {
+    const names = (
+      await fs.readdir(this.p("audit/events")).catch(() => [])
+    ).filter((x) => x.endsWith(".json"));
+    const events = await Promise.all(
+      names.map((n) => readJson(this.p("audit/events/" + n))),
+    );
+    events.sort(
+      (a, b) =>
+        a.timestamp.localeCompare(b.timestamp) ||
+        a.event_id.localeCompare(b.event_id),
+    );
+    await atomic(
+      this.p("audit/events.jsonl"),
+      events.map((e) => JSON.stringify(e)).join("\n") + "\n",
+    );
+    await atomic(
+      this.p("log.md"),
+      events
+        .map(
+          (e) =>
+            `## [${e.timestamp.slice(0, 10)}] ${e.operation} | ${e.description}\n\nOutcome: ${e.outcome}; release: ${e.after_release ?? "none"}.\n`,
+        )
+        .join("\n"),
+    );
+  }
+  async recover() {
+    const journal = await readJson(this.p("publication.json")).catch(
+      () => null,
+    );
+    if (!journal) return;
+    const current = await this.current();
+    if (current === journal.release.release_id) {
+      if (journal.impacts)
+        await atomic(
+          this.p(`releases/${current}.impacts.json`),
+          json(journal.impacts),
+        );
+      await this.audit(
+        "publish",
+        "Committed research release",
+        journal.changed_refs,
+        current,
+        "completed",
+        journal.event_id,
+      );
     }
-    await this.validateRecords(records,bodies,scope,originals,existingStaged);return {records,bodies,proposal_hash:hash(json(proposal)),local_refs:local};
+    await fs.rm(this.p("publication.json"), { force: true });
   }
-  async validateRecords(records:RecordData[],bodies:Record<string,string>,scope:Scope,base:Map<string,RecordData>,existingStaged:RecordData[]=[]){
-    const config=await this.config(),ledger=await this.ledger();const staged=new Map([...existingStaged,...records].map(r=>[key(r),r]));ensure(new Set(records.map(key)).size===records.length,'VALIDATION_FAILED','Duplicate record revisions');
-    const dimensions=await readJson(this.p('dimensions.json')).catch(()=>({}));const checkCondition=(e:any):void=>{if(!e)return;if(e.all||e.any){for(const t of e.all??e.any)checkCondition(t);return;}if(e.not){checkCondition(e.not);return;}const d=dimensions[e.dimension];ensure(d,'VALIDATION_FAILED','Register the condition dimension before publication',{dimension:e.dimension});ensure((d.unit??null)===(e.unit??null),'VALIDATION_FAILED','Condition unit differs from its registered dimension');if(e.operator==='exists')return;const values=e.operator==='in'?e.value:[e.value];ensure(Array.isArray(values)&&values.every(v=>typeof v===d.type),'VALIDATION_FAILED','Condition values have the wrong type');if(['gt','gte','lt','lte'].includes(e.operator))ensure(d.type==='number','VALIDATION_FAILED','Ordering comparisons require a numeric dimension');};
-    const resolve=async(r:Ref)=>staged.get(key(r))??await this.exact(r);
-    const getBody=async(r:RecordData)=>bodies[key(r)]??await this.body(r);
-    for(const r of records){await validate('record',r);ensure(r.corpus_id===config.corpus_id,'SCOPE_DENIED','Foreign corpus record');ensure(!ledger.blocked_ids.includes(r.id),'CONTENT_PURGED','Cannot restore purged identity');ensure(scope.write_modules.includes(r.maintenance_module),'SCOPE_DENIED','Unauthorized module write');ensure(config.modules.some(m=>m.module_id===r.maintenance_module)&&r.scope.domains.every(d=>config.domains.some(x=>x.domain_id===d)),'VALIDATION_FAILED','Unregistered module/domain');
-      const old=base.get(r.id);ensure(r.revision===(old?.revision??0)+1,'REVISION_CONFLICT','Revision must advance the current record exactly once');
+  async compile(
+    proposal: ProposalData,
+    existingStaged: RecordData[] = [],
+  ): Promise<Materialized> {
+    await validate("proposal", proposal);
+    const scope = await this.scope(proposal.scope_policy);
+    ensure(
+      (await this.current()) === proposal.base_release,
+      "REVISION_CONFLICT",
+      "Rebase the proposal against the current release",
+    );
+    const originals = await this.records();
+    const local: Record<string, Ref> = {};
+    for (const item of proposal.items) {
+      ensure(
+        !local[item.local_id],
+        "VALIDATION_FAILED",
+        "Duplicate local reference",
+      );
+      ensure(
+        scope.write_modules.includes(item.maintenance_module),
+        "SCOPE_DENIED",
+        "Proposal writes outside its module",
+      );
+      const old = item.existing_ref;
+      if (old) {
+        ensure(
+          key(originals.get(old.id) ?? { id: "", revision: 0 }) === key(old),
+          "REVISION_CONFLICT",
+          "Record changed since proposal",
+        );
+        local[item.local_id] = { id: old.id, revision: old.revision + 1 };
+      } else
+        local[item.local_id] = {
+          id: `${item.record_type}:${hash(proposal.proposal_id + ":" + item.local_id).slice(0, 28)}`,
+          revision: 1,
+        };
+    }
+    const expand = (v: any): any => {
+      if (Array.isArray(v)) return v.map(expand);
+      if (v && typeof v === "object") {
+        if ("local_ref" in v) {
+          ensure(
+            local[v.local_ref],
+            "VALIDATION_FAILED",
+            "Unknown local reference",
+            { local_ref: v.local_ref },
+          );
+          return local[v.local_ref];
+        }
+        return Object.fromEntries(
+          Object.entries(v).map(([k, x]) => [k, expand(x)]),
+        );
+      }
+      return v;
+    };
+    const config = await this.config(),
+      records: RecordData[] = [],
+      bodies: Record<string, string> = {};
+    for (const original of proposal.items) {
+      const i = expand(original),
+        identity = local[i.local_id],
+        body = i.body_markdown as string | null;
+      const dependencies = uniqueRefs([
+        ...i.source_refs,
+        ...i.input_refs,
+        ...refs(i.payload),
+        ...refs(i.extensions ?? {}),
+      ]).filter((r) => r.id !== identity.id);
+      const r = {
+        schema_version: VERSION,
+        ...identity,
+        corpus_id: config.corpus_id,
+        record_type: i.record_type,
+        title: i.title,
+        created_at: now(),
+        lifecycle: "active",
+        archived: false,
+        maintenance_module: i.maintenance_module,
+        epistemic: i.epistemic,
+        scope: i.scope,
+        provenance: {
+          actor: "codex",
+          method: "semantic_proposal",
+          source_refs: i.source_refs,
+          input_refs: i.input_refs,
+          tool_versions: { coordinator: ENGINE_VERSION },
+        },
+        assessments: i.assessments ?? {
+          fidelity: emptyAssessment(),
+          evidence: emptyAssessment(),
+          applicability: emptyAssessment(),
+        },
+        depends_on: dependencies,
+        supersedes: [],
+        change_reason: i.change_reason,
+        body: body
+          ? { path: objectPath(identity) + "/body.md", sha256: hash(body) }
+          : null,
+        extensions: i.extensions ?? {},
+        payload: i.payload,
+      } as RecordData;
+      if (body) bodies[key(r)] = body;
+      records.push(r);
+    }
+    await this.validateRecords(
+      records,
+      bodies,
+      scope,
+      originals,
+      existingStaged,
+    );
+    return {
+      records,
+      bodies,
+      proposal_hash: hash(json(proposal)),
+      local_refs: local,
+    };
+  }
+  async validateRecords(
+    records: RecordData[],
+    bodies: Record<string, string>,
+    scope: Scope,
+    base: Map<string, RecordData>,
+    existingStaged: RecordData[] = [],
+  ) {
+    const config = await this.config(),
+      ledger = await this.ledger();
+    const staged = new Map(
+      [...existingStaged, ...records].map((r) => [key(r), r]),
+    );
+    ensure(
+      new Set(records.map(key)).size === records.length,
+      "VALIDATION_FAILED",
+      "Duplicate record revisions",
+    );
+    const dimensions = await readJson(this.p("dimensions.json")).catch(
+      () => ({}),
+    );
+    const checkCondition = (e: any): void => {
+      if (!e) return;
+      if (e.all || e.any) {
+        for (const t of e.all ?? e.any) checkCondition(t);
+        return;
+      }
+      if (e.not) {
+        checkCondition(e.not);
+        return;
+      }
+      const d = dimensions[e.dimension];
+      ensure(
+        d,
+        "VALIDATION_FAILED",
+        "Register the condition dimension before publication",
+        { dimension: e.dimension },
+      );
+      ensure(
+        (d.unit ?? null) === (e.unit ?? null),
+        "VALIDATION_FAILED",
+        "Condition unit differs from its registered dimension",
+      );
+      if (e.operator === "exists") return;
+      const values = e.operator === "in" ? e.value : [e.value];
+      ensure(
+        Array.isArray(values) && values.every((v) => typeof v === d.type),
+        "VALIDATION_FAILED",
+        "Condition values have the wrong type",
+      );
+      if (["gt", "gte", "lt", "lte"].includes(e.operator))
+        ensure(
+          d.type === "number",
+          "VALIDATION_FAILED",
+          "Ordering comparisons require a numeric dimension",
+        );
+    };
+    const resolve = async (r: Ref) =>
+      staged.get(key(r)) ?? (await this.exact(r));
+    const getBody = async (r: RecordData) =>
+      bodies[key(r)] ?? (await this.body(r));
+    for (const r of records) {
+      await validate("record", r);
+      ensure(
+        r.corpus_id === config.corpus_id,
+        "SCOPE_DENIED",
+        "Foreign corpus record",
+      );
+      ensure(
+        !ledger.blocked_ids.includes(r.id),
+        "CONTENT_PURGED",
+        "Cannot restore purged identity",
+      );
+      ensure(
+        scope.write_modules.includes(r.maintenance_module),
+        "SCOPE_DENIED",
+        "Unauthorized module write",
+      );
+      ensure(
+        config.modules.some((m) => m.module_id === r.maintenance_module) &&
+          r.scope.domains.every((d) =>
+            config.domains.some((x) => x.domain_id === d),
+          ),
+        "VALIDATION_FAILED",
+        "Unregistered module/domain",
+      );
+      const old = base.get(r.id);
+      ensure(
+        r.revision === (old?.revision ?? 0) + 1,
+        "REVISION_CONFLICT",
+        "Revision must advance the current record exactly once",
+      );
       checkCondition(r.scope.condition_expression);
-      if(r.body){ensure(r.body.path===objectPath(r)+'/body.md','VALIDATION_FAILED','Body must belong to its immutable record');ensure(hash(await getBody(r))===r.body.sha256,'VALIDATION_FAILED','Body hash does not match');}
-      const seen=new Set<string>();const checkScope=async(target:Ref):Promise<void>=>{if(seen.has(key(target)))return;seen.add(key(target));const t=await resolve(target);ensure(scope.read_modules.includes(t.maintenance_module),'SCOPE_DENIED','Dependency is outside readable modules');if(scope.source_refs.length&&t.record_type==='source')ensure(scope.source_refs.some(s=>key(s)===key(t)),'SCOPE_DENIED','Evidence outside selected sources');for(const d of recordRefs(t))await checkScope(d);};for(const target of recordRefs(r))await checkScope(target);
-      for(const target of r.provenance.source_refs)ensure((await resolve(target)).record_type==='source','VALIDATION_FAILED','Source provenance must reference sources');
-      const p=r.payload as any;
-      if(r.record_type==='source'){const bytes=await fs.readFile(await safePath(this.root,p.original_path));ensure(hash(bytes)===p.sha256,'VALIDATION_FAILED','Original source hash does not match');ensure(!ledger.purged_hashes.includes(p.sha256),'CONTENT_PURGED','These source bytes were purged');for(const s of p.derived_from_sources)ensure((await resolve(s)).record_type==='source','VALIDATION_FAILED','Source lineage must reference sources');}
-      if(r.record_type==='passage'){const source=await resolve(p.source_ref);ensure(source.record_type==='source','VALIDATION_FAILED','Passage target is not a source');await this.verifyLocator(r,source);}
-      if(r.record_type==='knowledge'||r.record_type==='learning'){ensure(r.body&&(await getBody(r)).trim(),'VALIDATION_FAILED','An explanatory body is required');for(const target of p.concept_refs??[])ensure((await resolve(target)).record_type==='concept','VALIDATION_FAILED','Concept reference has wrong family');for(const target of p.knowledge_refs??[])ensure((await resolve(target)).record_type==='knowledge','VALIDATION_FAILED','Knowledge reference has wrong family');}
-      if(r.epistemic==='inference'||r.epistemic==='hypothesis')ensure(r.provenance.input_refs.length,'VALIDATION_FAILED','Inference needs identified premises');
-      if(r.record_type==='relationship'&&p.predicate==='exemplifies'){const t=await resolve(p.object);ensure(t.record_type==='concept'||(t.record_type==='knowledge'&&['mechanism','procedure'].includes((t.payload as any).form)),'VALIDATION_FAILED','exemplifies needs a concept, mechanism or procedure');const s=await resolve(p.subject);ensure(s.record_type==='learning'||s.record_type==='passage'||s.epistemic==='illustration','VALIDATION_FAILED','exemplifies needs an attributable case');}
-      if(Object.keys(r.extensions).length)ensure(['knowledge','learning'].includes(r.record_type),'VALIDATION_FAILED','Functional/application extensions belong to knowledge or learning');
-      for(const previous of r.supersedes){const old=await resolve(previous);ensure(old.record_type!=='source','VALIDATION_FAILED','Original sources cannot be superseded as interpretations');ensure(r.scope.domains.some(d=>old.scope.domains.includes(d)),'VALIDATION_FAILED','Supersession needs an overlapping scope');}
+      if (r.body) {
+        ensure(
+          r.body.path === objectPath(r) + "/body.md",
+          "VALIDATION_FAILED",
+          "Body must belong to its immutable record",
+        );
+        ensure(
+          hash(await getBody(r)) === r.body.sha256,
+          "VALIDATION_FAILED",
+          "Body hash does not match",
+        );
+      }
+      const seen = new Set<string>();
+      const checkScope = async (target: Ref): Promise<void> => {
+        if (seen.has(key(target))) return;
+        seen.add(key(target));
+        const t = await resolve(target);
+        ensure(
+          scope.read_modules.includes(t.maintenance_module),
+          "SCOPE_DENIED",
+          "Dependency is outside readable modules",
+        );
+        if (scope.source_refs.length && t.record_type === "source")
+          ensure(
+            scope.source_refs.some((s) => key(s) === key(t)),
+            "SCOPE_DENIED",
+            "Evidence outside selected sources",
+          );
+        for (const d of recordRefs(t)) await checkScope(d);
+      };
+      for (const target of recordRefs(r)) await checkScope(target);
+      for (const target of r.provenance.source_refs)
+        ensure(
+          (await resolve(target)).record_type === "source",
+          "VALIDATION_FAILED",
+          "Source provenance must reference sources",
+        );
+      const p = r.payload as any;
+      if (r.record_type === "source") {
+        const bytes = await fs.readFile(
+          await safePath(this.root, p.original_path),
+        );
+        ensure(
+          hash(bytes) === p.sha256,
+          "VALIDATION_FAILED",
+          "Original source hash does not match",
+        );
+        ensure(
+          !ledger.purged_hashes.includes(p.sha256),
+          "CONTENT_PURGED",
+          "These source bytes were purged",
+        );
+        for (const s of p.derived_from_sources)
+          ensure(
+            (await resolve(s)).record_type === "source",
+            "VALIDATION_FAILED",
+            "Source lineage must reference sources",
+          );
+      }
+      if (r.record_type === "passage") {
+        const source = await resolve(p.source_ref);
+        ensure(
+          source.record_type === "source",
+          "VALIDATION_FAILED",
+          "Passage target is not a source",
+        );
+        await this.verifyLocator(r, source);
+      }
+      if (r.record_type === "knowledge" || r.record_type === "learning") {
+        ensure(
+          r.body && (await getBody(r)).trim(),
+          "VALIDATION_FAILED",
+          "An explanatory body is required",
+        );
+        for (const target of p.concept_refs ?? [])
+          ensure(
+            (await resolve(target)).record_type === "concept",
+            "VALIDATION_FAILED",
+            "Concept reference has wrong family",
+          );
+        for (const target of p.knowledge_refs ?? [])
+          ensure(
+            (await resolve(target)).record_type === "knowledge",
+            "VALIDATION_FAILED",
+            "Knowledge reference has wrong family",
+          );
+      }
+      if (r.epistemic === "inference" || r.epistemic === "hypothesis")
+        ensure(
+          r.provenance.input_refs.length,
+          "VALIDATION_FAILED",
+          "Inference needs identified premises",
+        );
+      if (r.record_type === "relationship" && p.predicate === "exemplifies") {
+        const t = await resolve(p.object);
+        ensure(
+          t.record_type === "concept" ||
+            (t.record_type === "knowledge" &&
+              ["mechanism", "procedure"].includes((t.payload as any).form)),
+          "VALIDATION_FAILED",
+          "exemplifies needs a concept, mechanism or procedure",
+        );
+        const s = await resolve(p.subject);
+        ensure(
+          s.record_type === "learning" ||
+            s.record_type === "passage" ||
+            s.epistemic === "illustration",
+          "VALIDATION_FAILED",
+          "exemplifies needs an attributable case",
+        );
+      }
+      if (Object.keys(r.extensions).length)
+        ensure(
+          ["knowledge", "learning"].includes(r.record_type),
+          "VALIDATION_FAILED",
+          "Functional/application extensions belong to knowledge or learning",
+        );
+      for (const previous of r.supersedes) {
+        const old = await resolve(previous);
+        ensure(
+          old.record_type !== "source",
+          "VALIDATION_FAILED",
+          "Original sources cannot be superseded as interpretations",
+        );
+        ensure(
+          r.scope.domains.some((d) => old.scope.domains.includes(d)),
+          "VALIDATION_FAILED",
+          "Supersession needs an overlapping scope",
+        );
+      }
     }
-    const visiting=new Set<string>(),done=new Set<string>();const visit=async(r:RecordData):Promise<void>=>{if(done.has(key(r)))return;ensure(!visiting.has(key(r)),'VALIDATION_FAILED','Regeneration dependency cycle',{record:ref(r)});visiting.add(key(r));for(const d of r.depends_on)await visit(await resolve(d));visiting.delete(key(r));done.add(key(r));};for(const r of records)await visit(r);
+    const visiting = new Set<string>(),
+      done = new Set<string>();
+    const visit = async (r: RecordData): Promise<void> => {
+      if (done.has(key(r))) return;
+      ensure(
+        !visiting.has(key(r)),
+        "VALIDATION_FAILED",
+        "Regeneration dependency cycle",
+        { record: ref(r) },
+      );
+      visiting.add(key(r));
+      for (const d of r.depends_on) await visit(await resolve(d));
+      visiting.delete(key(r));
+      done.add(key(r));
+    };
+    for (const r of records) await visit(r);
   }
-  async verifyLocator(passage:RecordData,source:RecordData){const p=passage.payload as any,s=source.payload as any,l=p.locator;ensure(p.text||p.asset_path,'LOCATOR_UNRESOLVED','Empty passage has no asset');if(p.asset_path)await safePath(this.root,p.asset_path);
-    if(l.kind==='lines'){const bytes=await fs.readFile(await safePath(this.root,s.original_path));ensure(l.start>=1&&l.end>=l.start,'LOCATOR_UNRESOLVED','Invalid line interval');const original=bytes.toString('utf8'),lines=original.split(/\r?\n/);ensure(l.end<=lines.length,'LOCATOR_UNRESOLVED','Line interval exceeds original');const anchor=l.anchor?.match(/^utf16-chars:(\d+):(\d+)$/);let text=lines.slice(l.start-1,l.end).join('\n');if(anchor){const start=Number(anchor[1]),end=Number(anchor[2]);ensure(end>start&&end<=original.length,'LOCATOR_UNRESOLVED','Character interval outside source');text=original.slice(start,end);}else ensure(!l.anchor,'LOCATOR_UNRESOLVED','Unsupported line anchor');ensure(p.text===text,'LOCATOR_UNRESOLVED','Quoted lines do not match the original');ensure(hash(text)===p.extraction_sha256,'LOCATOR_UNRESOLVED','Extraction hash mismatch');}
-    else {const extraction=l.anchor?.match(/^extract:(job-[a-z0-9-]+):(?:(supp-[a-f0-9]+):)?/),suffix=extraction?'/extractions/'+extraction[1]+'/'+(extraction[2]??'extraction')+'.json':'/extraction.json';const manifest=await readJson(this.p(path.posix.dirname(s.original_path)+suffix)).catch(()=>null);ensure(manifest,'LOCATOR_UNRESOLVED','Non-line locator requires extraction mapping');const unit=manifest.units.find((u:any)=>JSON.stringify(u.locator)===JSON.stringify(l));ensure(unit&&unit.sha256===p.extraction_sha256&&unit.text===p.text&&(unit.asset_path??null)===(p.asset_path??null),'LOCATOR_UNRESOLVED','Locator does not resolve to preserved extraction');}
+  async verifyLocator(passage: RecordData, source: RecordData) {
+    const p = passage.payload as any,
+      s = source.payload as any,
+      l = p.locator;
+    ensure(
+      p.text || p.asset_path,
+      "LOCATOR_UNRESOLVED",
+      "Empty passage has no asset",
+    );
+    if (p.asset_path) await safePath(this.root, p.asset_path);
+    if (l.kind === "lines") {
+      const bytes = await fs.readFile(
+        await safePath(this.root, s.original_path),
+      );
+      ensure(
+        l.start >= 1 && l.end >= l.start,
+        "LOCATOR_UNRESOLVED",
+        "Invalid line interval",
+      );
+      const original = bytes.toString("utf8"),
+        lines = original.split(/\r?\n/);
+      ensure(
+        l.end <= lines.length,
+        "LOCATOR_UNRESOLVED",
+        "Line interval exceeds original",
+      );
+      const anchor = l.anchor?.match(/^utf16-chars:(\d+):(\d+)$/);
+      let text = lines.slice(l.start - 1, l.end).join("\n");
+      if (anchor) {
+        const start = Number(anchor[1]),
+          end = Number(anchor[2]);
+        ensure(
+          end > start && end <= original.length,
+          "LOCATOR_UNRESOLVED",
+          "Character interval outside source",
+        );
+        text = original.slice(start, end);
+      } else ensure(!l.anchor, "LOCATOR_UNRESOLVED", "Unsupported line anchor");
+      ensure(
+        p.text === text,
+        "LOCATOR_UNRESOLVED",
+        "Quoted lines do not match the original",
+      );
+      ensure(
+        hash(text) === p.extraction_sha256,
+        "LOCATOR_UNRESOLVED",
+        "Extraction hash mismatch",
+      );
+    } else {
+      const extraction = l.anchor?.match(
+          /^extract:(job-[a-z0-9-]+):(?:(supp-[a-f0-9]+):)?/,
+        ),
+        suffix = extraction
+          ? "/extractions/" +
+            extraction[1] +
+            "/" +
+            (extraction[2] ?? "extraction") +
+            ".json"
+          : "/extraction.json";
+      const manifest = await readJson(
+        this.p(path.posix.dirname(s.original_path) + suffix),
+      ).catch(() => null);
+      ensure(
+        manifest,
+        "LOCATOR_UNRESOLVED",
+        "Non-line locator requires extraction mapping",
+      );
+      const unit = manifest.units.find(
+        (u: any) => JSON.stringify(u.locator) === JSON.stringify(l),
+      );
+      ensure(
+        unit &&
+          unit.sha256 === p.extraction_sha256 &&
+          unit.text === p.text &&
+          (unit.asset_path ?? null) === (p.asset_path ?? null),
+        "LOCATOR_UNRESOLVED",
+        "Locator does not resolve to preserved extraction",
+      );
+    }
   }
-  async publish(records:RecordData[],bodies:Record<string,string>,baseRelease:string|null,reason:string,scope:Scope,receipts:string[]=[],omitIds:string[]=[]){return withLock(this.root,'publish',async()=>{
-    await this.recover();ensure(await this.current()===baseRelease,'REVISION_CONFLICT','Another job published first');const base=await this.records();await this.validateRecords(records,bodies,await this.scope(scope),base);
-    for(const r of records){if(r.body)await immutable(await safePath(this.root,r.body.path,true),bodies[key(r)]??await this.body(r));await immutable(this.p(objectPath(r)+'/record.json'),json(r));base.set(r.id,r);}for(const id of omitIds)base.delete(id);
-    const entries=[];for(const r of base.values()){const metadata_path=objectPath(r)+'/record.json';entries.push({record_ref:ref(r),metadata_path,sha256:hash(await fs.readFile(this.p(metadata_path)))});}entries.sort((a,b)=>a.record_ref.id.localeCompare(b.record_ref.id));
-    const release:ReleaseData={schema_version:VERSION,release_id:uid('release-'),corpus_id:(await this.config()).corpus_id,parent_release:baseRelease,created_at:now(),change_reason:reason,records:entries,coverage_receipts:receipts,validation_receipts:[]};await validate('release',release);
-    const changed=new Set(records.map(r=>r.id)),affected=new Set(changed),impacts:any[]=await readJson<any[]>(this.p(`releases/${baseRelease}.impacts.json`)).catch(()=>[]);
-    for(let round=0;round<base.size;round++){let added=false;for(const r of base.values())if(!affected.has(r.id)&&r.depends_on.some(d=>affected.has(d.id))){affected.add(r.id);added=true;}if(!added)break;}
-    for(const r of base.values())if(!changed.has(r.id)&&affected.has(r.id)&&!impacts.some(x=>x.record_ref.id===r.id))impacts.push({record_ref:ref(r),changed_dependencies:r.depends_on.filter(d=>affected.has(d.id)),status:'pending_reassessment',outside_write_scope:!scope.write_modules.includes(r.maintenance_module)});
-    for(let i=impacts.length-1;i>=0;i--)if(changed.has(impacts[i].record_ref.id))impacts.splice(i,1);
-    const event_id=uid('event-');await atomic(this.p('publication.json'),json({release,changed_refs:records.map(ref),event_id,impacts}));await immutable(this.p(`releases/${release.release_id}.json`),json(release));await atomic(this.p(`releases/${release.release_id}.impacts.json`),json(impacts));
-    if(process.env.KB_TEST_FAULT==='disk_full')throw new KBError('ENOSPC','Injected disk-full write failure; current release was not advanced');
-    if(process.env.KB_TEST_PAUSE_BEFORE_POINTER==='1'){await atomic(this.p('test-paused.json'),json({pid:process.pid}));await new Promise(()=>setInterval(()=>{},1000));}
-    if(process.env.KB_TEST_FAULT==='before_pointer')throw new KBError('SIMULATED_CRASH','Test interruption before pointer');
-    await atomic(this.p('CURRENT'),release.release_id+'\n');this.integrity.clear();
-    if(process.env.KB_TEST_FAULT==='after_pointer')throw new KBError('SIMULATED_CRASH','Test interruption after pointer');
-    await this.audit('publish','Committed research release',records.map(ref),release.release_id,'completed',event_id);await fs.rm(this.p('publication.json'),{force:true});
-    return {release_id:release.release_id,status:'canonical_committed',views:'pending',records:records.map(ref),impacts};
-  });}
+  async publish(
+    records: RecordData[],
+    bodies: Record<string, string>,
+    baseRelease: string | null,
+    reason: string,
+    scope: Scope,
+    receipts: string[] = [],
+    omitIds: string[] = [],
+  ) {
+    return withLock(this.root, "publish", async () => {
+      await this.recover();
+      ensure(
+        (await this.current()) === baseRelease,
+        "REVISION_CONFLICT",
+        "Another job published first",
+      );
+      const base = await this.records();
+      await this.validateRecords(
+        records,
+        bodies,
+        await this.scope(scope),
+        base,
+      );
+      for (const r of records) {
+        if (r.body)
+          await immutable(
+            await safePath(this.root, r.body.path, true),
+            bodies[key(r)] ?? (await this.body(r)),
+          );
+        await immutable(this.p(objectPath(r) + "/record.json"), json(r));
+        base.set(r.id, r);
+      }
+      for (const id of omitIds) base.delete(id);
+      const entries = [];
+      for (const r of base.values()) {
+        const metadata_path = objectPath(r) + "/record.json";
+        entries.push({
+          record_ref: ref(r),
+          metadata_path,
+          sha256: hash(await fs.readFile(this.p(metadata_path))),
+        });
+      }
+      entries.sort((a, b) => a.record_ref.id.localeCompare(b.record_ref.id));
+      const release: ReleaseData = {
+        schema_version: VERSION,
+        release_id: uid("release-"),
+        corpus_id: (await this.config()).corpus_id,
+        parent_release: baseRelease,
+        created_at: now(),
+        change_reason: reason,
+        records: entries,
+        coverage_receipts: receipts,
+        validation_receipts: [],
+      };
+      await validate("release", release);
+      const changed = new Set(records.map((r) => r.id)),
+        affected = new Set(changed),
+        impacts: any[] = await readJson<any[]>(
+          this.p(`releases/${baseRelease}.impacts.json`),
+        ).catch(() => []);
+      for (let round = 0; round < base.size; round++) {
+        let added = false;
+        for (const r of base.values())
+          if (
+            !affected.has(r.id) &&
+            r.depends_on.some((d) => affected.has(d.id))
+          ) {
+            affected.add(r.id);
+            added = true;
+          }
+        if (!added) break;
+      }
+      for (const r of base.values())
+        if (
+          !changed.has(r.id) &&
+          affected.has(r.id) &&
+          !impacts.some((x) => x.record_ref.id === r.id)
+        )
+          impacts.push({
+            record_ref: ref(r),
+            changed_dependencies: r.depends_on.filter((d) =>
+              affected.has(d.id),
+            ),
+            status: "pending_reassessment",
+            outside_write_scope: !scope.write_modules.includes(
+              r.maintenance_module,
+            ),
+          });
+      for (let i = impacts.length - 1; i >= 0; i--)
+        if (changed.has(impacts[i].record_ref.id)) impacts.splice(i, 1);
+      const event_id = uid("event-");
+      await atomic(
+        this.p("publication.json"),
+        json({ release, changed_refs: records.map(ref), event_id, impacts }),
+      );
+      await immutable(
+        this.p(`releases/${release.release_id}.json`),
+        json(release),
+      );
+      await atomic(
+        this.p(`releases/${release.release_id}.impacts.json`),
+        json(impacts),
+      );
+      if (process.env.KB_TEST_FAULT === "disk_full")
+        throw new KBError(
+          "ENOSPC",
+          "Injected disk-full write failure; current release was not advanced",
+        );
+      if (process.env.KB_TEST_PAUSE_BEFORE_POINTER === "1") {
+        await atomic(this.p("test-paused.json"), json({ pid: process.pid }));
+        await new Promise(() => setInterval(() => {}, 1000));
+      }
+      if (process.env.KB_TEST_FAULT === "before_pointer")
+        throw new KBError(
+          "SIMULATED_CRASH",
+          "Test interruption before pointer",
+        );
+      await atomic(this.p("CURRENT"), release.release_id + "\n");
+      this.integrity.clear();
+      if (process.env.KB_TEST_FAULT === "after_pointer")
+        throw new KBError("SIMULATED_CRASH", "Test interruption after pointer");
+      await this.audit(
+        "publish",
+        "Committed research release",
+        records.map(ref),
+        release.release_id,
+        "completed",
+        event_id,
+      );
+      await fs.rm(this.p("publication.json"), { force: true });
+      return {
+        release_id: release.release_id,
+        status: "canonical_committed",
+        views: "pending",
+        records: records.map(ref),
+        impacts,
+      };
+    });
+  }
 }

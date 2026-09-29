@@ -1,5 +1,5 @@
 {
-  "engine_version": "1.0.0",
+  "engine_version": "1.0.1",
   "schema_version": "1.1.0",
   "authority": "Engine contracts and configuration examples; bundled copies are read-only references.",
   "files": [

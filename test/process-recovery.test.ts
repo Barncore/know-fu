@@ -1,11 +1,71 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {spawn} from 'node:child_process';
-import path from 'node:path';
-import * as fs from 'node:fs/promises';
-import {APP,uid,exists,readJson,key} from '../src/core.js';
-import {Store} from '../src/store.js';
-import {fixture} from './helpers.js';
-test('killing a publisher after staging cannot expose a partial release',async()=>{const receipt=path.join(APP,'test-output',uid('kill-')+'.json');const child=spawn(process.execPath,['--import','tsx',path.join(APP,'scripts/kill-worker.ts'),receipt],{cwd:APP,env:{...process.env,KB_TEST_PAUSE_BEFORE_POINTER:'1'},windowsHide:true,stdio:'ignore'});let data:any;try{for(let i=0;i<150;i++){if(await exists(receipt)){data=await readJson(receipt);if(await exists(path.join(data.root,'test-paused.json')))break;}await new Promise(r=>setTimeout(r,50));}assert(data&&await exists(path.join(data.root,'test-paused.json')));const closed=new Promise(r=>child.once('close',r));child.kill();await closed;const s=new Store(data.root,data.project,data.ledger);assert.equal(await s.current(),null);const journal=await readJson(s.p('publication.json')),records=[],bodies:Record<string,string>={};for(const e of journal.release.records){const r=await readJson(s.p(e.metadata_path));records.push(r);if(r.body)bodies[key(r)]=await fs.readFile(s.p(r.body.path),'utf8');}await s.recover();assert.equal(await s.current(),null);const result=await s.publish(records,bodies,null,'Recovered worker publication',await s.scope());assert.equal(await s.current(),result.release_id);assert.equal((await s.records()).size,records.length);
-}finally{if(child.exitCode===null)child.kill();}});
-test('an injected disk-full failure leaves the published pointer unchanged',async()=>{const f=await fixture();process.env.KB_TEST_FAULT='disk_full';try{await assert.rejects(()=>f.store.publish(f.records,f.bodies,null,'disk full',f.scope),{code:'ENOSPC'});assert.equal(await f.store.current(),null);}finally{delete process.env.KB_TEST_FAULT;}});
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import path from "node:path";
+import * as fs from "node:fs/promises";
+import { APP, uid, exists, readJson, key } from "../src/core.js";
+import { Store } from "../src/store.js";
+import { fixture } from "./helpers.js";
+test("killing a publisher after staging cannot expose a partial release", async () => {
+  const receipt = path.join(APP, "test-output", uid("kill-") + ".json");
+  const child = spawn(
+    process.execPath,
+    ["--import", "tsx", path.join(APP, "scripts/kill-worker.ts"), receipt],
+    {
+      cwd: APP,
+      env: { ...process.env, KB_TEST_PAUSE_BEFORE_POINTER: "1" },
+      windowsHide: true,
+      stdio: "ignore",
+    },
+  );
+  let data: any;
+  try {
+    for (let i = 0; i < 150; i++) {
+      if (await exists(receipt)) {
+        data = await readJson(receipt);
+        if (await exists(path.join(data.root, "test-paused.json"))) break;
+      }
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    assert(data && (await exists(path.join(data.root, "test-paused.json"))));
+    const closed = new Promise((r) => child.once("close", r));
+    child.kill();
+    await closed;
+    const s = new Store(data.root, data.project, data.ledger);
+    assert.equal(await s.current(), null);
+    const journal = await readJson(s.p("publication.json")),
+      records = [],
+      bodies: Record<string, string> = {};
+    for (const e of journal.release.records) {
+      const r = await readJson(s.p(e.metadata_path));
+      records.push(r);
+      if (r.body) bodies[key(r)] = await fs.readFile(s.p(r.body.path), "utf8");
+    }
+    await s.recover();
+    assert.equal(await s.current(), null);
+    const result = await s.publish(
+      records,
+      bodies,
+      null,
+      "Recovered worker publication",
+      await s.scope(),
+    );
+    assert.equal(await s.current(), result.release_id);
+    assert.equal((await s.records()).size, records.length);
+  } finally {
+    if (child.exitCode === null) child.kill();
+  }
+});
+test("an injected disk-full failure leaves the published pointer unchanged", async () => {
+  const f = await fixture();
+  process.env.KB_TEST_FAULT = "disk_full";
+  try {
+    await assert.rejects(
+      () => f.store.publish(f.records, f.bodies, null, "disk full", f.scope),
+      { code: "ENOSPC" },
+    );
+    assert.equal(await f.store.current(), null);
+  } finally {
+    delete process.env.KB_TEST_FAULT;
+  }
+});

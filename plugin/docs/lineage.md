@@ -65,6 +65,8 @@ These informed questions and design tradeoffs; their algorithms and performance 
 
 Exact packages are in the repository lockfiles. Upstream dependency licenses remain applicable. The repository does not bundle models, a database binary or a copy of Memory Graph.
 
+Development formatting uses pinned Prettier 3.9.9. The cache, batched graph writer and QMD worker are Know Fu implementation code; they add no separate research owner or model provider. The worker calls QMD's official SDK and retains the existing local CPU search deployment.
+
 There is one local compatibility patch: `scripts/patch-falkordb.mjs` adds an early error listener to the pinned **official FalkorDB client 6.8.0**, allowing connection failure to reject rather than crash before a caller can attach a listener. It is version-guarded and applied at build time. This is a Know Fu patch, **not ste-bah's Memory Graph patch**.
 
 ## Considered, not adopted
