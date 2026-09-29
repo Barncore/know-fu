@@ -1,6 +1,10 @@
-![Neo after the knowledge upload in The Matrix](assets/neo-know-fu.jpg)
-
 # Know Fu
+
+<br>
+
+<p align="center">
+  <img src="assets/i-know-kung-fu.gif" width="800" alt="Neo opens his eyes after the knowledge upload: I know kung fu">
+</p>
 
 **Feed it research. Build knowledge your AI can explain, connect and put to work.**
 
@@ -67,7 +71,7 @@ Setup asks where these belong. The generated `plugin/.mcp.json` is machine-local
 
 The implementation uses TypeScript, JSON Schema/AJV, the MCP SDK, regular FalkorDB with its official client, QMD, Docling/direct readers and FFmpeg. Codex supplies the reasoning. Hosted speech APIs are optional for media ingestion and billed separately; there is no required cloud-database subscription.
 
-The design draws from Karpathy's LLM Wiki, Ars Contexta's Reweave, LLM Wiki v2, discourse/provenance research, Scideator and prior source-reconstruction workflows. Jensen's GitHub identity is **[ste-bah](https://github.com/ste-bah)**; his Memory Graph/FalkorDB work is a credited influence. **Know Fu does not bundle the Memory Graph application or require a fork of it.** [Full lineage and boundaries](plugin/docs/lineage.md).
+The design draws from Karpathy's LLM Wiki, Ars Contexta's Reweave, LLM Wiki v2, discourse/provenance research, Scideator and prior source-reconstruction workflows. **[ste-bah](https://github.com/ste-bah)**'s Memory Graph/FalkorDB work is a credited influence. **Know Fu does not bundle the Memory Graph application or require a fork of it.** [Full lineage and boundaries](plugin/docs/lineage.md).
 
 ## Working on the code
 

@@ -4,12 +4,16 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
-No additional changes recorded yet.
+### 2026-09-29 — README animation and attribution
+
+- Replaced the incorrect scene still with the owner's supplied knowledge-upload GIF, centred below the title at an 800-pixel requested width (2× the original). Preserved the animation bytes and updated image provenance.
+- Standardized current repository attribution to **ste-bah**. Updated the bundled lineage reference and recorded the lesson that a named component substitution must be explained explicitly during design review.
+- Validation: byte-for-byte GIF hash comparison, package/manifest validation and staged release checks. No runtime code, research schema, dependencies or library data changed; no migration required.
 
 ## 2026-09-29 — Private repository baseline and configurable setup
 
 - Packaged the engine, Codex adapter, formal contracts, configuration examples and synthetic tests together. Real libraries, runtime credentials, private conversations and historical acceptance material are excluded.
-- Added the GitHub landing README and subtitle-free Neo still, with separate image provenance. Added the design lineage identifying Jensen as **ste-bah**, distinguishing influences from actual dependencies and clarifying that no Memory Graph fork is bundled.
+- Added the GitHub landing README and subtitle-free Neo still, with separate image provenance. Added the design lineage crediting **ste-bah**, distinguishing influences from actual dependencies and clarifying that no Memory Graph fork is bundled.
 - Added an AI-assisted setup interview and decision matrix. Setup must ask where code, canonical knowledge, runtime/ledger, graph persistence and backups should live. Documented Docker/external FalkorDB, native/WSL FFmpeg and local versus hosted transcription without presenting unbuilt adapters as available.
 - Added `KB_STATE_DIR`, `KB_MEDIA_RUNTIME`, `KB_WSL_DISTRO` and an external FalkorDB connection mode. Existing installations keep their original paths and WSL defaults when overrides are absent. No existing library/ledger was moved.
 - Added a machine-local MCP configuration generator that records explicit path/media choices and refuses overwrite. Its output is excluded from Git.

@@ -19,3 +19,7 @@ Borrowing Memory Graph's design reasoning does not make the product a Memory Gra
 ## 2026-09-29 — Release checkout bytes matter
 
 Git's newline normalization can invalidate stored hashes even when a working-directory test passes. Synthetic evidence fixtures preserve exact bytes through `.gitattributes`; schema files use normalized LF and their bundled manifests are regenerated. Check the actual staged checkout, not only the original development folder.
+
+## 2026-09-29 — Make component substitutions explicit
+
+Keeping the same database and architectural purpose does not make a custom adapter equivalent to a previously discussed upstream application. A technical specification can describe that substitution accurately while still leaving the owner with the wrong understanding. Call out the named component being replaced, what is gained and lost, and what remains unverified before treating the replacement as an understood decision. Broad design approval is not evidence that the tradeoff was communicated clearly.
