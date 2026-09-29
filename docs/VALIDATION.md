@@ -46,6 +46,20 @@ This small comparison does not establish a general accuracy advantage for the gr
 
 This is a small source-fidelity/application check with model-generated cases and same-model-family grading, not a domain-mastery estimate, proof of general product quality or a controlled graph ablation. The prose-only route retains mandatory canonical qualifications and provenance; it disables optional graph expansion rather than stripping safety-critical context. Text-only graders cannot inspect PDF pixels; visual facts were independently checked by the source reader and included in the source grounding. This public source may also be familiar from model training. No inter-author disagreement, long-video transcription, modern metrology validity or whole-domain research depth was established. No paid transcription or hosted embedding API was used, and the production research corpus was untouched.
 
+## 2026-09-30: targeted PDF extraction comparison
+
+Compared eight selected pages from each of two existing research books: a trading text and a mathematical statistics text. The same 16 pages went through the installed Docling 2.130.0 converter, Poppler text extraction, and Astra reading original-page images through Codex. This was a diagnostic sample, not two complete-book ingestions or a test of ChatGPT's PDF-upload service. Excerpts, raw outputs and detailed checks remain private.
+
+The current Docling configuration uses four CPU threads, OCR and accurate table structure, with optional formula enrichment off. It preserved one wide numerical table well, but another table lost a cell, a formula table collapsed three rows into one, and one page yielded only an image placeholder. Individual-page reruns reproduced the missing cell, a separate scrambled table and the image-only page. Page images were still retained, so the visual evidence was available even when the text was unusable.
+
+The multi-page run also produced text items spanning different pages. The current Markdown-per-page export can therefore include words from another page under a single-page locator. Non-contiguous excerpt assembly may exaggerate that joining behavior. Its whole-book frequency was not measured. Page provenance needs checking before relying on those locators as exact text boundaries.
+
+Poppler layout text kept the checked table alignment and values more usefully in this sample, but inherited errors already present in a PDF text layer and produced awkward mathematical notation. Astra reconstructed the checked table cells and displayed formulas more usefully, but changed a source word from "trader" to "dealer" and left some small figure labels unresolved. AI transcription is not a guaranteed verbatim copy.
+
+Observed conversion times per eight-page excerpt: Poppler layout 0.33 and 0.06 seconds, Docling 24.5 and 29.9 seconds, Astra image transcription about 182 and 180 seconds. These routes do different work. Poppler timing excludes rendering, and model timing depends on the service. No full-book latency, aggregate accuracy percentage or general parser ranking follows from these runs.
+
+**Current limitation:** successful conversion does not establish complete or faithful PDF text. The book workflow's original-page inspection remains required. A combined extraction route and stronger page-boundary checks are proposed for review, not implemented in this documentation update. No production source was ingested or changed.
+
 ## Earlier baseline evidence
 
 | Evidence | Result and boundary |

@@ -93,4 +93,4 @@ Changes belong in [CHANGELOG.md](CHANGELOG.md); durable findings belong in [LESS
 
 Knowledge ingestion is not fine-tuning. A graph edge is not proof; an evaluation pass is not universal expertise. Research and operational/project memory remain separate. Cross-harness shared writes, promotion tiers and mandatory cross-domain analogies are not enabled.
 
-This is currently a private development repository. No open-source license for Know Fu has been selected. Dependency licenses and the [third-party README image](assets/README.md) have their own provenance; private research and credentials are not part of the code distribution.
+This is a public development repository. No open-source license for Know Fu has been selected. Dependency licenses and the [third-party README image](assets/README.md) have their own provenance; private research and credentials are not part of the code distribution.

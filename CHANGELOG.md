@@ -4,6 +4,13 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-09-30 - Public repository and documentation voice
+
+- Made the repository public at the owner's request. Reviewed all three existing commits and scanned their 201 distinct blobs for private paths and common credential patterns. The scan found no matches. Research files, comparison outputs and credentials remain outside the release.
+- Added the owner's writing preference to the contributor and maintenance instructions. Use `my-writing-style` when available, keep technical claims accurate, and keep the private skill out of the repository. A replacement README is a local draft awaiting review.
+- Documented a targeted PDF comparison. The current Docling route can lose table structure, omit formula text and mix text from different pages. AI image transcription also introduced a wording error. Existing visual-review requirements remain necessary. No parser has been replaced.
+- Validation: package and staged-release checks. Documentation impact: README visibility, contributor instructions, maintenance, validation and lessons. No runtime, dependency, schema or corpus changes. Migration remains a plan for review.
+
 ### 2026-09-29 — Version 1.0.1: faster verified retrieval and real-source acceptance
 
 - Added bounded reuse of verified canonical contents and request-scoped deduplication. Mutable access/deletion controls are reread and compared before returning; file identity/timestamp changes trigger revalidation. Existing scope, revision, withdrawal and purge behavior is retained.

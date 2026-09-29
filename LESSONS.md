@@ -39,3 +39,7 @@ Git's newline normalization can invalidate stored hashes even when a working-dir
 ## 2026-09-29 — Make component substitutions explicit
 
 Keeping the same database and architectural purpose does not make a custom adapter equivalent to a previously discussed upstream application. A technical specification can describe that substitution accurately while still leaving the owner with the wrong understanding. Call out the named component being replaced, what is gained and lost, and what remains unverified before treating the replacement as an understood decision. Broad design approval is not evidence that the tradeoff was communicated clearly.
+
+## 2026-09-30 - Compare extraction against the page, not another extraction
+
+A PDF can have a bad text layer even when its page looks readable. Two parsers repeating the same error are not two independent confirmations. The comparison also found a table cell left blank, formula placeholders and multi-page text presented under a single-page locator. Preserve parser settings and original-page references, flag missing content, and check consequential details against the pixels. AI can repair the reading, but its output needs its own fidelity checks: the image-reading run changed one source noun while otherwise looking convincing.

@@ -16,4 +16,6 @@ Run package generation after engine contract or transcription-example changes. `
 
 Keep a dated CHANGELOG entry for completed changes. If a code-only repair has no user-facing documentation impact, state that rationale in the entry. The release checker accepts documentation or a `Documentation impact: none` explanation in the staged changelog; reviewers must assess that explanation rather than treating it as an escape hatch.
 
-The first private commit summarizes earlier local development instead of fabricating old commits. Private evidence files stay in the original local installation and are not part of the public-facing validation narrative. Before changing visibility, review the actual tracked material and dependency/media licensing with the owner; no open-source license has been selected for Know Fu itself yet.
+The first private commit summarizes earlier local development instead of fabricating old commits. The owner made the repository public on 2026-09-30. Private evidence files stay local. No open-source license has been selected for Know Fu itself yet.
+
+For new README, changelog and documentation prose, use the owner's `my-writing-style` skill when available. Accuracy comes first. The aim is clear, natural writing, without impersonation or invented personal experience. Keep the skill and its writing samples private. `AGENTS.md` gives a fallback for contributors who do not have it. Leave historical log entries intact, and keep requested replacement drafts separate until the owner approves them.
