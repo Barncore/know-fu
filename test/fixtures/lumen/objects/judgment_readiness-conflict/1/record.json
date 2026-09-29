@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.1.0",
+  "id": "judgment:readiness-conflict",
+  "revision": 1,
+  "corpus_id": "fixture_lumen",
+  "record_type": "judgment",
+  "title": "Valve disagreement remains unresolved",
+  "created_at": "2026-09-29T00:00:00Z",
+  "lifecycle": "active",
+  "epistemic": "judgment",
+  "archived": false,
+  "maintenance_module": "workshop",
+  "scope": {
+    "domains": [
+      "fictional_workshop"
+    ],
+    "conditions": [],
+    "exclusions": [
+      "Real-world safety guidance"
+    ],
+    "condition_expression": null,
+    "valid_from": null,
+    "valid_until": null
+  },
+  "provenance": {
+    "actor": "specification_author",
+    "method": "hand_authored_synthetic_fixture",
+    "source_refs": [
+      {
+        "id": "source:handbook",
+        "revision": 1
+      },
+      {
+        "id": "source:alternative",
+        "revision": 1
+      }
+    ],
+    "input_refs": [
+      {
+        "id": "relationship:challenge",
+        "revision": 1
+      }
+    ],
+    "tool_versions": {
+      "fixture": "1.1.0"
+    }
+  },
+  "assessments": {
+    "fidelity": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "evidence": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "applicability": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": "Fictional test environment only"
+    }
+  },
+  "depends_on": [
+    {
+      "id": "relationship:challenge",
+      "revision": 1
+    }
+  ],
+  "supersedes": [],
+  "change_reason": "Initial specification example",
+  "body": null,
+  "extensions": {},
+  "payload": {
+    "issue_refs": [
+      {
+        "id": "knowledge:handling",
+        "revision": 1
+      },
+      {
+        "id": "knowledge:alternative",
+        "revision": 1
+      }
+    ],
+    "outcome": "unresolved",
+    "alternatives": [
+      {
+        "id": "knowledge:handling",
+        "revision": 1
+      },
+      {
+        "id": "knowledge:alternative",
+        "revision": 1
+      }
+    ],
+    "preferred_refs": [],
+    "rationale": "Same conditions but incompatible valve requirements; no resolving evidence supplied.",
+    "what_would_change": "Clarification of intended authority or relevant evidence about the procedures."
+  }
+}

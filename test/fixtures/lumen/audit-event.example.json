@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.1.0",
+  "event_id": "illustrative-event",
+  "timestamp": "2026-09-29T00:00:00Z",
+  "job_id": "fixture-job",
+  "operation": "lifecycle_plan",
+  "description": "Prepare an archive impact preview.",
+  "actor": "specification_author",
+  "record_refs": [
+    {
+      "id": "source:retelling",
+      "revision": 1
+    }
+  ],
+  "before_release": "fixture-release-1",
+  "after_release": null,
+  "outcome": "prepared",
+  "reason": "Illustrative event; not an executed archive."
+}

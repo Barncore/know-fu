@@ -1,0 +1,93 @@
+{
+  "schema_version": "1.1.0",
+  "id": "question:resolve-valve",
+  "revision": 1,
+  "corpus_id": "fixture_lumen",
+  "record_type": "question",
+  "title": "What would resolve the valve disagreement?",
+  "created_at": "2026-09-29T00:00:00Z",
+  "lifecycle": "active",
+  "epistemic": "synthesis",
+  "archived": false,
+  "maintenance_module": "workshop",
+  "scope": {
+    "domains": [
+      "fictional_workshop"
+    ],
+    "conditions": [],
+    "exclusions": [
+      "Real-world safety guidance"
+    ],
+    "condition_expression": null,
+    "valid_from": null,
+    "valid_until": null
+  },
+  "provenance": {
+    "actor": "specification_author",
+    "method": "hand_authored_synthetic_fixture",
+    "source_refs": [
+      {
+        "id": "source:handbook",
+        "revision": 1
+      },
+      {
+        "id": "source:alternative",
+        "revision": 1
+      }
+    ],
+    "input_refs": [
+      {
+        "id": "judgment:readiness-conflict",
+        "revision": 1
+      }
+    ],
+    "tool_versions": {
+      "fixture": "1.1.0"
+    }
+  },
+  "assessments": {
+    "fidelity": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "evidence": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "applicability": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": "Fictional test environment only"
+    }
+  },
+  "depends_on": [
+    {
+      "id": "judgment:readiness-conflict",
+      "revision": 1
+    }
+  ],
+  "supersedes": [],
+  "change_reason": "Initial specification example",
+  "body": null,
+  "extensions": {},
+  "payload": {
+    "related_refs": [
+      {
+        "id": "judgment:readiness-conflict",
+        "revision": 1
+      }
+    ],
+    "known": "Two supplied accounts conflict under the same stated conditions.",
+    "unknown": "Which account is intended to govern, and whether either has relevant supporting evidence.",
+    "impact": "Changes which handling procedure could be recommended.",
+    "next_action": "Inspect source context or obtain an authoritative clarification before recommending a winner.",
+    "resolution_status": "open",
+    "priority": {
+      "impact": "high",
+      "effort": "unknown",
+      "rationale": "The answer changes a central procedure; repeated retellings cannot resolve it."
+    }
+  }
+}

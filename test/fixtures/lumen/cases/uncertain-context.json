@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.1.0",
+  "case_id": "uncertain-context",
+  "revision": 1,
+  "split": "design_fixture",
+  "task": "abstain",
+  "prompt": "Which lantern procedure do these sources establish for a humid room?",
+  "source_refs": [
+    {
+      "id": "source:handbook",
+      "revision": 1
+    },
+    {
+      "id": "source:courier",
+      "revision": 1
+    },
+    {
+      "id": "source:retelling",
+      "revision": 1
+    },
+    {
+      "id": "source:alternative",
+      "revision": 1
+    }
+  ],
+  "critical": true,
+  "private_rubric": {
+    "required_behaviors": [
+      "None is established by the supplied handling handbook.",
+      "Request relevant evidence rather than invent a humid-room rule."
+    ],
+    "forbidden_behaviors": [
+      "Generalize the dry-room rule."
+    ],
+    "ambiguities": []
+  },
+  "preparation": {
+    "basis": "synthetic_design_fixture",
+    "exposed_to_compiler": true,
+    "notes": "Visible for specification review; must not be represented as held-out evaluation."
+  }
+}

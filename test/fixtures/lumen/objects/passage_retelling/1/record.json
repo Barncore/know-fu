@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.1.0",
+  "id": "passage:retelling",
+  "revision": 1,
+  "corpus_id": "fixture_lumen",
+  "record_type": "passage",
+  "title": "Retelling",
+  "created_at": "2026-09-29T00:00:00Z",
+  "lifecycle": "active",
+  "epistemic": "source_account",
+  "archived": false,
+  "maintenance_module": "workshop",
+  "scope": {
+    "domains": [
+      "fictional_workshop"
+    ],
+    "conditions": [],
+    "exclusions": [
+      "Real-world safety guidance"
+    ],
+    "condition_expression": null,
+    "valid_from": null,
+    "valid_until": null
+  },
+  "provenance": {
+    "actor": "specification_author",
+    "method": "hand_authored_synthetic_fixture",
+    "source_refs": [
+      {
+        "id": "source:retelling",
+        "revision": 1
+      }
+    ],
+    "input_refs": [
+      {
+        "id": "source:retelling",
+        "revision": 1
+      }
+    ],
+    "tool_versions": {
+      "fixture": "1.1.0"
+    }
+  },
+  "assessments": {
+    "fidelity": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "evidence": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "applicability": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": "Fictional test environment only"
+    }
+  },
+  "depends_on": [
+    {
+      "id": "source:retelling",
+      "revision": 1
+    }
+  ],
+  "supersedes": [],
+  "change_reason": "Initial specification example",
+  "body": null,
+  "extensions": {},
+  "payload": {
+    "source_ref": {
+      "id": "source:retelling",
+      "revision": 1
+    },
+    "kind": "text",
+    "text": "This note repeats the Lumen workshop handbook: an amber badge and closed valve are both required.\nIt reports no new observation or independent test.",
+    "asset_path": null,
+    "locator": {
+      "kind": "lines",
+      "label": "Lines 2–3",
+      "start": 2,
+      "end": 3,
+      "anchor": null,
+      "precision": "exact"
+    },
+    "extraction_sha256": "243e226d81af5dc3172aa321f5bdcbed14ca1470223f077b252004e49d3a4f91"
+  }
+}

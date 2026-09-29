@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "deployment": "falkordb-external",
+  "graph": {
+    "host": "127.0.0.1",
+    "port": 6387,
+    "password_file": "C:/KnowFuData/state/graph.secret",
+    "auto_start": false
+  },
+  "python": "C:/KnowFu/engine/.venv/Scripts/python.exe"
+}

@@ -1,0 +1,62 @@
+{
+  "engine_version": "1.0.0",
+  "schema_version": "1.1.0",
+  "authority": "Engine contracts and configuration examples; bundled copies are read-only references.",
+  "files": [
+    {
+      "source": "contracts/schemas/audit-event.schema.json",
+      "bundled": "contracts/schemas/audit-event.schema.json",
+      "sha256": "59dff665d774826a4977bad33abf47245bd19e2135c94fee274a7031123f9894"
+    },
+    {
+      "source": "contracts/schemas/corpus.schema.json",
+      "bundled": "contracts/schemas/corpus.schema.json",
+      "sha256": "9ad343e4dc890360b8384d1e3915f87016bb1a270c152dacfe9f4e0dfe015a41"
+    },
+    {
+      "source": "contracts/schemas/evaluation-case.schema.json",
+      "bundled": "contracts/schemas/evaluation-case.schema.json",
+      "sha256": "933b17ec191172c4fc88cc22e55fd6208204a0dae1c59b8e48192d503ba362d3"
+    },
+    {
+      "source": "contracts/schemas/evaluation-run.schema.json",
+      "bundled": "contracts/schemas/evaluation-run.schema.json",
+      "sha256": "4f754ef9289dbb00f08999f07a24b2debd8bfc0da7ef44c465cf37b21295e9b2"
+    },
+    {
+      "source": "contracts/schemas/job.schema.json",
+      "bundled": "contracts/schemas/job.schema.json",
+      "sha256": "bc5d95fd300bcb51ef5bf3789921b9264f8742e0a6a0689c1d7889f77a9f6ece"
+    },
+    {
+      "source": "contracts/schemas/lifecycle-plan.schema.json",
+      "bundled": "contracts/schemas/lifecycle-plan.schema.json",
+      "sha256": "12872ada8bf1eab342f26ac3ca67d56c1a8370c23deaf671e8ef1c53b33ce9ce"
+    },
+    {
+      "source": "contracts/schemas/proposal.schema.json",
+      "bundled": "contracts/schemas/proposal.schema.json",
+      "sha256": "5e0f566e6184df30b7544bb3ee6fdfae944d7f24380f6121d94e9851ac1a54a4"
+    },
+    {
+      "source": "contracts/schemas/record.schema.json",
+      "bundled": "contracts/schemas/record.schema.json",
+      "sha256": "71b7853735c479a4a16df1badc2b01c5b04507906a22b6bd394b72aff8252331"
+    },
+    {
+      "source": "contracts/schemas/release.schema.json",
+      "bundled": "contracts/schemas/release.schema.json",
+      "sha256": "c4f42fda7383d9b3acb0df2e311547c187893631e8ab08deb574574baf597d9e"
+    },
+    {
+      "source": "contracts/schemas/retrieval.schema.json",
+      "bundled": "contracts/schemas/retrieval.schema.json",
+      "sha256": "45dc9bf1de8ba494149e24d346988717f94715ddb98c1794bcfc70997b8dcadf"
+    },
+    {
+      "source": "config/transcription.example.json",
+      "bundled": "examples/transcription.example.json",
+      "sha256": "6772f3e26cd4f1b6f08800640e6f2f7bf38284680d06e539fdcc18406a60e3a2"
+    }
+  ]
+}

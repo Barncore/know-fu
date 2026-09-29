@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/research-kb/spec/lifecycle-plan.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.1.0"
+    },
+    "plan_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "corpus_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base_release": {
+      "type": "string",
+      "minLength": 1
+    },
+    "action": {
+      "enum": [
+        "archive",
+        "unarchive",
+        "withdraw",
+        "reinstate",
+        "purge"
+      ]
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ]
+      },
+      "minItems": 1
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "affected_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ]
+      },
+      "minItems": 0
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "originals",
+          "records",
+          "extractions",
+          "graph",
+          "search",
+          "wiki",
+          "jobs",
+          "audit",
+          "managed_exports",
+          "managed_backups"
+        ]
+      },
+      "minItems": 0
+    },
+    "outside_control": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "authorization_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "state": {
+      "enum": [
+        "planned",
+        "authorized",
+        "running",
+        "complete",
+        "incomplete",
+        "cancelled"
+      ]
+    },
+    "receipts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$"
+      },
+      "minItems": 0
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "schema_version",
+    "plan_id",
+    "corpus_id",
+    "base_release",
+    "action",
+    "targets",
+    "reason",
+    "affected_refs",
+    "components",
+    "outside_control",
+    "authorization_ref",
+    "state",
+    "receipts",
+    "limitations"
+  ]
+}

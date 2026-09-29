@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.1.0",
+  "id": "concept:ready-courier",
+  "revision": 1,
+  "corpus_id": "fixture_lumen",
+  "record_type": "concept",
+  "title": "READY in courier terminology",
+  "created_at": "2026-09-29T00:00:00Z",
+  "lifecycle": "active",
+  "epistemic": "source_account",
+  "archived": false,
+  "maintenance_module": "workshop",
+  "scope": {
+    "domains": [
+      "fictional_workshop"
+    ],
+    "conditions": [],
+    "exclusions": [
+      "Real-world safety guidance"
+    ],
+    "condition_expression": null,
+    "valid_from": null,
+    "valid_until": null
+  },
+  "provenance": {
+    "actor": "specification_author",
+    "method": "hand_authored_synthetic_fixture",
+    "source_refs": [
+      {
+        "id": "source:courier",
+        "revision": 1
+      }
+    ],
+    "input_refs": [
+      {
+        "id": "passage:courier-definition",
+        "revision": 1
+      }
+    ],
+    "tool_versions": {
+      "fixture": "1.1.0"
+    }
+  },
+  "assessments": {
+    "fidelity": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "evidence": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "applicability": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": "Fictional test environment only"
+    }
+  },
+  "depends_on": [
+    {
+      "id": "passage:courier-definition",
+      "revision": 1
+    }
+  ],
+  "supersedes": [],
+  "change_reason": "Initial specification example",
+  "body": null,
+  "extensions": {},
+  "payload": {
+    "definition": "A blue dispatch tag has been scanned for a transit crate.",
+    "meaning_scope": "Courier terminology",
+    "aliases": [
+      "READY"
+    ]
+  }
+}

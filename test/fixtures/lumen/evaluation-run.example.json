@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.1.0",
+  "run_id": "pending-fixture-run",
+  "corpus_id": "fixture_lumen",
+  "release_id": "fixture-release-1",
+  "case_ids": [
+    "apply-conjunction",
+    "permission",
+    "definitions",
+    "uncertain-context",
+    "conflict",
+    "independence",
+    "teach",
+    "invent"
+  ],
+  "condition": "full_system",
+  "fingerprint": "a1c749a1e403aa4ea3d7d2ba5638a71c9b91b0a54f0be1b147f6dfd5dc2574b3",
+  "model": "user-configured-at-execution",
+  "model_version": null,
+  "reasoning_setting": "record-at-execution",
+  "answer_budget": 4096,
+  "tool_budget": 20,
+  "available_tools": [
+    "kb_retrieve",
+    "kb_read"
+  ],
+  "status": "pending",
+  "results": [],
+  "limitations": [
+    "Example budgets are illustrative; this run has not executed."
+  ],
+  "receipts": []
+}

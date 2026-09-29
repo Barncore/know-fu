@@ -1,0 +1,56 @@
+{
+  "version": "1.1.0",
+  "types": [
+    {
+      "id": "supports",
+      "direction": "Evidence or reason to the conclusion it supports",
+      "example": "A source observation supports a mechanism account.",
+      "counterexample": "A repeated summary is not independent support."
+    },
+    {
+      "id": "challenges",
+      "direction": "Evidence or argument to the account it puts in doubt",
+      "example": "A contrary observation challenges an unqualified generalization.",
+      "counterexample": "Different definitions need not contradict."
+    },
+    {
+      "id": "qualifies",
+      "direction": "Condition or exception to the account it limits",
+      "example": "A wet-room exclusion qualifies a dry-room procedure.",
+      "counterexample": "Qualification does not refute all uses."
+    },
+    {
+      "id": "depends_on",
+      "direction": "Dependent account or procedure to its prerequisite",
+      "example": "Applying a rule depends on identifying its intended definition.",
+      "counterexample": "A prerequisite is not automatically a cause."
+    },
+    {
+      "id": "explains",
+      "direction": "Explanatory mechanism to what it attempts to explain",
+      "example": "A proposed heat-transfer account explains a cooling observation.",
+      "counterexample": "An explanatory proposal is not proven causation."
+    },
+    {
+      "id": "exemplifies",
+      "direction": "Case to the concept, procedure or mechanism account it illustrates",
+      "example": "A worked case illustrates a mechanism under specified conditions.",
+      "counterexample": "Similarity alone is not an instance; an invented example is not empirical validation."
+    },
+    {
+      "id": "applies_to",
+      "direction": "Account or procedure to the context where it applies",
+      "example": "A handling procedure applies to a specified room and device.",
+      "counterexample": "A link does not establish success outside its scope."
+    },
+    {
+      "id": "derived_from",
+      "direction": "Derived account to its original input",
+      "example": "A retelling is derived from the original handbook.",
+      "counterexample": "Derivation does not create independent evidence."
+    }
+  ],
+  "default_transitive": false,
+  "default_symmetric": false,
+  "extension_policy": "Require a concrete case, semantics, migration and retrieval tests; no automatic expansion."
+}

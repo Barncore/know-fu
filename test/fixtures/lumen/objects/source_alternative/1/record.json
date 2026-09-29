@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.1.0",
+  "id": "source:alternative",
+  "revision": 1,
+  "corpus_id": "fixture_lumen",
+  "record_type": "source",
+  "title": "Alternative",
+  "created_at": "2026-09-29T00:00:00Z",
+  "lifecycle": "active",
+  "epistemic": "administrative",
+  "archived": false,
+  "maintenance_module": "workshop",
+  "scope": {
+    "domains": [
+      "fictional_workshop"
+    ],
+    "conditions": [],
+    "exclusions": [
+      "Real-world safety guidance"
+    ],
+    "condition_expression": null,
+    "valid_from": null,
+    "valid_until": null
+  },
+  "provenance": {
+    "actor": "specification_author",
+    "method": "hand_authored_synthetic_fixture",
+    "source_refs": [],
+    "input_refs": [],
+    "tool_versions": {
+      "fixture": "1.1.0"
+    }
+  },
+  "assessments": {
+    "fidelity": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "evidence": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "applicability": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": "Fictional test environment only"
+    }
+  },
+  "depends_on": [],
+  "supersedes": [],
+  "change_reason": "Initial specification example",
+  "body": null,
+  "extensions": {},
+  "payload": {
+    "original_path": "sources/alternative.md",
+    "sha256": "a4b2175de1e4cae1acf7a1e85ebbaa722a05d5262be430c819a8017e8be099cc",
+    "media_type": "text/markdown",
+    "edition": "synthetic-v1",
+    "origin_id": "fictional:alternative",
+    "evidence_family": "alternative",
+    "independence": "unknown",
+    "derived_from_sources": []
+  }
+}

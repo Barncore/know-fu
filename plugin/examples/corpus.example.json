@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.1.0",
+  "corpus_id": "example_replace_with_unique_library_id",
+  "title": "Specialized research library",
+  "integration": "codex",
+  "modules": [{"module_id":"research","title":"Research","description":"Specialized source-grounded knowledge."}],
+  "domains": [{"domain_id":"audio","title":"Audio"}],
+  "default_scope": {"read_modules":["research"],"write_modules":["research"],"source_refs":[]},
+  "project_bindings": [{"project_id":"C:/Research","read_modules":["research"],"write_modules":["research"]}]
+}

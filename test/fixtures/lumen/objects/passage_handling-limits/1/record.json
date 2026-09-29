@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.1.0",
+  "id": "passage:handling-limits",
+  "revision": 1,
+  "corpus_id": "fixture_lumen",
+  "record_type": "passage",
+  "title": "Handling Limits",
+  "created_at": "2026-09-29T00:00:00Z",
+  "lifecycle": "active",
+  "epistemic": "source_account",
+  "archived": false,
+  "maintenance_module": "workshop",
+  "scope": {
+    "domains": [
+      "fictional_workshop"
+    ],
+    "conditions": [],
+    "exclusions": [
+      "Real-world safety guidance"
+    ],
+    "condition_expression": null,
+    "valid_from": null,
+    "valid_until": null
+  },
+  "provenance": {
+    "actor": "specification_author",
+    "method": "hand_authored_synthetic_fixture",
+    "source_refs": [
+      {
+        "id": "source:handbook",
+        "revision": 1
+      }
+    ],
+    "input_refs": [
+      {
+        "id": "source:handbook",
+        "revision": 1
+      }
+    ],
+    "tool_versions": {
+      "fixture": "1.1.0"
+    }
+  },
+  "assessments": {
+    "fidelity": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "evidence": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "applicability": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": "Fictional test environment only"
+    }
+  },
+  "depends_on": [
+    {
+      "id": "source:handbook",
+      "revision": 1
+    }
+  ],
+  "supersedes": [],
+  "change_reason": "Initial specification example",
+  "body": null,
+  "extensions": {},
+  "payload": {
+    "source_ref": {
+      "id": "source:handbook",
+      "revision": 1
+    },
+    "kind": "text",
+    "text": "A blue lantern badge means cooling: do not move the lantern.\nThis handbook establishes no handling rule for humid rooms.",
+    "asset_path": null,
+    "locator": {
+      "kind": "lines",
+      "label": "Lines 4–5",
+      "start": 4,
+      "end": 5,
+      "anchor": null,
+      "precision": "exact"
+    },
+    "extraction_sha256": "ecf04e9dcd70761525d8e9141b268c203817a1b4d577af3490a995eeb06921c8"
+  }
+}

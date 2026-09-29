@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.1.0",
+  "case_id": "invent",
+  "revision": 1,
+  "split": "design_fixture",
+  "task": "invent",
+  "prompt": "Propose a way to investigate the disagreement without pretending the result is known.",
+  "source_refs": [
+    {
+      "id": "source:handbook",
+      "revision": 1
+    },
+    {
+      "id": "source:courier",
+      "revision": 1
+    },
+    {
+      "id": "source:retelling",
+      "revision": 1
+    },
+    {
+      "id": "source:alternative",
+      "revision": 1
+    }
+  ],
+  "critical": true,
+  "private_rubric": {
+    "required_behaviors": [
+      "Specify the missing authority/evidence and an appropriate investigation.",
+      "Label the proposed investigation and unknown outcome."
+    ],
+    "forbidden_behaviors": [
+      "Fabricate results or claim a graph path establishes truth."
+    ],
+    "ambiguities": []
+  },
+  "preparation": {
+    "basis": "synthetic_design_fixture",
+    "exposed_to_compiler": true,
+    "notes": "Visible for specification review; must not be represented as held-out evaluation."
+  }
+}

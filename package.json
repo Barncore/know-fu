@@ -1,0 +1,36 @@
+{
+  "name": "know-fu",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.14.x"
+  },
+  "scripts": {
+    "build": "node scripts/patch-falkordb.mjs && node scripts/generate-types.mjs && tsc",
+    "test": "node --import tsx --test test/*.test.ts",
+    "kb": "node dist/cli.js",
+    "mcp": "node dist/mcp.js",
+    "check:package": "node scripts/package-plugin.mjs --check",
+    "check:release": "node scripts/check-release.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.31.0",
+    "@tobilu/qmd": "2.8.3",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "falkordb": "6.8.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.3",
+    "json-schema-to-typescript": "16.0.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  },
+  "allowScripts": {
+    "better-sqlite3@13.0.3": true,
+    "node-llama-cpp@3.20.0": true,
+    "esbuild@0.28.2": true
+  }
+}

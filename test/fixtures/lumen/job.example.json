@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.1.0",
+  "job_id": "fixture-job",
+  "corpus_id": "fixture_lumen",
+  "base_release": null,
+  "idempotency_key": "synthetic-fixture-v1",
+  "authorized_scope": "Demonstrate design contracts only; no real ingestion or paid calls.",
+  "scope_policy": {
+    "read_modules": [
+      "workshop"
+    ],
+    "write_modules": [
+      "workshop"
+    ],
+    "source_refs": []
+  },
+  "stage": "register",
+  "status": "pending",
+  "source_refs": [
+    {
+      "id": "source:handbook",
+      "revision": 1
+    }
+  ],
+  "coverage": [
+    {
+      "unit_id": "handbook-body",
+      "source_ref": {
+        "id": "source:handbook",
+        "revision": 1
+      },
+      "locator": {
+        "kind": "lines",
+        "label": "Lines 1–5",
+        "start": 1,
+        "end": 5,
+        "anchor": null,
+        "precision": "exact"
+      },
+      "registered": "pending",
+      "converted": "pending",
+      "read": "pending",
+      "integrated": "pending",
+      "checked": "pending",
+      "receipts": [],
+      "gaps": [],
+      "exclusion_reason": null
+    }
+  ],
+  "remaining_work": [
+    "Execute the implemented workflow after build approval; fixture records here are hand-authored."
+  ],
+  "receipts": [],
+  "paid_budget": {
+    "currency": null,
+    "limit": null,
+    "provider_request_ids": []
+  },
+  "error": null
+}

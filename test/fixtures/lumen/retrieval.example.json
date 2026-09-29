@@ -1,0 +1,96 @@
+{
+  "schema_version": "1.1.0",
+  "request_id": "illustrative-request",
+  "corpus_id": "fixture_lumen",
+  "release_id": "fixture-release-1",
+  "purpose": "apply",
+  "query": "Can an amber lantern be moved?",
+  "route": [
+    "wiki",
+    "graph"
+  ],
+  "scope_selection": {
+    "allowed_modules": [
+      "workshop"
+    ],
+    "selected_domains": [
+      "fictional_workshop"
+    ],
+    "source_refs": [],
+    "rationale": "Source accounts and their material disagreement are relevant to the permission question."
+  },
+  "items": [
+    {
+      "record_ref": {
+        "id": "knowledge:handling",
+        "revision": 1
+      },
+      "role": "explanation",
+      "excerpt": "Under the first handbook, dry room, amber badge and closed valve are required.",
+      "generated": true,
+      "locator": null,
+      "selection_reason": "The relevant procedure; open its source references before answering."
+    },
+    {
+      "record_ref": {
+        "id": "passage:handling-limits",
+        "revision": 1
+      },
+      "role": "qualification",
+      "excerpt": "This handbook establishes no handling rule for humid rooms.",
+      "generated": false,
+      "locator": {
+        "kind": "lines",
+        "label": "Lines 4–5",
+        "start": 4,
+        "end": 5,
+        "anchor": null,
+        "precision": "exact"
+      },
+      "selection_reason": "Material applicability limit."
+    },
+    {
+      "record_ref": {
+        "id": "knowledge:alternative",
+        "revision": 1
+      },
+      "role": "counterevidence",
+      "excerpt": "The other handbook disagrees about the valve condition.",
+      "generated": true,
+      "locator": null,
+      "selection_reason": "Known same-scope conflict must accompany a generic answer."
+    }
+  ],
+  "relationship_refs": [
+    {
+      "id": "relationship:rule-support",
+      "revision": 1
+    },
+    {
+      "id": "relationship:limits",
+      "revision": 1
+    },
+    {
+      "id": "relationship:challenge",
+      "revision": 1
+    }
+  ],
+  "judgment_refs": [
+    {
+      "id": "judgment:readiness-conflict",
+      "revision": 1
+    }
+  ],
+  "missing_evidence": [
+    "Which source governs; actual room and valve state."
+  ],
+  "warnings": [
+    "Hand-authored packet illustrating the contract; no search or graph runtime was executed."
+  ],
+  "truncated": false,
+  "freshness": "current",
+  "fingerprints": {
+    "fixture": "synthetic-v1"
+  },
+  "timings_ms": {}
+}

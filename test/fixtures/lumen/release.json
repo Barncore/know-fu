@@ -1,0 +1,212 @@
+{
+  "schema_version": "1.1.0",
+  "release_id": "fixture-release-1",
+  "corpus_id": "fixture_lumen",
+  "parent_release": null,
+  "created_at": "2026-09-29T00:00:00Z",
+  "change_reason": "Hand-authored review fixture; not a runtime ingestion result",
+  "records": [
+    {
+      "record_ref": {
+        "id": "source:handbook",
+        "revision": 1
+      },
+      "metadata_path": "objects/source_handbook/1/record.json",
+      "sha256": "aaeb5e38cb62dd3aca0820b6d563ae341050ee2b7948d890696bcb52bb60d77a"
+    },
+    {
+      "record_ref": {
+        "id": "source:courier",
+        "revision": 1
+      },
+      "metadata_path": "objects/source_courier/1/record.json",
+      "sha256": "e400f887839a095319e3807073f6d16222fa93a7fe3db55f7287495b11b41107"
+    },
+    {
+      "record_ref": {
+        "id": "source:retelling",
+        "revision": 1
+      },
+      "metadata_path": "objects/source_retelling/1/record.json",
+      "sha256": "b47d9e0d94d0109b0d39d37dbd492d7f316fef9597c370c6cf5566968ebb7d52"
+    },
+    {
+      "record_ref": {
+        "id": "source:alternative",
+        "revision": 1
+      },
+      "metadata_path": "objects/source_alternative/1/record.json",
+      "sha256": "256004bbb6e8ce759bbffb12cae2cd0f77ee4027df0deee2f2e6a171e72a7f95"
+    },
+    {
+      "record_ref": {
+        "id": "passage:handling-rule",
+        "revision": 1
+      },
+      "metadata_path": "objects/passage_handling-rule/1/record.json",
+      "sha256": "c0cefd12a61e3c2539531a6d06fb47a4d91b98866a07c5d74539bb8e7525f172"
+    },
+    {
+      "record_ref": {
+        "id": "passage:handling-limits",
+        "revision": 1
+      },
+      "metadata_path": "objects/passage_handling-limits/1/record.json",
+      "sha256": "0f5728dac15ebb25776c4fb5e7ccf4855bf501e021b88b50e1e61165d97c63d6"
+    },
+    {
+      "record_ref": {
+        "id": "passage:courier-definition",
+        "revision": 1
+      },
+      "metadata_path": "objects/passage_courier-definition/1/record.json",
+      "sha256": "97f55dcdc29f574e74f44503ce6a81b32d46e5061aa639a4fceaced3237cfe75"
+    },
+    {
+      "record_ref": {
+        "id": "passage:retelling",
+        "revision": 1
+      },
+      "metadata_path": "objects/passage_retelling/1/record.json",
+      "sha256": "368f3a3bdca9d3b0fd1165b6418bff4b744bceb9701537f70d0f4684d3e44d47"
+    },
+    {
+      "record_ref": {
+        "id": "passage:alternative-rule",
+        "revision": 1
+      },
+      "metadata_path": "objects/passage_alternative-rule/1/record.json",
+      "sha256": "1d6fffc6a5c82d2ada464a88ce79bd68b10b92979bbe4cd5c7b88976adf85daa"
+    },
+    {
+      "record_ref": {
+        "id": "concept:ready-handbook",
+        "revision": 1
+      },
+      "metadata_path": "objects/concept_ready-handbook/1/record.json",
+      "sha256": "e2fc9608304c1d59de975d92dc0303a14c9d57c991d2b5ee10de278154f20734"
+    },
+    {
+      "record_ref": {
+        "id": "concept:ready-courier",
+        "revision": 1
+      },
+      "metadata_path": "objects/concept_ready-courier/1/record.json",
+      "sha256": "d862bfb74a1caa312bd628d5c54f96f381950c88c30502027ff760442c629091"
+    },
+    {
+      "record_ref": {
+        "id": "knowledge:handling",
+        "revision": 1
+      },
+      "metadata_path": "objects/knowledge_handling/1/record.json",
+      "sha256": "97a73a84dec44a24e6aa5b9e33cad500d175ea5b1682d8aa677d806ae1c4b9b6"
+    },
+    {
+      "record_ref": {
+        "id": "knowledge:courier",
+        "revision": 1
+      },
+      "metadata_path": "objects/knowledge_courier/1/record.json",
+      "sha256": "9acfe4f6a95580ca6332f4ecf60d8fc7d461c340b682404484d50308df9e1fcd"
+    },
+    {
+      "record_ref": {
+        "id": "knowledge:alternative",
+        "revision": 1
+      },
+      "metadata_path": "objects/knowledge_alternative/1/record.json",
+      "sha256": "25ec1b3bdc2b93f84123eb5832ecbe55f78a7150d7ea1ff0acae06f9c7090e2f"
+    },
+    {
+      "record_ref": {
+        "id": "relationship:rule-support",
+        "revision": 1
+      },
+      "metadata_path": "objects/relationship_rule-support/1/record.json",
+      "sha256": "aa7d65ae70e21658bc27003d1c37bb369dd1a92ef1ab2470e0caebcd461a7df7"
+    },
+    {
+      "record_ref": {
+        "id": "relationship:limits",
+        "revision": 1
+      },
+      "metadata_path": "objects/relationship_limits/1/record.json",
+      "sha256": "fc8db2c5cfff407658ecbe0eae9d5d627f1cbf78855fd2bb4223db1e4b6bd299"
+    },
+    {
+      "record_ref": {
+        "id": "relationship:prerequisite",
+        "revision": 1
+      },
+      "metadata_path": "objects/relationship_prerequisite/1/record.json",
+      "sha256": "7210dab4cc049f2911f91590d0a03814ae34bfaec42ba7ab7b0662459cecbcd1"
+    },
+    {
+      "record_ref": {
+        "id": "relationship:challenge",
+        "revision": 1
+      },
+      "metadata_path": "objects/relationship_challenge/1/record.json",
+      "sha256": "a97ea9ce4eb2c514991ee066337c8d48c5aa06f5e0072432cacac2949388f14e"
+    },
+    {
+      "record_ref": {
+        "id": "relationship:retelling-lineage",
+        "revision": 1
+      },
+      "metadata_path": "objects/relationship_retelling-lineage/1/record.json",
+      "sha256": "30dfd5fcf208d58b1d5a1adc5108c2c15b7fa4c3368a12c4582683ec31dbc180"
+    },
+    {
+      "record_ref": {
+        "id": "judgment:readiness-conflict",
+        "revision": 1
+      },
+      "metadata_path": "objects/judgment_readiness-conflict/1/record.json",
+      "sha256": "7b93c29e1bfac5702b7aa88007ec72b768fa2dfd8c7a308be518808fc5d19f9a"
+    },
+    {
+      "record_ref": {
+        "id": "learning:primer",
+        "revision": 1
+      },
+      "metadata_path": "objects/learning_primer/1/record.json",
+      "sha256": "640696cb4c276ed1559a061a6cbf73c7338d4551427be8439e8427fd69bd329b"
+    },
+    {
+      "record_ref": {
+        "id": "learning:near-miss",
+        "revision": 1
+      },
+      "metadata_path": "objects/learning_near-miss/1/record.json",
+      "sha256": "d205f6897a0617777eadc9560f993abf0578573ea55f84f9dd0a8012a14a263b"
+    },
+    {
+      "record_ref": {
+        "id": "question:resolve-valve",
+        "revision": 1
+      },
+      "metadata_path": "objects/question_resolve-valve/1/record.json",
+      "sha256": "37f4c5f5a82ed4d9e23d54176e9c2ba8f84faf6cde4fa4fff28df25e3051e1a9"
+    },
+    {
+      "record_ref": {
+        "id": "knowledge:qualified-permission",
+        "revision": 1
+      },
+      "metadata_path": "objects/knowledge_qualified-permission/1/record.json",
+      "sha256": "06ecf50ea74aeb398990c458fb91b37407e62f18505b10ca627a540184da3902"
+    },
+    {
+      "record_ref": {
+        "id": "relationship:case-exemplifies-pattern",
+        "revision": 1
+      },
+      "metadata_path": "objects/relationship_case-exemplifies-pattern/1/record.json",
+      "sha256": "c5caf77f2cc4da6c074e1f808859ad9a99b297e1a3fe2b970fb3de7f02ebc586"
+    }
+  ],
+  "coverage_receipts": [],
+  "validation_receipts": []
+}

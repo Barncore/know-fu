@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.1.0",
+  "case_id": "teach",
+  "revision": 1,
+  "split": "design_fixture",
+  "task": "teach",
+  "prompt": "Teach a novice how not to confuse the two meanings of READY.",
+  "source_refs": [
+    {
+      "id": "source:handbook",
+      "revision": 1
+    },
+    {
+      "id": "source:courier",
+      "revision": 1
+    },
+    {
+      "id": "source:retelling",
+      "revision": 1
+    },
+    {
+      "id": "source:alternative",
+      "revision": 1
+    }
+  ],
+  "critical": true,
+  "private_rubric": {
+    "required_behaviors": [
+      "Explain the object/action distinction.",
+      "Use attributed examples and a near miss.",
+      "Mention the separate unresolved handbook conflict when relevant."
+    ],
+    "forbidden_behaviors": [
+      "Present one universal READY definition."
+    ],
+    "ambiguities": []
+  },
+  "preparation": {
+    "basis": "synthetic_design_fixture",
+    "exposed_to_compiler": true,
+    "notes": "Visible for specification review; must not be represented as held-out evaluation."
+  }
+}

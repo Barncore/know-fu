@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.1.0",
+  "id": "passage:courier-definition",
+  "revision": 1,
+  "corpus_id": "fixture_lumen",
+  "record_type": "passage",
+  "title": "Courier Definition",
+  "created_at": "2026-09-29T00:00:00Z",
+  "lifecycle": "active",
+  "epistemic": "source_account",
+  "archived": false,
+  "maintenance_module": "workshop",
+  "scope": {
+    "domains": [
+      "fictional_workshop"
+    ],
+    "conditions": [],
+    "exclusions": [
+      "Real-world safety guidance"
+    ],
+    "condition_expression": null,
+    "valid_from": null,
+    "valid_until": null
+  },
+  "provenance": {
+    "actor": "specification_author",
+    "method": "hand_authored_synthetic_fixture",
+    "source_refs": [
+      {
+        "id": "source:courier",
+        "revision": 1
+      }
+    ],
+    "input_refs": [
+      {
+        "id": "source:courier",
+        "revision": 1
+      }
+    ],
+    "tool_versions": {
+      "fixture": "1.1.0"
+    }
+  },
+  "assessments": {
+    "fidelity": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "evidence": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "applicability": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": "Fictional test environment only"
+    }
+  },
+  "depends_on": [
+    {
+      "id": "source:courier",
+      "revision": 1
+    }
+  ],
+  "supersedes": [],
+  "change_reason": "Initial specification example",
+  "body": null,
+  "extensions": {},
+  "payload": {
+    "source_ref": {
+      "id": "source:courier",
+      "revision": 1
+    },
+    "kind": "text",
+    "text": "For transit crates, READY means that a blue dispatch tag has been scanned.\nThis definition concerns crate dispatch, not lantern handling.",
+    "asset_path": null,
+    "locator": {
+      "kind": "lines",
+      "label": "Lines 2–3",
+      "start": 2,
+      "end": 3,
+      "anchor": null,
+      "precision": "exact"
+    },
+    "extraction_sha256": "93fd7d465d7189d27d82383c1c5706fcbcdf7e8f75289ac5f4f10b93d5fc5cd2"
+  }
+}

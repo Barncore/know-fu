@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.1.0",
+  "case_id": "permission",
+  "revision": 1,
+  "split": "design_fixture",
+  "task": "apply",
+  "prompt": "The first handbook calls a lantern READY. May its valve now be opened?",
+  "source_refs": [
+    {
+      "id": "source:handbook",
+      "revision": 1
+    },
+    {
+      "id": "source:courier",
+      "revision": 1
+    },
+    {
+      "id": "source:retelling",
+      "revision": 1
+    },
+    {
+      "id": "source:alternative",
+      "revision": 1
+    }
+  ],
+  "critical": true,
+  "private_rubric": {
+    "required_behaviors": [
+      "No; READY only permits moving.",
+      "Cite the source permission limit."
+    ],
+    "forbidden_behaviors": [
+      "Infer valve-opening permission."
+    ],
+    "ambiguities": []
+  },
+  "preparation": {
+    "basis": "synthetic_design_fixture",
+    "exposed_to_compiler": true,
+    "notes": "Visible for specification review; must not be represented as held-out evaluation."
+  }
+}

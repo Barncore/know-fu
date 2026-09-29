@@ -1,0 +1,25 @@
+{
+  "name": "know-fu",
+  "version": "1.0.0+codex.20260929044055",
+  "description": "Ingest books, videos and specialized research into a connected local library for teaching, application and grounded ideas.",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Know Fu",
+    "shortDescription": "Source-grounded research, explanations and ideas.",
+    "longDescription": "A local research corpus with immutable originals, explanatory records, qualified graph relationships, semantic retrieval and a maintained wiki. Codex supplies reasoning; setup selects storage and service options.",
+    "developerName": "Know Fu",
+    "category": "Productivity",
+    "capabilities": [
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Ingest this source into my research library.",
+      "Teach me this topic using my research library.",
+      "What important question should we investigate next?"
+    ]
+  },
+  "author": {
+    "name": "Know Fu"
+  }
+}

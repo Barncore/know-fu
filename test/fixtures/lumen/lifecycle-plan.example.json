@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.1.0",
+  "plan_id": "illustrative-archive",
+  "corpus_id": "fixture_lumen",
+  "base_release": "fixture-release-1",
+  "action": "archive",
+  "targets": [
+    {
+      "id": "source:retelling",
+      "revision": 1
+    }
+  ],
+  "reason": "Illustrate archiving a redundant retelling without asserting it is false.",
+  "affected_refs": [
+    {
+      "id": "passage:retelling",
+      "revision": 1
+    },
+    {
+      "id": "relationship:retelling-lineage",
+      "revision": 1
+    }
+  ],
+  "components": [
+    "records",
+    "graph",
+    "search",
+    "wiki"
+  ],
+  "outside_control": [],
+  "authorization_ref": null,
+  "state": "planned",
+  "receipts": [],
+  "limitations": [
+    "Design example only; no lifecycle operation executed."
+  ]
+}

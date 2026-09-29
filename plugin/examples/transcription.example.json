@@ -1,0 +1,13 @@
+{
+  "pricing_checked": "2026-09-29",
+  "pricing_sources": ["https://developers.openai.com/api/docs/models/gpt-transcribe", "https://developers.openai.com/api/docs/models/whisper-1"],
+  "chunk_seconds": 300,
+  "overlap_seconds": 8,
+  "reservation_multiplier": 1.25,
+  "reservation_per_request": 0.001,
+  "models": [
+    {"id": "wording", "endpoint": "https://api.openai.com/v1/audio/transcriptions", "model": "gpt-transcribe", "key_env": "OPENAI_API_KEY", "estimated_cost_per_minute": 0.0045, "currency": "USD", "response_format": "json"},
+    {"id": "timing", "endpoint": "https://api.openai.com/v1/audio/transcriptions", "model": "whisper-1", "key_env": "OPENAI_API_KEY", "estimated_cost_per_minute": 0.006, "currency": "USD", "response_format": "verbose_json", "timestamp_granularities": ["word", "segment"]}
+  ],
+  "navigation": {"max_gap_seconds": 20, "scene_threshold": 0.12}
+}

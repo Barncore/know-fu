@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/research-kb/spec/evaluation-case.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.1.0"
+    },
+    "case_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "split": {
+      "enum": [
+        "design_fixture",
+        "regression",
+        "held_out",
+        "retired"
+      ]
+    },
+    "task": {
+      "enum": [
+        "explain",
+        "teach",
+        "apply",
+        "compare",
+        "invent",
+        "abstain"
+      ]
+    },
+    "prompt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ]
+      },
+      "minItems": 1
+    },
+    "critical": {
+      "type": "boolean"
+    },
+    "private_rubric": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required_behaviors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "forbidden_behaviors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "ambiguities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "required_behaviors",
+        "forbidden_behaviors",
+        "ambiguities"
+      ]
+    },
+    "preparation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "enum": [
+            "original_sources",
+            "synthetic_design_fixture"
+          ]
+        },
+        "exposed_to_compiler": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "basis",
+        "exposed_to_compiler",
+        "notes"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "case_id",
+    "revision",
+    "split",
+    "task",
+    "prompt",
+    "source_refs",
+    "critical",
+    "private_rubric",
+    "preparation"
+  ]
+}

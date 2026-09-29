@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "dimensions": [
+    {
+      "id": "lumen.room",
+      "meaning": "The room in which the fictional lantern is handled.",
+      "value_type": "enum",
+      "allowed_values": [
+        "dry_reading_room",
+        "humid_room"
+      ],
+      "unit": null,
+      "unknown_policy": "Unknown remains unknown; never infer dry from absence of humid."
+    }
+  ]
+}

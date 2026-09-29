@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.1.0",
+  "id": "knowledge:handling",
+  "revision": 1,
+  "corpus_id": "fixture_lumen",
+  "record_type": "knowledge",
+  "title": "How the handbook permits moving a lantern",
+  "created_at": "2026-09-29T00:00:00Z",
+  "lifecycle": "active",
+  "epistemic": "source_account",
+  "archived": false,
+  "maintenance_module": "workshop",
+  "scope": {
+    "domains": [
+      "fictional_workshop"
+    ],
+    "conditions": [
+      "Dry reading room"
+    ],
+    "exclusions": [
+      "Real-world safety guidance"
+    ],
+    "condition_expression": {
+      "dimension": "lumen.room",
+      "operator": "eq",
+      "value": "dry_reading_room",
+      "unit": null
+    },
+    "valid_from": null,
+    "valid_until": null
+  },
+  "provenance": {
+    "actor": "specification_author",
+    "method": "hand_authored_synthetic_fixture",
+    "source_refs": [
+      {
+        "id": "source:handbook",
+        "revision": 1
+      }
+    ],
+    "input_refs": [
+      {
+        "id": "passage:handling-rule",
+        "revision": 1
+      },
+      {
+        "id": "passage:handling-limits",
+        "revision": 1
+      },
+      {
+        "id": "concept:ready-handbook",
+        "revision": 1
+      }
+    ],
+    "tool_versions": {
+      "fixture": "1.1.0"
+    }
+  },
+  "assessments": {
+    "fidelity": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "evidence": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "applicability": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": "Fictional test environment only"
+    }
+  },
+  "depends_on": [
+    {
+      "id": "passage:handling-rule",
+      "revision": 1
+    },
+    {
+      "id": "passage:handling-limits",
+      "revision": 1
+    },
+    {
+      "id": "concept:ready-handbook",
+      "revision": 1
+    }
+  ],
+  "supersedes": [],
+  "change_reason": "Initial specification example",
+  "body": {
+    "path": "objects/knowledge_handling/1/body.md",
+    "sha256": "9893409a966c852ee6d279b78c5b174181c338c008410551463329462b8f6a3e"
+  },
+  "extensions": {},
+  "payload": {
+    "form": "procedure",
+    "summary": "Check room, badge and valve; moving and opening the valve are different permissions.",
+    "concept_refs": [
+      {
+        "id": "concept:ready-handbook",
+        "revision": 1
+      }
+    ]
+  }
+}

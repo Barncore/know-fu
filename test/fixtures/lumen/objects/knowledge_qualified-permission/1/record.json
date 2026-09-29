@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.1.0",
+  "id": "knowledge:qualified-permission",
+  "revision": 1,
+  "corpus_id": "fixture_lumen",
+  "record_type": "knowledge",
+  "title": "A permission can depend on several necessary conditions",
+  "created_at": "2026-09-29T00:00:00Z",
+  "lifecycle": "active",
+  "epistemic": "inference",
+  "archived": false,
+  "maintenance_module": "workshop",
+  "scope": {
+    "domains": [
+      "fictional_workshop"
+    ],
+    "conditions": [],
+    "exclusions": [
+      "Real-world safety guidance"
+    ],
+    "condition_expression": null,
+    "valid_from": null,
+    "valid_until": null
+  },
+  "provenance": {
+    "actor": "specification_author",
+    "method": "hand_authored_synthetic_fixture",
+    "source_refs": [
+      {
+        "id": "source:handbook",
+        "revision": 1
+      }
+    ],
+    "input_refs": [
+      {
+        "id": "knowledge:handling",
+        "revision": 1
+      }
+    ],
+    "tool_versions": {
+      "fixture": "1.1.0"
+    }
+  },
+  "assessments": {
+    "fidelity": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "evidence": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "applicability": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": "Fictional test environment only"
+    }
+  },
+  "depends_on": [
+    {
+      "id": "knowledge:handling",
+      "revision": 1
+    }
+  ],
+  "supersedes": [],
+  "change_reason": "Initial specification example",
+  "body": {
+    "path": "objects/knowledge_qualified-permission/1/body.md",
+    "sha256": "c1b63271cff08ed3e7eefbcabb95367a8476874418aba6070482ffc9bcd717ca"
+  },
+  "extensions": {
+    "functional_facets": {
+      "purpose": [
+        {
+          "text": "Identify whether a stated permission follows from all its prerequisites.",
+          "basis": "inferred",
+          "evidence_refs": [
+            {
+              "id": "knowledge:handling",
+              "revision": 1
+            }
+          ]
+        }
+      ],
+      "failure_modes": [
+        {
+          "text": "Checking only the badge drops the valve condition.",
+          "basis": "inferred",
+          "evidence_refs": [
+            {
+              "id": "passage:handling-rule",
+              "revision": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "payload": {
+    "form": "mechanism",
+    "summary": "An abstract decision structure illustrated by the first handbook; not a physical safety mechanism.",
+    "concept_refs": [
+      {
+        "id": "concept:ready-handbook",
+        "revision": 1
+      }
+    ]
+  }
+}

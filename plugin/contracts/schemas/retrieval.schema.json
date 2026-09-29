@@ -1,0 +1,324 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/research-kb/spec/retrieval.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.1.0"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "corpus_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "release_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "purpose": {
+      "enum": [
+        "explain",
+        "teach",
+        "apply",
+        "compare",
+        "invent",
+        "investigate"
+      ]
+    },
+    "query": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope_selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowed_modules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "selected_domains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ]
+          },
+          "minItems": 0
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "allowed_modules",
+        "selected_domains",
+        "source_refs",
+        "rationale"
+      ]
+    },
+    "route": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "exact",
+          "semantic",
+          "wiki",
+          "graph",
+          "canonical_fallback"
+        ]
+      },
+      "minItems": 1
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "record_ref": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ]
+          },
+          "role": {
+            "enum": [
+              "explanation",
+              "evidence",
+              "qualification",
+              "counterevidence",
+              "alternative",
+              "prerequisite"
+            ]
+          },
+          "excerpt": {
+            "type": "string",
+            "minLength": 1
+          },
+          "generated": {
+            "type": "boolean"
+          },
+          "locator": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "lines",
+                      "pages",
+                      "time_ms",
+                      "epub",
+                      "web"
+                    ]
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "start": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "end": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "anchor": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "precision": {
+                    "enum": [
+                      "exact",
+                      "approximate"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "label",
+                  "start",
+                  "end",
+                  "anchor",
+                  "precision"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selection_reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "record_ref",
+          "role",
+          "excerpt",
+          "generated",
+          "locator",
+          "selection_reason"
+        ]
+      },
+      "minItems": 0
+    },
+    "relationship_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ]
+      },
+      "minItems": 0
+    },
+    "judgment_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ]
+      },
+      "minItems": 0
+    },
+    "missing_evidence": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "freshness": {
+      "enum": [
+        "current",
+        "pinned_historical",
+        "degraded"
+      ]
+    },
+    "fingerprints": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "timings_ms": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_id",
+    "corpus_id",
+    "release_id",
+    "purpose",
+    "query",
+    "scope_selection",
+    "route",
+    "items",
+    "relationship_refs",
+    "judgment_refs",
+    "missing_evidence",
+    "warnings",
+    "truncated",
+    "freshness",
+    "fingerprints",
+    "timings_ms"
+  ]
+}

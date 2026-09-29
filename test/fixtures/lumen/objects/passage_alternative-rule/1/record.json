@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.1.0",
+  "id": "passage:alternative-rule",
+  "revision": 1,
+  "corpus_id": "fixture_lumen",
+  "record_type": "passage",
+  "title": "Alternative Rule",
+  "created_at": "2026-09-29T00:00:00Z",
+  "lifecycle": "active",
+  "epistemic": "source_account",
+  "archived": false,
+  "maintenance_module": "workshop",
+  "scope": {
+    "domains": [
+      "fictional_workshop"
+    ],
+    "conditions": [],
+    "exclusions": [
+      "Real-world safety guidance"
+    ],
+    "condition_expression": null,
+    "valid_from": null,
+    "valid_until": null
+  },
+  "provenance": {
+    "actor": "specification_author",
+    "method": "hand_authored_synthetic_fixture",
+    "source_refs": [
+      {
+        "id": "source:alternative",
+        "revision": 1
+      }
+    ],
+    "input_refs": [
+      {
+        "id": "source:alternative",
+        "revision": 1
+      }
+    ],
+    "tool_versions": {
+      "fixture": "1.1.0"
+    }
+  },
+  "assessments": {
+    "fidelity": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "evidence": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "applicability": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": "Fictional test environment only"
+    }
+  },
+  "depends_on": [
+    {
+      "id": "source:alternative",
+      "revision": 1
+    }
+  ],
+  "supersedes": [],
+  "change_reason": "Initial specification example",
+  "body": null,
+  "extensions": {},
+  "payload": {
+    "source_ref": {
+      "id": "source:alternative",
+      "revision": 1
+    },
+    "kind": "text",
+    "text": "For the same dry reading room and lantern, an amber badge alone makes it READY, even with the valve open.\nNo experiment, authority resolution or justification for this difference is supplied.",
+    "asset_path": null,
+    "locator": {
+      "kind": "lines",
+      "label": "Lines 2–3",
+      "start": 2,
+      "end": 3,
+      "anchor": null,
+      "precision": "exact"
+    },
+    "extraction_sha256": "d409176b28ae30ce72129b03ff06b1643b19cd8804d60f80df6d95b4279300c2"
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "schema_version": "1.1.0",
+  "id": "learning:primer",
+  "revision": 1,
+  "corpus_id": "fixture_lumen",
+  "record_type": "learning",
+  "title": "Orientation to the fictional workshop sources",
+  "created_at": "2026-09-29T00:00:00Z",
+  "lifecycle": "active",
+  "epistemic": "synthesis",
+  "archived": false,
+  "maintenance_module": "workshop",
+  "scope": {
+    "domains": [
+      "fictional_workshop"
+    ],
+    "conditions": [],
+    "exclusions": [
+      "Real-world safety guidance"
+    ],
+    "condition_expression": null,
+    "valid_from": null,
+    "valid_until": null
+  },
+  "provenance": {
+    "actor": "specification_author",
+    "method": "hand_authored_synthetic_fixture",
+    "source_refs": [
+      {
+        "id": "source:handbook",
+        "revision": 1
+      },
+      {
+        "id": "source:courier",
+        "revision": 1
+      },
+      {
+        "id": "source:alternative",
+        "revision": 1
+      }
+    ],
+    "input_refs": [
+      {
+        "id": "knowledge:handling",
+        "revision": 1
+      },
+      {
+        "id": "knowledge:courier",
+        "revision": 1
+      },
+      {
+        "id": "knowledge:alternative",
+        "revision": 1
+      },
+      {
+        "id": "judgment:readiness-conflict",
+        "revision": 1
+      }
+    ],
+    "tool_versions": {
+      "fixture": "1.1.0"
+    }
+  },
+  "assessments": {
+    "fidelity": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "evidence": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": null
+    },
+    "applicability": {
+      "level": "not_assessed",
+      "rationale": "Synthetic design material; no runtime or empirical validation.",
+      "context": "Fictional test environment only"
+    }
+  },
+  "depends_on": [
+    {
+      "id": "knowledge:handling",
+      "revision": 1
+    },
+    {
+      "id": "knowledge:courier",
+      "revision": 1
+    },
+    {
+      "id": "knowledge:alternative",
+      "revision": 1
+    },
+    {
+      "id": "judgment:readiness-conflict",
+      "revision": 1
+    }
+  ],
+  "supersedes": [],
+  "change_reason": "Initial specification example",
+  "body": {
+    "path": "objects/learning_primer/1/body.md",
+    "sha256": "0790b6c82f74c458a7edc730364d787bad7f76c8a31bed211b9409164f725e49"
+  },
+  "extensions": {},
+  "payload": {
+    "form": "primer",
+    "knowledge_refs": [
+      {
+        "id": "knowledge:handling",
+        "revision": 1
+      },
+      {
+        "id": "knowledge:courier",
+        "revision": 1
+      },
+      {
+        "id": "knowledge:alternative",
+        "revision": 1
+      }
+    ],
+    "objectives": [
+      "Distinguish author-specific meanings.",
+      "Preserve the valve condition and unresolved conflict."
+    ]
+  }
+}

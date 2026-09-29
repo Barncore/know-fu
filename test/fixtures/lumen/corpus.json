@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.1.0",
+  "corpus_id": "fixture_lumen",
+  "title": "Fictional workshop review fixture",
+  "integration": "codex",
+  "modules": [
+    {
+      "module_id": "workshop",
+      "title": "Workshop",
+      "description": "Maintenance responsibility for the fictional source accounts."
+    }
+  ],
+  "domains": [
+    {
+      "domain_id": "fictional_workshop",
+      "title": "Fictional workshop"
+    }
+  ],
+  "default_scope": {
+    "read_modules": [
+      "workshop"
+    ],
+    "write_modules": [
+      "workshop"
+    ],
+    "source_refs": []
+  },
+  "project_bindings": [
+    {
+      "project_id": "specification_review",
+      "read_modules": [
+        "workshop"
+      ],
+      "write_modules": [
+        "workshop"
+      ]
+    }
+  ]
+}

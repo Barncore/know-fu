@@ -1,0 +1,383 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/research-kb/spec/job.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.1.0"
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "corpus_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base_release": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "authorized_scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "read_modules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "write_modules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ]
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "read_modules",
+        "write_modules",
+        "source_refs"
+      ]
+    },
+    "stage": {
+      "enum": [
+        "register",
+        "convert",
+        "reconstruct",
+        "integrate",
+        "discover",
+        "reweave",
+        "compile",
+        "check",
+        "publish"
+      ]
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "running",
+        "waiting_for_codex",
+        "blocked",
+        "cancelled",
+        "complete"
+      ]
+    },
+    "source_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ]
+      },
+      "minItems": 1
+    },
+    "coverage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "unit_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_ref": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ]
+          },
+          "locator": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "lines",
+                  "pages",
+                  "time_ms",
+                  "epub",
+                  "web"
+                ]
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "start": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "end": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "anchor": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "precision": {
+                "enum": [
+                  "exact",
+                  "approximate"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "label",
+              "start",
+              "end",
+              "anchor",
+              "precision"
+            ]
+          },
+          "registered": {
+            "enum": [
+              "pending",
+              "complete",
+              "excluded",
+              "blocked"
+            ]
+          },
+          "converted": {
+            "enum": [
+              "pending",
+              "complete",
+              "excluded",
+              "blocked"
+            ]
+          },
+          "read": {
+            "enum": [
+              "pending",
+              "complete",
+              "excluded",
+              "blocked"
+            ]
+          },
+          "integrated": {
+            "enum": [
+              "pending",
+              "complete",
+              "excluded",
+              "blocked"
+            ]
+          },
+          "checked": {
+            "enum": [
+              "pending",
+              "complete",
+              "excluded",
+              "blocked"
+            ]
+          },
+          "receipts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$"
+            },
+            "minItems": 0
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "exclusion_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "unit_id",
+          "source_ref",
+          "locator",
+          "registered",
+          "converted",
+          "read",
+          "integrated",
+          "checked",
+          "receipts",
+          "gaps",
+          "exclusion_reason"
+        ]
+      },
+      "minItems": 1
+    },
+    "remaining_work": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "receipts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$"
+      },
+      "minItems": 0
+    },
+    "paid_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "currency": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "provider_request_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "currency",
+        "limit",
+        "provider_request_ids"
+      ]
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string",
+              "minLength": 1
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1
+            },
+            "resumable": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "resumable"
+          ]
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "job_id",
+    "corpus_id",
+    "base_release",
+    "idempotency_key",
+    "authorized_scope",
+    "scope_policy",
+    "stage",
+    "status",
+    "source_refs",
+    "coverage",
+    "remaining_work",
+    "receipts",
+    "paid_budget",
+    "error"
+  ]
+}
