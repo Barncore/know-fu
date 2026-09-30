@@ -39,6 +39,8 @@ Common fields include `id`, `revision`, `corpus_id`, `maintenance_module`, `scop
 
 An ID and revision identify an exact meaning at a point in time. A release selects the current set of revisions. Provenance links that meaning to sources and earlier records. Source accounts, synthesis, inference, hypotheses and judgments carry different epistemic labels. Fidelity, evidence and applicability assessments remain separate: a faithful report of an author is not automatically a well-supported general rule.
 
+Only CURRENT and its committed ancestry authorize exact-revision reads. An orphaned candidate release from an interrupted publication is not readable evidence. Ordinary semantic edits preserve lifecycle/archive/supersession state. A revision retains its record family and maintenance owner; changing ownership requires a separately designed operation, not relabeling an existing identity in a proposal. Whole-library exports and format generation require unrestricted corpus-wide read authority; restore also requires corpus-wide write authority.
+
 Relationship predicates are `supports`, `challenges`, `qualifies`, `depends_on`, `explains`, `exemplifies`, `applies_to` and `derived_from`. A relationship is itself a record, so its rationale and qualifications can be revised and cited. There is no `analogous_to` relation.
 
 Judgments can identify different scope, compatibility, qualification, provisional preference, superseded interpretation or an unresolved issue. Conflicts are preserved for reasoning; supersession is a justified revision, not automatic deletion of the losing source.

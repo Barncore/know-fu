@@ -31,6 +31,46 @@ export class Lifecycle {
     public store: Store,
     public projections = new Projections(store),
   ) {}
+  private async authorizePlan(p: LifecyclePlanData) {
+    ensure(
+      p.corpus_id === (await this.store.config()).corpus_id,
+      "SCOPE_DENIED",
+      "Lifecycle plan belongs to another corpus",
+    );
+    const inventory = await readJson(
+      this.store.p(`lifecycle/purge-work/${p.plan_id}.json`),
+    ).catch(() => null);
+    if (p.action === "purge" && inventory) {
+      // The previous attempt may already have removed canonical metadata.
+      // Legacy recovery inventories lacked this snapshot; only a full owner may resume those.
+      if (inventory.required_scope)
+        await this.store.scope(inventory.required_scope);
+      else await this.store.requireFullScope(true);
+      return;
+    }
+    const records = await this.store.records(),
+      scope = await this.store.scope();
+    const targets = new Set(p.targets.map((r) => r.id));
+    const touched =
+      p.action === "purge"
+        ? p.affected_refs.map((r) => records.get(r.id))
+        : [...records.values()].filter(
+            (r) =>
+              targets.has(r.id) ||
+              (r.record_type === "passage" &&
+                targets.has((r.payload as any).source_ref.id)),
+          );
+    for (const record of touched) {
+      ensure(record, "PLAN_STALE", "Lifecycle target no longer exists");
+      await this.store.requireWritable(record, scope);
+    }
+    for (const target of p.targets)
+      ensure(
+        key(records.get(target.id) ?? { id: "", revision: 0 }) === key(target),
+        "PLAN_STALE",
+        "Lifecycle target revision changed",
+      );
+  }
   async plan(
     action: LifecyclePlanData["action"],
     targets: Ref[],
@@ -53,6 +93,7 @@ export class Lifecycle {
         "SCOPE_DENIED",
         "Lifecycle target is outside writable modules",
       );
+      await this.store.requireWritable(r, scope);
     }
     const affected = new Set(targets.map((x) => x.id));
     let changed = true;
@@ -142,6 +183,7 @@ export class Lifecycle {
       "AUTHORIZATION_REQUIRED",
       "Supply the actual user instruction matching this action and exact targets",
     );
+    await this.authorizePlan(p);
     // This receipt records user authorization supplied by the caller. It cannot confer authority by itself.
     p.authorization_ref = `lifecycle/authorizations/${id}.json`;
     if (!(await exists(this.store.p(p.authorization_ref))))
@@ -219,6 +261,7 @@ export class Lifecycle {
             "PLAN_STALE",
             "Purge preview is stale",
           );
+          await this.authorizePlan(p);
           const config = await this.store.config(),
             ledger = await readJson<Ledger>(
               path.join(
@@ -236,6 +279,9 @@ export class Lifecycle {
           else {
             const records = await this.store.records();
             inventory = {
+              required_scope: await this.store.requiredScope(
+                [...records.values()].filter((r) => ids.has(r.id)),
+              ),
               sources: [...records.values()]
                 .filter((r) => ids.has(r.id) && r.record_type === "source")
                 .map((r) => ({

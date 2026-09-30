@@ -4,6 +4,10 @@ import {
   APP,
   ensure,
   hash,
+  fileHash,
+  snapshotFile,
+  checkSnapshot,
+  type FileSnapshot,
   json,
   immutable,
   readJson,
@@ -31,7 +35,7 @@ export class Visuals {
     const dir = path.join(output, "navigation"),
       manifest = path.join(dir, "manifest.json");
     await fs.mkdir(dir, { recursive: true });
-    const sourceHash = hash(await fs.readFile(original));
+    const sourceHash = await fileHash(original);
     if (await exists(manifest)) {
       const prior = await readJson(manifest);
       ensure(
@@ -138,7 +142,14 @@ export class Visuals {
     );
     return units;
   }
-  async frame(original: string, output: string, seconds: number) {
+  async frame(
+    original: string,
+    output: string,
+    seconds: number,
+    sourceSnapshot?: FileSnapshot,
+  ) {
+    const snapshot = sourceSnapshot ?? (await snapshotFile(original));
+    await checkSnapshot(original, snapshot);
     const probe = await this.runtime.probe(original),
       duration = Number(probe.format.duration),
       stream = probe.streams.find((s: any) => s.codec_type === "video");
@@ -183,6 +194,7 @@ export class Visuals {
       "SOURCE_UNREADABLE",
       "Decoded time outside requested source range",
     );
+    await checkSnapshot(original, snapshot);
     const details = {
       requested_seconds: seconds,
       decoded_pts_seconds: decoded,
@@ -190,7 +202,7 @@ export class Visuals {
       actual_source_seconds: actual,
       width: stream.width,
       height: stream.height,
-      source_sha256: hash(await fs.readFile(original)),
+      source_sha256: snapshot.sha256,
       asset_sha256: hash(await fs.readFile(file)),
     };
     const text = json(details);
@@ -247,7 +259,15 @@ export class Visuals {
       },
     };
   }
-  async page(original: string, output: string, page: number, scale = 3) {
+  async page(
+    original: string,
+    output: string,
+    page: number,
+    scale = 3,
+    sourceSnapshot?: FileSnapshot,
+  ) {
+    const snapshot = sourceSnapshot ?? (await snapshotFile(original));
+    await checkSnapshot(original, snapshot);
     ensure(
       Number.isInteger(page) &&
         page >= 1 &&
@@ -272,9 +292,10 @@ export class Visuals {
         ])
       ).stdout,
     );
+    await checkSnapshot(original, snapshot);
     const text = json({
       ...details,
-      source_sha256: hash(await fs.readFile(original)),
+      source_sha256: snapshot.sha256,
     });
     return {
       unit_id: "page-" + page,

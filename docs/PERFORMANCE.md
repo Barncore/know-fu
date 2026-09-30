@@ -1,5 +1,7 @@
 # Performance and its limits
 
+The 1.0.2 repair streams whole-source hashing and immutable registration copies instead of loading complete media files into memory. A requested frame/page batch shares one verified source hash and checks file identity around each extraction. These changes remove repeated whole-file reads within a batch; no new multi-gigabyte throughput or peak-memory benchmark is claimed. The measurements below remain the dated 1.0.1 results.
+
 Measured on 2026-09-29 on Windows 11, Ryzen 9 7950X, 32 GB RAM, integrated GPU only, regular FalkorDB in Ubuntu WSL2 and QMD 2.8.3 forced to CPU. These are small local measurements, not capacity guarantees for arbitrary libraries.
 
 ## Canonical retrieval

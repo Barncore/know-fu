@@ -1,5 +1,9 @@
 # Operations
 
+Whole-library `verify`, `export` and `formats` require unrestricted read access to every module. `restore` also requires corpus-wide write authority. Scoped callers receive `SCOPE_DENIED`; these commands do not produce partial backups. Exact reads expose only committed release ancestry. Ordinary edits preserve archive, withdrawal and supersession state; lifecycle execution and purge resumption recheck the caller's current permissions.
+
+Version 2 evaluations freeze cases, model, release, scope, comparison conditions and budget settings before running. A change requires a new run. Grading must match the structured grade contract; malformed responses leave the run incomplete, with raw responses and immutable attempts retained. Completed attempts are reused only if their receipts match. Legacy reports remain inspectable by their authorized owner but need a newly prepared run for execution.
+
 Start with the bundled [package README](../../../README.md), [schema and layout](../../../docs/architecture.md), and [setup guide](../../../docs/setup.md). `kb_status` reports the separate engine and corpus locations; the README at that engine path contains deployment evidence and known limits. Use regular FalkorDB through the configured managed-WSL or external-server deployment; no silent graph SQLite or FalkorDBLite fallback. The setup guide distinguishes tested deployments from configurable alternatives. Local installation paths are configuration, not a portable skill dependency.
 
 Use `kb_status`, `kb_maintain reindex` and `verify`. Graph start/status/restart: engine `scripts/graph-service.ps1 -Action start|status|restart`. Canonical files remain authoritative when a view is unavailable. Do not rewrite them to make an index appear healthy.

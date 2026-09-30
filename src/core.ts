@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
-import { readFileSync } from "node:fs";
+import { createReadStream, readFileSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
@@ -34,6 +34,69 @@ export const now = () => new Date().toISOString();
 export const uid = (prefix = "") => prefix + randomUUID();
 export const hash = (data: string | Uint8Array) =>
   createHash("sha256").update(data).digest("hex");
+export async function fileHash(file: string) {
+  const digest = createHash("sha256");
+  for await (const chunk of createReadStream(file)) digest.update(chunk);
+  return digest.digest("hex");
+}
+async function fileIdentity(file: string) {
+  const stat = await fs.stat(file, { bigint: true });
+  return [stat.dev, stat.ino, stat.size, stat.mtimeNs, stat.ctimeNs]
+    .map(String)
+    .join(":");
+}
+export type FileSnapshot = { sha256: string; identity: string };
+export async function snapshotFile(file: string): Promise<FileSnapshot> {
+  const identity = await fileIdentity(file),
+    sha256 = await fileHash(file);
+  ensure(
+    identity === (await fileIdentity(file)),
+    "SOURCE_UNREADABLE",
+    "Source changed while hashing",
+  );
+  return { sha256, identity };
+}
+export async function checkSnapshot(file: string, snapshot: FileSnapshot) {
+  ensure(
+    snapshot.identity === (await fileIdentity(file)),
+    "SOURCE_UNREADABLE",
+    "Source changed during visual extraction",
+  );
+}
+export async function immutableCopy(
+  source: string,
+  target: string,
+  expectedHash: string,
+) {
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  const temporary = target + "." + uid() + ".tmp";
+  try {
+    await fs.copyFile(source, temporary);
+    ensure(
+      (await fileHash(temporary)) === expectedHash,
+      "SOURCE_UNREADABLE",
+      "Source changed during preservation",
+    );
+    const handle = await fs.open(temporary, "r+");
+    try {
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+    try {
+      await fs.link(temporary, target);
+    } catch (e: any) {
+      if (e.code !== "EEXIST") throw e;
+      ensure(
+        (await fileHash(target)) === expectedHash,
+        "REVISION_CONFLICT",
+        "Preserved original differs from the supplied source",
+      );
+    }
+  } finally {
+    await fs.rm(temporary, { force: true });
+  }
+}
 export const json = (v: unknown) => JSON.stringify(v, null, 2) + "\n";
 export const key = (r: Ref) => `${r.id}@${r.revision}`;
 export const ref = (r: Ref): Ref => ({ id: r.id, revision: r.revision });

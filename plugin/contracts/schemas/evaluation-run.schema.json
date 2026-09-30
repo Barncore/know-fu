@@ -1,186 +1,567 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://local.invalid/research-kb/spec/evaluation-run.schema.json",
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "schema_version": {
-      "const": "1.1.0"
-    },
-    "run_id": {
-      "type": "string",
-      "minLength": 1
-    },
-    "corpus_id": {
-      "type": "string",
-      "minLength": 1
-    },
-    "release_id": {
-      "type": "string",
-      "minLength": 1
-    },
-    "case_ids": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      },
-      "minItems": 1
-    },
-    "condition": {
-      "enum": [
-        "no_kb",
-        "source_only",
-        "prose_and_passages",
-        "full_system"
-      ]
-    },
-    "fingerprint": {
-      "type": "string",
-      "pattern": "^[a-f0-9]{64}$"
-    },
-    "model": {
-      "type": "string",
-      "minLength": 1
-    },
-    "model_version": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "reasoning_setting": {
-      "type": "string",
-      "minLength": 1
-    },
-    "answer_budget": {
-      "type": "integer",
-      "minimum": 1
-    },
-    "tool_budget": {
-      "type": "integer",
-      "minimum": 0
-    },
-    "available_tools": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      },
-      "minItems": 0
-    },
-    "status": {
-      "enum": [
-        "pending",
-        "running",
-        "complete",
-        "incomplete"
-      ]
-    },
-    "results": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "case_id": {
+  "description": "Version 2 runtime manifests and legacy condition-level design receipts. Legacy receipts remain readable but are not resumable runtime runs.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.1.0"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "corpus_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "release_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "case_ids": {
+          "type": "array",
+          "items": {
             "type": "string",
             "minLength": 1
           },
-          "answer_path": {
+          "minItems": 1
+        },
+        "condition": {
+          "enum": [
+            "no_kb",
+            "source_only",
+            "prose_and_passages",
+            "full_system"
+          ]
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reasoning_setting": {
+          "type": "string",
+          "minLength": 1
+        },
+        "answer_budget": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "tool_budget": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "available_tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "running",
+            "complete",
+            "incomplete"
+          ]
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "answer_path": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$"
+              },
+              "verdict": {
+                "enum": [
+                  "pass",
+                  "fail",
+                  "ambiguous",
+                  "not_scored"
+                ]
+              },
+              "rationale": {
+                "type": "string",
+                "minLength": 1
+              },
+              "diagnosis": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 0
+              },
+              "evidence_refs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "revision"
+                  ]
+                },
+                "minItems": 0
+              }
+            },
+            "required": [
+              "case_id",
+              "answer_path",
+              "verdict",
+              "rationale",
+              "diagnosis",
+              "evidence_refs"
+            ]
+          },
+          "minItems": 0
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "receipts": {
+          "type": "array",
+          "items": {
             "type": "string",
             "minLength": 1,
             "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$"
           },
-          "verdict": {
+          "minItems": 0
+        }
+      },
+      "required": [
+        "schema_version",
+        "run_id",
+        "corpus_id",
+        "release_id",
+        "case_ids",
+        "condition",
+        "fingerprint",
+        "model",
+        "model_version",
+        "reasoning_setting",
+        "answer_budget",
+        "tool_budget",
+        "available_tools",
+        "status",
+        "results",
+        "limitations",
+        "receipts"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.1.0"
+        },
+        "version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "evaluation_manifest"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "corpus_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project": {
+          "type": "string",
+          "minLength": 1
+        },
+        "release_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
             "enum": [
-              "pass",
-              "fail",
-              "ambiguous",
-              "not_scored"
+              "no_kb",
+              "source_passages",
+              "prose_and_passages",
+              "full_kb"
             ]
           },
-          "rationale": {
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "case_ids": {
+          "type": "array",
+          "items": {
             "type": "string",
             "minLength": 1
           },
-          "diagnosis": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            },
-            "minItems": 0
-          },
-          "evidence_refs": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
-                },
-                "revision": {
-                  "type": "integer",
-                  "minimum": 1
-                }
-              },
-              "required": [
-                "id",
-                "revision"
-              ]
-            },
-            "minItems": 0
-          }
+          "minItems": 1,
+          "uniqueItems": true
         },
-        "required": [
-          "case_id",
-          "answer_path",
-          "verdict",
-          "rationale",
-          "diagnosis",
-          "evidence_refs"
-        ]
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "cases_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "scope_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "read_modules": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "write_modules": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 0,
+              "uniqueItems": true
+            },
+            "source_refs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "id",
+                  "revision"
+                ]
+              },
+              "minItems": 0
+            }
+          },
+          "required": [
+            "read_modules",
+            "write_modules",
+            "source_refs"
+          ]
+        },
+        "state": {
+          "enum": [
+            "prepared",
+            "running",
+            "complete",
+            "incomplete"
+          ]
+        },
+        "isolation": {
+          "oneOf": [
+            {
+              "const": "not_yet_verified"
+            },
+            {
+              "type": "object",
+              "required": [
+                "verified",
+                "mode"
+              ],
+              "properties": {
+                "verified": {
+                  "const": true
+                },
+                "mode": {
+                  "const": "native_commands_denied_input_only"
+                }
+              }
+            }
+          ]
+        },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reasoning_effort": {
+              "const": "medium"
+            },
+            "timeout_ms": {
+              "const": 600000
+            },
+            "answer_words": {
+              "const": 1000
+            }
+          },
+          "required": [
+            "reasoning_effort",
+            "timeout_ms",
+            "answer_words"
+          ]
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "condition": {
+                "enum": [
+                  "no_kb",
+                  "source_passages",
+                  "prose_and_passages",
+                  "full_kb"
+                ]
+              },
+              "attempt_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "state": {
+                "enum": [
+                  "complete",
+                  "failed"
+                ]
+              },
+              "answer": {
+                "type": "string",
+                "minLength": 1
+              },
+              "grade": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "verdict": {
+                    "enum": [
+                      "pass",
+                      "partial",
+                      "fail"
+                    ]
+                  },
+                  "reasons": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1
+                  },
+                  "citation_errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 0
+                  },
+                  "rubric_errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 0
+                  },
+                  "source_errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 0
+                  },
+                  "uncertainty": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 0
+                  }
+                },
+                "required": [
+                  "verdict",
+                  "reasons",
+                  "citation_errors",
+                  "rubric_errors",
+                  "source_errors",
+                  "uncertainty"
+                ]
+              },
+              "grade_raw": {
+                "type": "string",
+                "minLength": 1
+              },
+              "elapsed_ms": {
+                "type": "number",
+                "minimum": 0
+              },
+              "model": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "held_out": {
+                "type": "boolean"
+              },
+              "usage": {
+                "type": "object"
+              },
+              "error": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "details": {}
+            },
+            "required": [
+              "case_id",
+              "condition",
+              "attempt_id",
+              "state"
+            ],
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "state": {
+                      "const": "complete"
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "answer",
+                    "grade",
+                    "grade_raw",
+                    "elapsed_ms",
+                    "model",
+                    "evidence_hash",
+                    "held_out",
+                    "usage"
+                  ]
+                },
+                "else": {
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            ]
+          },
+          "minItems": 0
+        },
+        "retrieval_mode": {
+          "type": "string",
+          "minLength": 1
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "minItems": 0
-    },
-    "limitations": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      },
-      "minItems": 0
-    },
-    "receipts": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1,
-        "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$"
-      },
-      "minItems": 0
+      "required": [
+        "schema_version",
+        "version",
+        "kind",
+        "run_id",
+        "corpus_id",
+        "root",
+        "project",
+        "release_id",
+        "model",
+        "conditions",
+        "case_ids",
+        "created_at",
+        "cases_hash",
+        "fingerprint",
+        "scope_policy",
+        "state",
+        "isolation",
+        "budget",
+        "limitations",
+        "results"
+      ]
     }
-  },
-  "required": [
-    "schema_version",
-    "run_id",
-    "corpus_id",
-    "release_id",
-    "case_ids",
-    "condition",
-    "fingerprint",
-    "model",
-    "model_version",
-    "reasoning_setting",
-    "answer_budget",
-    "tool_budget",
-    "available_tools",
-    "status",
-    "results",
-    "limitations",
-    "receipts"
   ]
 }

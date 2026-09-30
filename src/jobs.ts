@@ -8,6 +8,8 @@ import {
   ensure,
   uid,
   hash,
+  fileHash,
+  immutableCopy,
   json,
   readJson,
   atomic,
@@ -59,6 +61,7 @@ export class Jobs {
   constructor(
     public store: Store,
     private mediaFactory = () => new Media(),
+    private runtimeConfig = () => readJson(path.join(STATE, "config.json")),
   ) {}
   jobPath(id: string) {
     ensure(/^[a-zA-Z0-9_-]+$/.test(id), "VALIDATION_FAILED", "Invalid job ID");
@@ -164,13 +167,28 @@ export class Jobs {
         dir = this.jobPath(id);
       const signature = hash(json(input));
       if (await exists(path.join(dir, "request.json"))) {
+        const request = await readJson(path.join(dir, "request.json"));
         ensure(
-          (await readJson(path.join(dir, "request.json"))).signature ===
-            signature,
+          request.signature === signature,
           "REVISION_CONFLICT",
           "Idempotency key reused for a different ingestion",
         );
-        return this.next(id);
+        if (await exists(path.join(dir, "job.json"))) return this.next(id);
+        if (request.initial)
+          return this.finishRegistration(dir, request.initial);
+        // Legacy requests preceded their job checkpoint without a recovery snapshot.
+        // Rebuild only initial staging; do not overwrite later authoring work.
+        const staged = await readJson(path.join(dir, "staged.json")).catch(
+          () => null,
+        );
+        ensure(
+          !staged?.proposal_hash &&
+            !(staged?.records ?? []).some(
+              (r: RecordData) => r.record_type !== "source",
+            ),
+          "REVISION_CONFLICT",
+          "Missing job checkpoint has later authoring work; preserve it for reconciliation",
+        );
       }
       const sourceRecords: RecordData[] = [],
         coverage: any[] = [],
@@ -182,8 +200,7 @@ export class Jobs {
           "SOURCE_UNREADABLE",
           "Source symlink not accepted",
         );
-        const bytes = await fs.readFile(absolute),
-          digest = hash(bytes);
+        const digest = await fileHash(absolute);
         const duplicate = [...known.values(), ...sourceRecords].find(
           (r) =>
             r.record_type === "source" && (r.payload as any).sha256 === digest,
@@ -206,7 +223,7 @@ export class Jobs {
         const identity = { id: "source:" + digest.slice(0, 28), revision: 1 },
           extension = path.extname(absolute).toLowerCase();
         const original_path = `sources/${digest.slice(0, 28)}/1/original${extension}`;
-        await immutable(this.store.p(original_path), bytes);
+        await immutableCopy(absolute, this.store.p(original_path), digest);
         const source = {
           schema_version: VERSION,
           ...identity,
@@ -323,25 +340,77 @@ export class Jobs {
         paid_budget: { currency: null, limit: null, provider_request_ids: [] },
         error: null,
       };
-      await atomic(path.join(dir, "sources.json"), json(sourceRecords));
-      await atomic(path.join(dir, "request.json"), json({ signature, input }));
-      await atomic(
-        path.join(dir, "staged.json"),
-        json({
+      const initial = {
+        job,
+        sources: sourceRecords,
+        staged: {
           records: sourceRecords.filter((r) => !known.has(r.id)),
           bodies: {},
           local_refs: {},
           proposal_hash: "",
-        }),
+        },
+      };
+      await atomic(
+        path.join(dir, "request.json"),
+        json({ signature, input, initial }),
       );
-      await this.save(job);
-      await this.store.audit(
-        "ingest",
-        "Registered supplied source material",
-        job.source_refs,
-      );
-      return this.next(id);
+      if (process.env.KB_TEST_FAULT === "ingest_after_request")
+        ensure(
+          false,
+          "SIMULATED_CRASH",
+          "Interrupted initial job registration",
+        );
+      return this.finishRegistration(dir, initial);
     });
+  }
+  private async finishRegistration(
+    dir: string,
+    initial: { job: JobData; sources: RecordData[]; staged: Materialized },
+  ) {
+    await validate("job", initial.job);
+    const scope = await this.store.scope(initial.job.scope_policy);
+    ensure(
+      initial.job.corpus_id === (await this.store.config()).corpus_id &&
+        dir === this.jobPath(initial.job.job_id),
+      "SCOPE_DENIED",
+      "Registration snapshot belongs to another job or corpus",
+    );
+    for (const source of initial.sources) {
+      await validate("record", source);
+      if (initial.staged.records.some((r) => r.id === source.id))
+        await this.store.requireWritable(source, scope);
+      else
+        ensure(
+          await this.store.allowed(source, scope),
+          "SCOPE_DENIED",
+          "Existing source is outside this job scope",
+        );
+      const payload = source.payload as any;
+      ensure(
+        !(await this.store.ledger()).purged_hashes.includes(payload.sha256),
+        "CONTENT_PURGED",
+        "Source was purged during registration",
+      );
+      ensure(
+        (await fileHash(
+          await safePath(this.store.root, payload.original_path),
+        )) === payload.sha256,
+        "SOURCE_UNREADABLE",
+        "Preserved source changed during registration",
+      );
+    }
+    await atomic(path.join(dir, "sources.json"), json(initial.sources));
+    await atomic(path.join(dir, "staged.json"), json(initial.staged));
+    await this.store.audit(
+      "ingest",
+      "Registered supplied source material",
+      initial.job.source_refs,
+      null,
+      "completed",
+      "event-ingest-" + hash(initial.job.job_id).slice(0, 28),
+    );
+    await this.save(initial.job);
+    return this.next(initial.job.job_id);
   }
   async next(id: string) {
     const j = await this.load(id),
@@ -507,7 +576,14 @@ export class Jobs {
   async convert(
     id: string,
     budget?: { limit: number; currency: string; authorization: string },
+    options: { pdf_profile?: "technical" | "prose" | "ocr" } = {},
   ) {
+    ensure(
+      !options.pdf_profile ||
+        ["technical", "prose", "ocr"].includes(options.pdf_profile),
+      "VALIDATION_FAILED",
+      "Unknown PDF profile",
+    );
     return withLock(this.store.root, "conversion", async () => {
       const started = performance.now(),
         j = await this.load(id);
@@ -532,7 +608,7 @@ export class Jobs {
           "PAID_BUDGET_REQUIRED",
           "Media needs a job allowance",
         );
-        const runtime = await readJson(path.join(STATE, "config.json"));
+        const runtime = await this.runtimeConfig();
         let total = 0;
         for (const s of sources) {
           if (
@@ -565,7 +641,27 @@ export class Jobs {
           ext = path.extname(p.original_path);
         let extraction: any;
         await fs.mkdir(this.store.p(folder), { recursive: true });
-        if ([".md", ".txt", ".srt", ".vtt"].includes(ext)) {
+        const target = this.store.p(folder + "/extraction.json");
+        ensure(
+          (await fileHash(this.store.p(p.original_path))) === p.sha256,
+          "SOURCE_UNREADABLE",
+          "Preserved original hash mismatch",
+        );
+        if (await exists(target)) {
+          extraction = await readJson(target);
+          ensure(
+            extraction.source_sha256 === p.sha256,
+            "SOURCE_UNREADABLE",
+            "Existing extraction belongs to different source bytes",
+          );
+          if (ext === ".pdf")
+            ensure(
+              extraction.settings?.pdf_profile ===
+                (options.pdf_profile ?? "technical"),
+              "REVISION_CONFLICT",
+              "PDF profile changed during conversion; use a new job",
+            );
+        } else if ([".md", ".txt", ".srt", ".vtt"].includes(ext)) {
           const text = await fs.readFile(this.store.p(p.original_path), "utf8"),
             lines = text.split(/\r?\n/),
             chunks: any[] = [];
@@ -638,7 +734,7 @@ export class Jobs {
                 : [],
           };
         } else {
-          const runtime = await readJson(path.join(STATE, "config.json"));
+          const runtime = await this.runtimeConfig();
           const output = this.store.p(folder);
           if (
             [
@@ -692,8 +788,9 @@ export class Jobs {
                 path.join(APP, "scripts/convert.py"),
                 this.store.p(p.original_path),
                 output,
+                JSON.stringify({ ...options, pdftotext: runtime.pdftotext }),
               ],
-              { timeout: 1800000 },
+              { timeout: 1800000, env: { KB_NODE: process.execPath } },
             );
             extraction = JSON.parse(result.stdout);
           }
@@ -706,7 +803,6 @@ export class Jobs {
                 .replaceAll("\\", "/");
           }
         }
-        const target = this.store.p(folder + "/extraction.json");
         await immutable(target, json(extraction));
         for (const u of extraction.units)
           units.push({

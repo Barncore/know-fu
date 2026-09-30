@@ -4,6 +4,15 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-01 — Version 1.0.2: audit repairs and complementary PDF extraction
+
+- Repaired all twelve reproduced audit groups: committed-only historical visibility, lifecycle-preserving edits, old-owner checks, current lifecycle/maintenance permissions, PDF page ownership, judgment/date/direction semantics, frozen structured evaluations, initial-registration recovery and EPUB visual readability.
+- Implemented the approved PDF policy: technical (default), prose and forced-OCR profiles; complementary Poppler output, retained Docling JSON/Markdown/settings, original-page images and honest approximate ranges for ambiguous multi-page items. Formula enrichment stays off. Added pinned resvg-js 2.6.2 for SVG previews, with original assets retained; BMP/GIF previews are PNGs too. The PDF path also avoids Windows Poppler long-path file creation failures.
+- Streamed original-file hashing and preservation, and reused verified source snapshots within requested frame/page batches. Existing performance measurements remain dated; no new throughput claim.
+- Retained the original README/documentation style. Updated the book/retrieval/operations guides, architecture, setup dependencies, lineage, performance boundaries, validation and engineering lessons. The alternate README draft was not adopted.
+- Validation: 80 automated tests with none skipped on the development installation, including the three Python provenance assertions; real technical/prose/forced-OCR PDF conversions, EPUB image reads, TypeScript build, formatting and package/release checks. Full-source fidelity, fresh-machine setup and an equal-budget graph comparison remain separate checks.
+- Record schema stays 1.1.0; new evaluation manifests use version 2, with legacy reports preserved. No production migration, storage move, paid transcription or new hosted service. Refresh the installed plugin/server to load the release.
+
 ### 2026-09-30 - Public repository and documentation voice
 
 - Made the repository public at the owner's request. Reviewed all three existing commits and scanned their 201 distinct blobs for private paths and common credential patterns. The scan found no matches. Research files, comparison outputs and credentials remain outside the release.

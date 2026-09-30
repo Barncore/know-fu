@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   ensure,
   hash,
+  fileHash,
   json,
   atomic,
   immutable,
@@ -172,7 +173,7 @@ export class Media {
         { decoder: model.id, key_env: model.key_env },
       );
     await fs.mkdir(output, { recursive: true });
-    const sourceHash = hash(await fs.readFile(original)),
+    const sourceHash = await fileHash(original),
       planFile = path.join(output, "media-plan.json"),
       journalFile = path.join(output, "transcription-requests.json");
     const planHash = hash(json({ sourceHash, plan }));

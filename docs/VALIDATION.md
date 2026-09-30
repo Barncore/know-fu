@@ -2,6 +2,74 @@
 
 The local development installation is Windows with Ubuntu WSL2, regular FalkorDB and CPU QMD. This repository is a reusable source baseline; not every deployment option has been provisioned on a fresh machine.
 
+## 2026-10-01: version 1.0.2 repair evidence
+
+The twelve reproduced audit groups have targeted regression coverage. Tests use disposable fictional corpora; paid/model calls are stubbed where their orchestration is under test. No production research was migrated or ingested.
+
+| Finding | Repair and exercised boundary |
+|---|---|
+| F1: failed-publication visibility | Exact reads and selected releases must belong to CURRENT ancestry; failed candidates are rejected while committed history remains readable. |
+| F2: accidental reactivation | Ordinary compilation preserves withdrawn, superseded and archived state and supersession history. |
+| F3: ownership reassignment | Both compile and direct publication check existing ownership and reject changing a revision's module/family. |
+| F4: lifecycle execution scope | Execution and partial-purge resumption recheck current authority, including revoked write permission. |
+| F5: maintenance scope | Full exports/formats require unrestricted corpus read authority; restore requires full write authority; wiki reads enforce record visibility. |
+| F6: false PDF page boundaries | Tests use real Docling document/provenance objects; disjoint character spans split correctly, overlapping or incomplete spans retain an approximate range. |
+| F7: retired judgments | Superseded, withdrawn and archived judgments are excluded from automatic expansion; active judgments still qualify accounts. |
+| F8: missing applicability dates | Lifecycle, archive state, conditions and validity dates precede excerpts; expired/future scope gets a dated warning even with a long body. |
+| F9: reversed prerequisites | Traversal distinguishes the prerequisite object from the dependent subject. |
+| F10: invalid evaluation completion | Frozen inputs/settings and successful attempt receipts are checked. Invalid grader JSON leaves an incomplete run; raw responses and attempts remain available. Runtime manifests validate against the versioned contract. |
+| F11: registration crash | A durable initial snapshot recovers after a fault immediately after request persistence, even when the supplied external path is removed. Conflicting idempotency input remains rejected. |
+| F12: unreadable EPUB visuals | Actual SVG/GIF/BMP conversion and source-unit reads return PNGs; retained originals match their recorded hashes. |
+
+The full automated suite passes 80 tests on the development installation, with none skipped; its Docling provenance test runs three Python assertions. Real two-page PDF conversions also passed in technical and forced-OCR modes using the installed CPU models, with separate page tokens and raw settings/output retained. The prose profile and extraction-checkpoint retry run through the actual job/unit API, including Windows paths longer than 260 characters. Poppler receives streams so its Windows build does not need to create files at long corpus paths. Original page and SVG preview images were visually inspected. This synthetic fixture checks routing and page ownership, not general OCR or table accuracy.
+
+An isolated copy of the final staged source also passed all 80 tests, the TypeScript build and package checks. It reused the installed locked Node dependencies and an explicitly selected Python runtime; this is a source-packaging check, not clean-machine provisioning. The initial staged check caught and led to fixes for long Poppler output paths and schema newline/hash normalization.
+
+Whole-source hashes and preservation copies now stream; frame/page batches reuse a verified source snapshot and check file identity during extraction. A regression confirms changed originals and conflicting immutable copies are rejected. No new large-media benchmark is claimed. The coordinator remains TypeScript, and record schema version remains 1.1.0; no corpus migration is required. Legacy evaluation reports remain readable within their existing project and full-library permission boundary, but new execution requires a version 2 run.
+
+The local plugin source and installed Codex cache were refreshed to 1.0.2. All 32 packaged files match the development package by hash, including the unchanged machine-local MCP launcher. A fresh MCP connection from the bound workspace reported engine 1.0.2, ten tools and the revised PDF guide. The production corpus still had no published release. The evaluator launcher was updated locally from a removed app-version path to the verified `codex` command on PATH; no live model evaluation was performed during this repair. An already-running chat may need a restart to load the refreshed server.
+
+Fresh-machine setup, a complete real-book/course pilot and a comparison with equal evidence budgets remain separate acceptance work. The repair suite does not establish broad domain mastery or a general advantage for graph retrieval. The application permission model is not an operating-system security boundary.
+
+## 2026-10-01: audit reproduction and migration readiness
+
+Reran supplied audit reproductions against source commit `f5a5508f754f752b8a4dfde292923032d3ef86f2` in isolated fictional corpora. The central case in each of twelve reported finding groups reproduced. These were re-executions of the supplied probes, not twelve independently designed tests; related variants described by the audit were not all executed. No production research was imported, modified or purged.
+
+The reproduced findings at that baseline were:
+
+- Exact-revision reads can expose a candidate from a failed publication even though CURRENT has not changed.
+- Editing a withdrawn record through compile can reactivate it without an explicit lifecycle decision.
+- A module-scoped writer can replace an inaccessible existing identity by assigning the replacement to a writable module.
+- A read-only binding can execute an owner-prepared purge plan without its current authority being checked; full-backup export can also copy material outside the binding's read scope.
+- A multi-page Docling text item can be attributed in full to one physical-page text unit, leaving a misleading exact locator.
+- Retrieval can present a superseded judgment as current, omit validity dates, or label a dependent record as a prerequisite when traversing a relationship backwards.
+- Evaluation can accept changed frozen cases and an invalid grader response as a completed run.
+- A request written before its ingestion job can leave retries failing instead of recovering.
+- An EPUB SVG can be registered as a visual unit that the unit reader cannot return.
+
+Some probes used mocked graph/search operations and a stub grader to isolate engine behavior. The ingestion interruption was a constructed on-disk crash state, not a process-kill experiment. Application bindings are not an OS security boundary, but their documented isolation and read-only semantics must still hold across every engine entry point.
+
+The earlier 54 passing tests remain evidence for their covered cases. They do not establish the guarantees these probes violate. Repair and regression-check publication visibility, lifecycle preservation and operation-level scope enforcement before live migration; then verify retrieval meaning, evaluation integrity and ingestion recovery. The repair evidence below supersedes that unresolved status; the baseline findings remain here for traceability.
+
+## Approved PDF extraction policy
+
+The owner approved this policy on 2026-10-01. Version 1.0.2 implements complementary extraction and the page-boundary repairs. The book workflow requires meaningful visual inspection; successful conversion remains insufficient evidence of a faithful reading.
+
+| Source characteristics | Route and purpose |
+|---|---|
+| Clean, mostly prose PDF with a usable text layer | Use Poppler flow/layout output for reading and a candidate chapter map. Verify chapter boundaries against the printed contents and headings; inspect meaningful visuals. Docling is optional if those checks find no structural problem. |
+| Technical book with consequential mathematics, tables or complex columns | Retain both Poppler and Docling outputs by default. Poppler supplies an independent text/layout view; Docling supplies alternative layout, table structure and symbol recognition. Silent label or symbol errors justify the second pass even when the first looks plausible. |
+| Scanned pages, absent text, or a damaged embedded text layer | Use an OCR route, including Docling with OCR configured appropriately. Consider forced full-page OCR when native text is misleading. Check the resulting text against page images. |
+| Tables | Use Docling's table structure as a candidate, compare Poppler layout, and verify consequential row/column labels, cells, blank cells, signs and units against the original. Matching totals or cell counts cannot detect a permutation. |
+| Code | Start with Poppler layout and the original page; verify indentation, wrapping and operators. A version-matched source repository may provide additional evidence. Docling output alone is not authority for executable code. |
+| Displayed equations, diagrams and rotated/spanning tables | Inspect original-page images at useful resolution and reconstruct only what is legible. Docling formula enrichment is a separate optional model step; the installed configuration has it off. Neither ordinary conversion nor an image placeholder proves the content was decoded. |
+
+Keep raw outputs from both routes, including Docling's structured output, with source hash, tool versions, settings and physical-page provenance. Keep AI reconstructions separate from raw extraction. Check multi-page text spans instead of assigning the entire item to its first page. A consequential unresolved cell, formula or label must remain a visible limitation and cannot support a settled conclusion.
+
+Historical research notes support complementary extraction, but their exact counts and claims describe earlier runs whose raw Docling output was not available for this review. They do not establish that Poppler always drops Greek symbols or that Docling generally wins on tables. The September 30 sample below also found Docling failures. A parser's output must earn trust passage by passage.
+
+Docling documents [optional formula/code enrichments](https://docling-project.github.io/docling/usage/enrichments/) separately from its ordinary conversion pipeline. Any added model step needs its own local cost and fidelity check before becoming a default.
+
 ## Version 1.0.1 — 2026-09-29
 
 The updated engine passed 54 automated tests, TypeScript compilation, formatting, bundled-contract/link checks and staged release checks. The same 54 tests, build, formatting and package checks passed from an isolated copy of the staged source. That copy reused the existing locked Node installation and explicitly selected the installed Python converter; this does not establish clean-machine dependency provisioning. No test was skipped on this installation.
@@ -58,7 +126,7 @@ Poppler layout text kept the checked table alignment and values more usefully in
 
 Observed conversion times per eight-page excerpt: Poppler layout 0.33 and 0.06 seconds, Docling 24.5 and 29.9 seconds, Astra image transcription about 182 and 180 seconds. These routes do different work. Poppler timing excludes rendering, and model timing depends on the service. No full-book latency, aggregate accuracy percentage or general parser ranking follows from these runs.
 
-**Current limitation:** successful conversion does not establish complete or faithful PDF text. The book workflow's original-page inspection remains required. A combined extraction route and stronger page-boundary checks are proposed for review, not implemented in this documentation update. No production source was ingested or changed.
+**Current limitation:** successful conversion does not establish complete or faithful PDF text. The book workflow's original-page inspection remains required. Version 1.0.2 subsequently implemented the combined route and stronger page-boundary checks described above. No production source was ingested or changed.
 
 ## Earlier baseline evidence
 

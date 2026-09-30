@@ -18,4 +18,4 @@ Keep a dated CHANGELOG entry for completed changes. If a code-only repair has no
 
 The first private commit summarizes earlier local development instead of fabricating old commits. The owner made the repository public on 2026-09-30. Private evidence files stay local. No open-source license has been selected for Know Fu itself yet.
 
-For new README, changelog and documentation prose, use the owner's `my-writing-style` skill when available. Accuracy comes first. The aim is clear, natural writing, without impersonation or invented personal experience. Keep the skill and its writing samples private. `AGENTS.md` gives a fallback for contributors who do not have it. Leave historical log entries intact, and keep requested replacement drafts separate until the owner approves them.
+Preserve the established documentation style. On 2026-10-01 the owner chose the original README/docs over the personal-writing-style draft; that draft was not adopted. Keep factual updates current, leave historical log entries intact, and keep replacement drafts separate until explicitly chosen. Repository prose does not require the owner's private writing skill.

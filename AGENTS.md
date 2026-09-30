@@ -1,10 +1,12 @@
 # Working on Know Fu
 
-For README, changelog and other repository prose, load the owner's `my-writing-style` skill when it is available. Use it for voice, with accuracy first. Do not impersonate the owner, invent experience or force first person. The private skill is not a project dependency and must not be copied into this repository. Without it, write in plain, conversational English: explain what changed and why, use concrete examples, and keep claims within the evidence. Avoid dense AI phrasing and unnecessary jargon. A requested draft stays separate from the published document until the owner chooses it.
+Preserve the established README and documentation style. The owner reviewed a writing-style replacement on 2026-10-01 and preferred the original. Do not automatically apply the owner's personal writing voice to repository documentation. Write clearly, keep technical claims within the evidence, and leave replacement drafts separate until explicitly chosen.
 
 For installation requests, start with `plugin/docs/setup-ai.md`. Offer choices and ask for storage locations before initializing data. Preserve already accepted choices; distinguish configurable interfaces from unimplemented adapters and deployment-unverified alternatives.
 
 For implementation work, the canonical contract is `contracts/schemas/`, with runtime validation in `src/`. Full explanatory Markdown and source provenance matter as much as graph connectivity. Graph/search/wiki are projections, not separate authorities. Keep research and operational memory separate until explicitly authorized.
+
+Before migration or PDF-intake work, read the current repair evidence and approved extraction policy in `docs/VALIDATION.md`. Preserve the audit regressions when changing publication, lifecycle, scope or retrieval. Isolated engine checks do not establish full-source fidelity or application quality; verify those separately before relying on a live migration.
 
 Every completed behavior, schema, setup or dependency change needs a dated entry in `CHANGELOG.md` and a matching documentation update (or an explicit no-doc-impact rationale). Add a reusable finding to `LESSONS.md` when a change reveals one; avoid turning that file into a second chronological log. `docs/MAINTENANCE.md` maps changes to the appropriate docs. Run `npm run check:release -- --staged` before committing; it checks the staged file set and change-log/documentation accompaniment.
 

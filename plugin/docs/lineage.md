@@ -60,6 +60,8 @@ These informed questions and design tradeoffs; their algorithms and performance 
 | [FalkorDB](https://github.com/FalkorDB/FalkorDB) and its [official TypeScript client](https://github.com/FalkorDB/falkordb-ts) | Rebuildable graph projection and queries |
 | [QMD](https://github.com/tobi/qmd) | Local keyword/vector retrieval over generated documents |
 | [Docling](https://github.com/docling-project/docling), direct format readers and PDF/image libraries | Conversion, page/asset rendering and locators |
+| [Poppler](https://poppler.freedesktop.org/) | Complementary PDF flow/layout extraction; externally installed command-line dependency |
+| [resvg-js](https://github.com/yisibl/resvg-js) 2.6.2 (MPL-2.0) | Self-contained SVG-to-PNG previews for EPUB assets; original SVG bytes retained |
 | [FFmpeg](https://ffmpeg.org/) | Media inspection, audio preparation and visual evidence extraction |
 | Configured speech APIs | Optional paid media transcription; independent from the reasoning harness subscription |
 

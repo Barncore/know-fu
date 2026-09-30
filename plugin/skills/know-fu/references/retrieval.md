@@ -1,5 +1,7 @@
 # Using the knowledge
 
+Domain tags influence ranking; they are not a strict filter. Use module/source scope for enforced access restrictions. Retrieval includes lifecycle, archive state and validity dates before body excerpts, and flags dates outside today's UTC date. A historical cited premise can remain in a packet without being a current recommendation. Automatic judgment expansion excludes retired or archived judgments. When following `depends_on`, its object is the prerequisite and its subject is the dependent account.
+
 Call `kb_retrieve` with `query` and a purpose: explain, teach, apply, compare, invent or investigate. Start with the relevant domain. Broaden within permitted modules only when the task warrants it; an expressly source-limited request stays source-limited. Set `scope.source_refs` for that restriction. Subject tags are not permissions.
 
 The default combines local keyword/vector search with qualified graph expansion. CPU reranking is available as `rerank:true` but is expensive on this installation; Codex reasons over the evidence packet. `graph_required:true` returns an explicit error when a matching graph is unavailable. `semantic:false` requests keyword lookup. Reduced capability, historical evidence, pending correction impacts and truncation must remain visible.

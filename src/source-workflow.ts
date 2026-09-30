@@ -5,6 +5,7 @@ import {
   APP,
   ensure,
   hash,
+  snapshotFile,
   json,
   immutable,
   readJson,
@@ -115,6 +116,15 @@ export class SourceWorkflow {
       else {
         await fs.mkdir(out, { recursive: true });
         const visuals = new Visuals();
+        const snapshot = ["frames", "pages"].includes(input.action)
+          ? await snapshotFile(store.p(source.payload.original_path))
+          : undefined;
+        if (snapshot)
+          ensure(
+            snapshot.sha256 === source.payload.sha256,
+            "SOURCE_UNREADABLE",
+            "Original changed before visual extraction",
+          );
         if (input.action === "frames") {
           ensure(
             Array.isArray(input.seconds) &&
@@ -129,6 +139,7 @@ export class SourceWorkflow {
               store.p(source.payload.original_path),
               path.join(out, String(i)),
               input.seconds[i],
+              snapshot,
             );
             unit.unit_id += "-" + i;
             units.push(unit);
@@ -150,6 +161,7 @@ export class SourceWorkflow {
                 path.join(out, String(i)),
                 input.pages[i],
                 input.scale ?? 3,
+                snapshot,
               ),
             );
         } else if (input.action === "crop") {

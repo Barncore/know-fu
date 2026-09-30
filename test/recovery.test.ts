@@ -180,3 +180,56 @@ test("proposal and step retries reconcile a crash between staging and receipt ch
   assert.equal(resumed.job.stage, "integrate");
   assert.equal(resumed.job.receipts.length, 1);
 });
+
+test("initial ingestion retries recover request and staging written before the job checkpoint", async () => {
+  const f = await published("ingest-register-recovery"),
+    jobs = new Jobs(f.store);
+  const input = {
+    paths: [path.join(FIX, "sources/handbook.md")],
+    module: "workshop",
+    domains: ["fictional_workshop"],
+    idempotency_key: "initial-crash",
+    authorization: "Read the isolated recovery source",
+  };
+  const first = await jobs.ingest(input);
+  await fs.unlink(path.join(jobs.jobPath(first.job.job_id), "job.json"));
+  const resumed = await jobs.ingest(input);
+  assert.equal(resumed.job.job_id, first.job.job_id);
+  assert.deepEqual(resumed.job.source_refs, first.job.source_refs);
+  assert.deepEqual(resumed.job.coverage, first.job.coverage);
+  await assert.rejects(
+    () => jobs.ingest({ ...input, domains: ["different"] }),
+    { code: "REVISION_CONFLICT" },
+  );
+});
+
+test("initial registration resumes after a real checkpoint fault without the supplied path", async () => {
+  const f = await published("registration-fault"),
+    jobs = new Jobs(f.store);
+  const original = path.join(f.store.root, "temporary-supply.txt");
+  await fs.writeFile(
+    original,
+    "Original supplied bytes for registration crash recovery.",
+  );
+  const input = {
+    paths: [original],
+    module: "workshop",
+    domains: ["fictional_workshop"],
+    idempotency_key: "actual-register-fault",
+    authorization: "Inspect this synthetic original",
+  };
+  process.env.KB_TEST_FAULT = "ingest_after_request";
+  try {
+    await assert.rejects(() => jobs.ingest(input), { code: "SIMULATED_CRASH" });
+  } finally {
+    delete process.env.KB_TEST_FAULT;
+  }
+  await fs.unlink(original);
+  const resumed = await jobs.ingest(input);
+  assert.equal(resumed.job.stage, "convert");
+  assert.equal(resumed.job.source_refs.length, 1);
+  assert.equal(
+    (await jobs.convert(resumed.job.job_id)).job.stage,
+    "reconstruct",
+  );
+});

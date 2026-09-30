@@ -223,28 +223,52 @@ export class Retrieval {
           const next: string[] = [];
           for (const id of found) {
             const r = allowed.get(id);
-            if (!r || r.lifecycle !== "active" || relianceBlocked.has(id))
+            if (
+              !r ||
+              r.lifecycle !== "active" ||
+              r.archived ||
+              relianceBlocked.has(id)
+            )
+              continue;
+            const p = r.payload as any;
+            if (
+              !frontier.includes(p.subject.id) &&
+              !frontier.includes(p.object.id)
+            )
               continue;
             relations.add(id);
-            const p = r.payload as any;
             for (const end of [p.subject.id, p.object.id])
               if (
                 allowed.has(end) &&
                 !selected.has(end) &&
+                allowed.get(end)!.lifecycle === "active" &&
+                !allowed.get(end)!.archived &&
                 !relianceBlocked.has(end)
               ) {
                 selected.add(end);
                 next.push(end);
-                selection.set(end, `Graph ${p.predicate} relationship ${id}`);
+                const subject = end === p.subject.id;
+                selection.set(
+                  end,
+                  p.predicate === "depends_on" && subject
+                    ? `Dependent account that depends on a retrieved prerequisite (${id})`
+                    : `Graph ${p.predicate} relationship ${id}; ${subject ? "subject" : "object"} endpoint`,
+                );
                 roles.set(
                   end,
-                  p.predicate === "challenges"
+                  p.predicate === "challenges" && subject
                     ? "counterevidence"
-                    : p.predicate === "qualifies"
+                    : p.predicate === "qualifies" && subject
                       ? "qualification"
-                      : p.predicate === "depends_on"
+                      : p.predicate === "depends_on" && !subject
                         ? "prerequisite"
-                        : "evidence",
+                        : p.predicate === "depends_on" ||
+                            (["qualifies", "challenges"].includes(
+                              p.predicate,
+                            ) &&
+                              !subject)
+                          ? "explanation"
+                          : "evidence",
                 );
               }
           }
@@ -287,6 +311,7 @@ export class Retrieval {
         if (
           r.record_type === "relationship" &&
           r.lifecycle === "active" &&
+          !r.archived &&
           !relianceBlocked.has(r.id) &&
           ["qualifies", "challenges"].includes(p.predicate) &&
           selected.has(p.object.id)
@@ -306,12 +331,22 @@ export class Retrieval {
         }
         if (
           r.record_type === "judgment" &&
+          r.lifecycle === "active" &&
+          !r.archived &&
+          !relianceBlocked.has(r.id) &&
+          current.get(r.id)?.lifecycle === "active" &&
+          !current.get(r.id)?.archived &&
           p.issue_refs.some((x: Ref) => selected.has(x.id))
         ) {
           judgments.add(r.id);
           selected.add(r.id);
           roles.set(r.id, "alternative");
-          selection.set(r.id, "Current judgment about retrieved accounts");
+          selection.set(
+            r.id,
+            current.get(r.id)?.revision === r.revision
+              ? "Current judgment about retrieved accounts"
+              : "Historical judgment in the selected release; current revision differs",
+          );
         }
       }
       for (const id of [...selected]) {
@@ -335,6 +370,52 @@ export class Retrieval {
     const impacts = await readJson<any[]>(
       this.store.p(`releases/${await this.store.current()}.impacts.json`),
     ).catch(() => []);
+    const asOf = new Date().toISOString().slice(0, 10);
+    const describe = (r: RecordData, text: string): string => {
+      const { valid_from: from, valid_until: until } = r.scope;
+      const qualifiers = [...r.scope.conditions, ...r.scope.exclusions];
+      const prefix = [
+        `Lifecycle: ${r.lifecycle}; archived: ${r.archived}.`,
+        `Validity: ${from ?? "unspecified start"} through ${until ?? "unspecified end"} (inclusive dates).`,
+        ...(qualifiers.length
+          ? ["Conditions/limits: " + qualifiers.join("; ")]
+          : []),
+        ...(r.scope.condition_expression
+          ? [
+              "Applicability condition: " +
+                JSON.stringify(r.scope.condition_expression),
+            ]
+          : []),
+        `Epistemic status: ${r.epistemic}. Assessments: ${JSON.stringify(r.assessments)}`,
+      ];
+      if ((from && asOf < from) || (until && asOf > until))
+        warnings.push(
+          `${key(r)}: outside its stated validity on ${asOf}; retain the dates and do not assume present applicability.`,
+        );
+      if (r.lifecycle !== "active" || r.archived)
+        warnings.push(
+          `${key(r)} is ${r.lifecycle}${r.archived ? " and archived" : ""}; retained as an explicit cited premise, not a current recommendation.`,
+        );
+      const latest = current.get(r.id);
+      if (
+        latest &&
+        (latest.lifecycle !== r.lifecycle || latest.archived !== r.archived)
+      ) {
+        prefix.unshift(
+          `Current lifecycle: ${latest.lifecycle}; current archived: ${latest.archived}.`,
+        );
+        warnings.push(
+          `${key(r)} has a different current lifecycle; inspect its current revision before relying on it.`,
+        );
+      }
+      if (r.record_type === "source") {
+        const p = r.payload as any;
+        prefix.push(
+          `Evidence family: ${p.evidence_family}; independence: ${p.independence}.`,
+        );
+      }
+      return prefix.join("\n") + "\n" + text;
+    };
     const items: RetrievalData["items"] = [];
     for (const id of selected) {
       const r = allowed.get(id);
@@ -353,19 +434,12 @@ export class Retrieval {
         p.summary ||
         p.known ||
         r.title;
-      excerpt =
-        `Epistemic status: ${r.epistemic}. Assessments: ${JSON.stringify(r.assessments)}\n` +
-        excerpt;
-      if (r.record_type === "source")
-        excerpt += `\nEvidence family: ${p.evidence_family}; independence: ${p.independence}.`;
+      excerpt = describe(r, excerpt);
       const applicability = condition(
         r.scope.condition_expression,
         input.context ?? {},
         dimensions,
       );
-      const qualifiers = [...r.scope.conditions, ...r.scope.exclusions];
-      if (qualifiers.length)
-        excerpt += "\nConditions/limits: " + qualifiers.join("; ");
       if (r.scope.condition_expression && applicability !== "true")
         warnings.push(
           `${key(r)}: applicability ${applicability}; retain the condition in reasoning.`,
@@ -414,11 +488,12 @@ export class Retrieval {
           items.push({
             record_ref: d,
             role: "evidence",
-            excerpt: (
+            excerpt: describe(
+              old,
               (await this.store.body(old)) ||
-              p.text ||
-              p.definition ||
-              old.title
+                p.text ||
+                p.definition ||
+                old.title,
             ).slice(0, 6000),
             generated: !["source", "passage"].includes(old.record_type),
             locator: p.locator ?? null,
@@ -463,8 +538,7 @@ export class Retrieval {
         allowed_modules: scope.read_modules,
         selected_domains: input.domains ?? [],
         source_refs: scope.source_refs,
-        rationale:
-          "Begin with the requested topic, then include permitted evidence and material qualifications.",
+        rationale: `Domains influence ranking, not access or strict exclusion. Include permitted evidence and material qualifications; validity warnings are assessed on ${asOf}.`,
       },
       route,
       items,

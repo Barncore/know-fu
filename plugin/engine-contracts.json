@@ -1,5 +1,5 @@
 {
-  "engine_version": "1.0.1",
+  "engine_version": "1.0.2",
   "schema_version": "1.1.0",
   "authority": "Engine contracts and configuration examples; bundled copies are read-only references.",
   "files": [
@@ -19,9 +19,14 @@
       "sha256": "933b17ec191172c4fc88cc22e55fd6208204a0dae1c59b8e48192d503ba362d3"
     },
     {
+      "source": "contracts/schemas/evaluation-grade.schema.json",
+      "bundled": "contracts/schemas/evaluation-grade.schema.json",
+      "sha256": "ffd18ee7bf6a26a8db831dacade427ae2babc8b78caf335be57c458817273941"
+    },
+    {
       "source": "contracts/schemas/evaluation-run.schema.json",
       "bundled": "contracts/schemas/evaluation-run.schema.json",
-      "sha256": "4f754ef9289dbb00f08999f07a24b2debd8bfc0da7ef44c465cf37b21295e9b2"
+      "sha256": "0f70989ebccffb6b70375e507abea55599ab441dee39ef42d5010e46fb7a131b"
     },
     {
       "source": "contracts/schemas/job.schema.json",

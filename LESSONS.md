@@ -1,5 +1,13 @@
 # Engineering lessons
 
+## 2026-10-01 — Test authority across operations
+
+A successful publication test did not cover exact reads of an interrupted candidate; a scoped read test did not cover full exports or executing somebody else's lifecycle plan. Express authority as shared invariants and test alternate entry points, historical reads, ordinary edits, interruption and resumption. Saved user-instruction receipts record intent but cannot grant the caller permissions it no longer has.
+
+## 2026-10-01 — Extraction location and fidelity are separate
+
+A multi-page text item's provenance does not imply that exporting its first page isolates that page's text. Split only when character ownership is established; otherwise preserve the item with an honest range. Complementary parsers, raw outputs and original-page images support comparison, but neither parser agreement nor an exact physical locator certifies faithful wording or table alignment.
+
 ## 2026-09-29 — Check the evaluator before repairing the evidence
 
 The NIST check initially penalized a correct table reading because a source-reader note put a value in the wrong column. An attempted repair then introduced that evaluator error into the compiled account. Reopening the original page exposed the mistake: extraction and original answers had been right about the cell. A reported visual review is not proof of a correct reading. Reinspect the decisive source region when answer evidence and a rubric disagree, before revising knowledge. Preserve the erroneous evaluation and revision, issue a corrected assessment, and separate citation mistakes from application errors. Byte integrity, source fidelity and grader validity are different checks.

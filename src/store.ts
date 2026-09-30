@@ -62,6 +62,7 @@ type ReadSession = {
 
 export class Store {
   private integrity = new Map<string, string>();
+  private integrityRelease: string | null | undefined;
   private sessions = new AsyncLocalStorage<ReadSession>();
   private files: VerifiedCache;
   private controlSignature: string | null = null;
@@ -85,6 +86,7 @@ export class Store {
   clearReadCache() {
     this.files.clear();
     this.integrity.clear();
+    this.integrityRelease = undefined;
   }
 
   private memo<T>(name: string, read: () => Promise<T>): Promise<T> {
@@ -202,6 +204,53 @@ export class Store {
     return request ? subset(request, permitted) : permitted;
   }
 
+  async requireFullScope(write = false) {
+    const scope = await this.scope(),
+      config = await this.config();
+    ensure(
+      !scope.source_refs.length &&
+        config.modules.every(
+          (m) =>
+            scope.read_modules.includes(m.module_id) &&
+            (!write || scope.write_modules.includes(m.module_id)),
+        ),
+      "SCOPE_DENIED",
+      "This whole-library operation requires unrestricted corpus-wide access",
+    );
+    return scope;
+  }
+
+  async requireWritable(record: RecordData, scope: Scope) {
+    ensure(
+      scope.write_modules.includes(record.maintenance_module) &&
+        (await this.allowed(record, scope)),
+      "SCOPE_DENIED",
+      "Existing record or its evidence is outside the caller's writable/readable scope",
+    );
+  }
+
+  // A purge can delete the records needed for its own authorization check.
+  // Retain only the required permissions in its recovery inventory, not content.
+  async requiredScope(records: RecordData[]): Promise<Scope> {
+    const read = new Set<string>(),
+      sources: Ref[] = [],
+      seen = new Set<string>();
+    const visit = async (record: RecordData): Promise<void> => {
+      if (seen.has(key(record))) return;
+      seen.add(key(record));
+      read.add(record.maintenance_module);
+      if (record.record_type === "source") sources.push(ref(record));
+      for (const target of recordRefs(record))
+        await visit(await this.exact(target));
+    };
+    for (const record of records) await visit(record);
+    return {
+      read_modules: [...read],
+      write_modules: [...new Set(records.map((r) => r.maintenance_module))],
+      source_refs: uniqueRefs(sources),
+    };
+  }
+
   async init(config: CorpusData) {
     await validate("corpus", config);
     ensure(
@@ -270,9 +319,7 @@ export class Store {
     );
   }
 
-  async release(id?: string | null): Promise<ReleaseData | null> {
-    const selected = id ?? (await this.current());
-    if (!selected) return null;
+  private async loadRelease(selected: string): Promise<ReleaseData> {
     ensure(
       /^[a-zA-Z0-9_-]+$/.test(selected),
       "VALIDATION_FAILED",
@@ -284,12 +331,46 @@ export class Store {
         "release",
       );
       ensure(
-        release.corpus_id === (await this.config()).corpus_id,
+        release.corpus_id === (await this.config()).corpus_id &&
+          release.release_id === selected,
         "SCOPE_DENIED",
         "Release corpus mismatch",
       );
       return release;
     });
+  }
+
+  async committedReleases(): Promise<ReleaseData[]> {
+    const current = await this.current();
+    return this.memo("committed:" + current, async () => {
+      const releases: ReleaseData[] = [],
+        seen = new Set<string>();
+      let id = current;
+      while (id) {
+        ensure(!seen.has(id), "VALIDATION_FAILED", "Cyclic release ancestry");
+        seen.add(id);
+        const release = await this.loadRelease(id);
+        releases.push(release);
+        id = release.parent_release;
+      }
+      return releases;
+    });
+  }
+
+  async release(id?: string | null): Promise<ReleaseData | null> {
+    const current = await this.current(),
+      selected = id ?? current;
+    if (!selected) return null;
+    if (selected === current) return this.loadRelease(selected);
+    const release = (await this.committedReleases()).find(
+      (r) => r.release_id === selected,
+    );
+    ensure(
+      release,
+      "VALIDATION_FAILED",
+      "Release is not in committed CURRENT ancestry",
+    );
+    return release;
   }
 
   async records(releaseId?: string | null): Promise<Map<string, RecordData>> {
@@ -332,21 +413,14 @@ export class Store {
       "CONTENT_PURGED",
       "Record is blocked by deletion policy",
     );
+    const current = await this.current();
+    if (this.integrityRelease !== current) {
+      this.integrity.clear();
+      this.integrityRelease = current;
+    }
     return this.memo("exact:" + key(reference), async () => {
       if (!this.integrity.has(key(reference))) {
-        for (const name of await fs
-          .readdir(this.p("releases"))
-          .catch(() => [])) {
-          if (!/^release-[a-z0-9-]+\.json$/.test(name)) continue;
-          const manifest = await this.files.json<ReleaseData>(
-            "releases/" + name,
-            "release",
-          );
-          ensure(
-            manifest.corpus_id === (await this.config()).corpus_id,
-            "SCOPE_DENIED",
-            "Release corpus mismatch",
-          );
+        for (const manifest of await this.committedReleases()) {
           for (const entry of manifest.records)
             this.integrity.set(key(entry.record_ref), entry.sha256);
         }
@@ -550,6 +624,14 @@ export class Store {
           "REVISION_CONFLICT",
           "Record changed since proposal",
         );
+        const previous = originals.get(old.id)!;
+        await this.requireWritable(previous, scope);
+        ensure(
+          previous.maintenance_module === item.maintenance_module &&
+            previous.record_type === item.record_type,
+          "VALIDATION_FAILED",
+          "A revision cannot change record family or maintenance ownership",
+        );
         local[item.local_id] = { id: old.id, revision: old.revision + 1 };
       } else
         local[item.local_id] = {
@@ -581,7 +663,10 @@ export class Store {
     for (const original of proposal.items) {
       const i = expand(original),
         identity = local[i.local_id],
-        body = i.body_markdown as string | null;
+        body = i.body_markdown as string | null,
+        previous = i.existing_ref
+          ? originals.get(i.existing_ref.id)
+          : undefined;
       const dependencies = uniqueRefs([
         ...i.source_refs,
         ...i.input_refs,
@@ -595,8 +680,8 @@ export class Store {
         record_type: i.record_type,
         title: i.title,
         created_at: now(),
-        lifecycle: "active",
-        archived: false,
+        lifecycle: previous?.lifecycle ?? "active",
+        archived: previous?.archived ?? false,
         maintenance_module: i.maintenance_module,
         epistemic: i.epistemic,
         scope: i.scope,
@@ -613,7 +698,7 @@ export class Store {
           applicability: emptyAssessment(),
         },
         depends_on: dependencies,
-        supersedes: [],
+        supersedes: structuredClone(previous?.supersedes ?? []),
         change_reason: i.change_reason,
         body: body
           ? { path: objectPath(identity) + "/body.md", sha256: hash(body) }
@@ -724,6 +809,15 @@ export class Store {
         "Unregistered module/domain",
       );
       const old = base.get(r.id);
+      if (old) {
+        await this.requireWritable(old, scope);
+        ensure(
+          old.maintenance_module === r.maintenance_module &&
+            old.record_type === r.record_type,
+          "VALIDATION_FAILED",
+          "A revision cannot change record family or maintenance ownership",
+        );
+      }
       ensure(
         r.revision === (old?.revision ?? 0) + 1,
         "REVISION_CONFLICT",

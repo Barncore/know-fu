@@ -40,6 +40,7 @@ export class Maintenance {
     public projections = new Projections(store),
   ) {}
   async verify() {
+    await this.store.requireFullScope();
     const records = await this.store.records(),
       errors: string[] = [];
     for (const r of records.values()) {
@@ -76,6 +77,7 @@ export class Maintenance {
     };
   }
   async exportBundle() {
+    await this.store.requireFullScope();
     const release = await this.store.release();
     ensure(release, "VALIDATION_FAILED", "No release to export");
     const ledger = await this.store.ledger(),
@@ -125,6 +127,7 @@ export class Maintenance {
     return { path: target, manifest: bundle };
   }
   async restoreBundle(bundlePath: string, target: string) {
+    await this.store.requireFullScope(true);
     const bundle = await readJson(path.join(bundlePath, "bundle.json"));
     ensure(
       !(await exists(path.join(target, "corpus.json"))),
@@ -170,8 +173,8 @@ export class Maintenance {
     };
   }
   async wikiEdit(record: Ref) {
-    const r = await this.store.exact(record),
-      release = await this.store.current();
+    const { record: r } = await this.store.read(record);
+    const release = await this.store.current();
     ensure(release, "VALIDATION_FAILED", "No release");
     const wiki = this.store.p(
         `views/${release}/wiki/${hash(r.id).slice(0, 24)}.md`,
@@ -202,6 +205,7 @@ export class Maintenance {
     return plan;
   }
   async exportFormats() {
+    await this.store.requireFullScope();
     const release = await this.store.release();
     ensure(release, "VALIDATION_FAILED", "No release");
     const records = await this.store.records();

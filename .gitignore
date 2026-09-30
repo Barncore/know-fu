@@ -27,6 +27,9 @@
 !/scripts/generate-types.mjs
 !/scripts/patch-falkordb.mjs
 !/scripts/convert.py
+!/scripts/pdf_extract.py
+!/scripts/visual_assets.py
+!/scripts/render-svg.mjs
 !/scripts/contact-sheets.py
 !/scripts/graph-service.ps1
 !/scripts/graph-service.sh

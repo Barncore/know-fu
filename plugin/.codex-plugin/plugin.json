@@ -1,6 +1,6 @@
 {
   "name": "know-fu",
-  "version": "1.0.1+codex.20260929123749",
+  "version": "1.0.2+codex.202610010430",
   "description": "Ingest books, videos and specialized research into a connected local library for teaching, application and grounded ideas.",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
