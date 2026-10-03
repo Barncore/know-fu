@@ -496,6 +496,10 @@ export interface ProposalData {
           context: string | null;
         };
       };
+      navigation?: {
+        interface_version: "1.0.0";
+        summary: string;
+      };
     };
   })[];
 }

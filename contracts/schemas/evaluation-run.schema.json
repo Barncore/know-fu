@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://local.invalid/research-kb/spec/evaluation-run.schema.json",
-  "description": "Version 2 runtime manifests and legacy condition-level design receipts. Legacy receipts remain readable but are not resumable runtime runs.",
+  "description": "Version 3 interactive and matched-budget runtime manifests, preserved version 2 fixed-packet runs, and inspectable legacy design receipts.",
   "oneOf": [
     {
       "type": "object",
@@ -561,6 +561,688 @@
         "budget",
         "limitations",
         "results"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.1.0"
+        },
+        "version": {
+          "const": 3
+        },
+        "kind": {
+          "const": "evaluation_manifest"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "corpus_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project": {
+          "type": "string",
+          "minLength": 1
+        },
+        "release_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "no_kb",
+              "source_passages",
+              "prose_and_passages",
+              "full_kb",
+              "progressive_graph",
+              "progressive_prose"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "case_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "cases_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "scope_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "read_modules": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "write_modules": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 0,
+              "uniqueItems": true
+            },
+            "source_refs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "id",
+                  "revision"
+                ]
+              },
+              "minItems": 0
+            }
+          },
+          "required": [
+            "read_modules",
+            "write_modules",
+            "source_refs"
+          ]
+        },
+        "state": {
+          "enum": [
+            "prepared",
+            "running",
+            "complete",
+            "incomplete"
+          ]
+        },
+        "isolation": {
+          "oneOf": [
+            {
+              "const": "not_yet_verified"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "verified": {
+                  "const": true
+                },
+                "mode": {
+                  "enum": [
+                    "native_commands_denied_input_only",
+                    "native_commands_denied_scoped_mcp"
+                  ]
+                }
+              },
+              "required": [
+                "verified",
+                "mode"
+              ]
+            }
+          ]
+        },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reasoning_effort": {
+              "const": "medium"
+            },
+            "timeout_ms": {
+              "const": 600000
+            },
+            "answer_words": {
+              "const": 1000
+            },
+            "tool_calls": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "rendered_characters": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 2000000
+            },
+            "input_tokens": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 2000000
+            },
+            "input_budget_enforcement": {
+              "const": "measured_after_completion"
+            }
+          },
+          "required": [
+            "reasoning_effort",
+            "timeout_ms",
+            "answer_words",
+            "tool_calls",
+            "rendered_characters",
+            "input_tokens",
+            "input_budget_enforcement"
+          ]
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "condition": {
+                "enum": [
+                  "no_kb",
+                  "source_passages",
+                  "prose_and_passages",
+                  "full_kb",
+                  "progressive_graph",
+                  "progressive_prose"
+                ]
+              },
+              "attempt_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "state": {
+                "enum": [
+                  "complete",
+                  "failed"
+                ]
+              },
+              "answer": {
+                "type": "string",
+                "minLength": 1
+              },
+              "grade": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "verdict": {
+                    "enum": [
+                      "pass",
+                      "partial",
+                      "fail"
+                    ]
+                  },
+                  "reasons": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1
+                  },
+                  "citation_errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 0
+                  },
+                  "rubric_errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 0
+                  },
+                  "source_errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 0
+                  },
+                  "uncertainty": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 0
+                  },
+                  "dimensions": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "correctness": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "verdict": {
+                            "enum": [
+                              "pass",
+                              "partial",
+                              "fail",
+                              "not_applicable"
+                            ]
+                          },
+                          "rationale": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "verdict",
+                          "rationale"
+                        ]
+                      },
+                      "completeness": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "verdict": {
+                            "enum": [
+                              "pass",
+                              "partial",
+                              "fail",
+                              "not_applicable"
+                            ]
+                          },
+                          "rationale": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "verdict",
+                          "rationale"
+                        ]
+                      },
+                      "decisive_conditions": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "verdict": {
+                            "enum": [
+                              "pass",
+                              "partial",
+                              "fail",
+                              "not_applicable"
+                            ]
+                          },
+                          "rationale": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "verdict",
+                          "rationale"
+                        ]
+                      },
+                      "citation_support": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "verdict": {
+                            "enum": [
+                              "pass",
+                              "partial",
+                              "fail",
+                              "not_applicable"
+                            ]
+                          },
+                          "rationale": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "verdict",
+                          "rationale"
+                        ]
+                      },
+                      "coherent_teaching": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "verdict": {
+                            "enum": [
+                              "pass",
+                              "partial",
+                              "fail",
+                              "not_applicable"
+                            ]
+                          },
+                          "rationale": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "verdict",
+                          "rationale"
+                        ]
+                      },
+                      "useful_synthesis": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "verdict": {
+                            "enum": [
+                              "pass",
+                              "partial",
+                              "fail",
+                              "not_applicable"
+                            ]
+                          },
+                          "rationale": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "verdict",
+                          "rationale"
+                        ]
+                      },
+                      "justified_inference": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "verdict": {
+                            "enum": [
+                              "pass",
+                              "partial",
+                              "fail",
+                              "not_applicable"
+                            ]
+                          },
+                          "rationale": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "verdict",
+                          "rationale"
+                        ]
+                      },
+                      "gap_recognition": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "verdict": {
+                            "enum": [
+                              "pass",
+                              "partial",
+                              "fail",
+                              "not_applicable"
+                            ]
+                          },
+                          "rationale": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "verdict",
+                          "rationale"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "correctness",
+                      "completeness",
+                      "decisive_conditions",
+                      "citation_support",
+                      "coherent_teaching",
+                      "useful_synthesis",
+                      "justified_inference",
+                      "gap_recognition"
+                    ]
+                  },
+                  "decisive_failures": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "required": [
+                  "verdict",
+                  "reasons",
+                  "citation_errors",
+                  "rubric_errors",
+                  "source_errors",
+                  "uncertainty",
+                  "dimensions",
+                  "decisive_failures"
+                ]
+              },
+              "grade_raw": {
+                "type": "string",
+                "minLength": 1
+              },
+              "elapsed_ms": {
+                "type": "number",
+                "minimum": 0
+              },
+              "model": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "held_out": {
+                "type": "boolean"
+              },
+              "usage": {
+                "type": "object"
+              },
+              "error": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "details": {},
+              "case_group": {
+                "type": "string",
+                "minLength": 1
+              },
+              "budget_status": {
+                "enum": [
+                  "within",
+                  "exceeded",
+                  "unmeasured"
+                ]
+              },
+              "reading": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "case_id",
+              "condition",
+              "attempt_id",
+              "state"
+            ],
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "state": {
+                      "const": "complete"
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "answer",
+                    "grade",
+                    "grade_raw",
+                    "elapsed_ms",
+                    "model",
+                    "evidence_hash",
+                    "held_out",
+                    "usage",
+                    "case_group",
+                    "budget_status",
+                    "reading"
+                  ]
+                },
+                "else": {
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            ]
+          },
+          "minItems": 0
+        },
+        "retrieval_mode": {
+          "type": "string",
+          "minLength": 1
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "implementation_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "grading_data_authorization": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "destination": {
+              "const": "configured_codex_service"
+            },
+            "basis": {
+              "enum": [
+                "public_sources",
+                "explicit_user_permission"
+              ]
+            },
+            "statement": {
+              "type": "string",
+              "minLength": 21
+            },
+            "source_refs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "id",
+                  "revision"
+                ]
+              }
+            },
+            "evidence_hashes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          },
+          "required": [
+            "destination",
+            "basis",
+            "statement",
+            "source_refs",
+            "evidence_hashes"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "version",
+        "kind",
+        "run_id",
+        "corpus_id",
+        "root",
+        "project",
+        "release_id",
+        "model",
+        "conditions",
+        "case_ids",
+        "created_at",
+        "cases_hash",
+        "fingerprint",
+        "scope_policy",
+        "state",
+        "isolation",
+        "budget",
+        "limitations",
+        "results",
+        "implementation_fingerprint"
       ]
     }
   ]

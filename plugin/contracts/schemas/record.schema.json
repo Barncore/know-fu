@@ -807,6 +807,23 @@
             "feasibility",
             "performance"
           ]
+        },
+        "navigation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "interface_version": {
+              "const": "1.0.0"
+            },
+            "summary": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "interface_version",
+            "summary"
+          ]
         }
       },
       "required": []

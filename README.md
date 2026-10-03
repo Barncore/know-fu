@@ -12,15 +12,15 @@ Know Fu turns books, PDFs, videos and other specialized sources into a connected
 
 The ambition is the “I know kung fu” moment. The implementation is more inspectable: a persistent knowledge system, not a change to the model's weights or a promise of instant mastery.
 
-[Set up with your AI](plugin/docs/setup-ai.md) · [Architecture](plugin/docs/architecture.md) · [Design lineage](plugin/docs/lineage.md) · [Setup choices](plugin/docs/setup-choices.md) · [Change log](CHANGELOG.md)
+[Set up with your AI](plugin/docs/setup-ai.md) · [North star and implementation plan](docs/NORTH_STAR.md) · [Architecture](plugin/docs/architecture.md) · [Design lineage](plugin/docs/lineage.md) · [Setup choices](plugin/docs/setup-choices.md) · [Change log](CHANGELOG.md)
 
 ## What you get
 
 - **Source-grounded ingestion.** Originals, locators, reading coverage and visual evidence remain available. Converting a file does not count as understanding it.
 - **Connected explanations.** Mechanisms, assumptions, procedures, examples and exceptions survive alongside individual assertions.
 - **Honest disagreement.** Source accounts, inference, hypotheses and judgments are distinguished. Conflicting knowledge can remain useful without being silently flattened into one answer.
-- **A maintained wiki and graph.** Both derive from the same published meaning. New research can trigger revisions to affected explanations.
-- **Useful retrieval.** Keyword/vector search, selected graph expansion and exact source reads supply context for teaching, application and invention.
+- **A maintained wiki and graph.** Topic summaries, primers and complete accounts derive from the same published meaning. New research triggers reconsideration of affected explanations and teaching material.
+- **Selected reading.** Keyword/vector search and qualified connections help the AI find an entry point, read the needed explanations and check consequential evidence. Known caveats remain visible even without optional graph exploration.
 - **Questions worth pursuing.** Missing evidence and grounded opportunities become explicit records for future investigation.
 - **Local ownership.** Versioned JSON and Markdown carry the knowledge; graph and search views can be rebuilt.
 
@@ -47,7 +47,7 @@ Download or clone this repository, open it in your coding assistant, and say:
 
 Setup should fit your environment. The [decision matrix](plugin/docs/setup-choices.md) distinguishes architectural requirements from the first owner's preferences: WSL versus a separately managed FalkorDB service, storage paths, native/WSL media utilities, API versus local transcript preparation, and retrieval tradeoffs.
 
-**Status:** local research engine and Codex adapter implemented; 80 automated tests pass on the development installation. The original deployment uses Windows, Ubuntu WSL2, FalkorDB and CPU QMD. A different machine still needs dependency provisioning and its own live checks. Docker deployment and an integrated local speech-decoding adapter are not claimed as end-to-end tested. See [validation](docs/VALIDATION.md) and the measured [performance boundaries](docs/PERFORMANCE.md).
+**Status:** local research engine and Codex adapter implemented; 107 automated tests pass on the development installation. The original deployment uses Windows, Ubuntu WSL2, FalkorDB and CPU QMD. A different machine still needs dependency provisioning and its own live checks. Docker deployment and an integrated local speech-decoding adapter are not claimed as end-to-end tested. See [validation](docs/VALIDATION.md) and the measured [performance boundaries](docs/PERFORMANCE.md).
 
 ## Repository versus your data
 

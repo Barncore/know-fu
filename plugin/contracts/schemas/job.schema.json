@@ -361,6 +361,10 @@
           ]
         }
       ]
+    },
+    "workflow_version": {
+      "const": 2,
+      "description": "New jobs require explicit reweave decisions and an understanding-change report. Absent on preserved legacy jobs."
     }
   },
   "required": [

@@ -22,6 +22,11 @@ import { Store } from "./store.js";
 import { run } from "./process.js";
 import { writeGraph } from "./graph-projection.js";
 import { QmdSearch } from "./qmd-search.js";
+import {
+  isAccount,
+  navigationEntry,
+  summary as authoredSummary,
+} from "./navigation.js";
 
 export async function runtime() {
   return readJson(path.join(STATE, "config.json"));
@@ -144,6 +149,8 @@ export class Projections {
           if (
             p.includes("/wiki/") &&
             !p.endsWith("/_index.md") &&
+            !p.includes("/wiki/_topics/") &&
+            !p.endsWith("/_records.md") &&
             (await exists(this.store.p(p))) &&
             hash(await fs.readFile(this.store.p(p))) !== digest
           )
@@ -173,7 +180,8 @@ export class Projections {
       for (const r of records.values()) {
         const body = await this.store.body(r),
           p = r.payload as any;
-        const summary = p.summary ?? p.definition ?? p.known ?? r.title;
+        const summary =
+          authoredSummary(r) ?? "Navigation summary not authored.";
         const content = `---\nid: ${JSON.stringify(r.id)}\nrevision: ${r.revision}\ntitle: ${JSON.stringify(r.title)}\nsummary: ${JSON.stringify(summary)}\ndomains: ${JSON.stringify(r.scope.domains)}\ncreated_at: ${r.created_at}\nepistemic: ${r.epistemic}\nlifecycle: ${r.lifecycle}\narchived: ${r.archived}\n---\n\n# ${r.title}\n\n${body || p.text || p.definition || p.rationale || p.unknown || summary}\n\n## Provenance\n\n${r.provenance.source_refs.map((x) => `- ${key(x)}`).join("\n") || "Source registration / no independent source supplied."}\n\n## Qualification\n\n${[...r.scope.conditions, ...r.scope.exclusions].join("\n") || "Applicability has not been formalized."}\n\nAssessment: ${JSON.stringify(r.assessments)}\n`;
         const name = hash(r.id).slice(0, 24) + ".md",
           wiki = `views/${release.release_id}/wiki/${name}`;
@@ -189,14 +197,100 @@ export class Projections {
           fileHashes[searchPath] = hash(content);
           searchMap[`${module}/${name}`] = {
             record_ref: ref(r),
+            level: "account",
             source_refs: r.provenance.source_refs,
             generated:
               r.record_type !== "source" && r.record_type !== "passage",
             locator: p.locator ?? null,
           };
+          if (authoredSummary(r)) {
+            const summaryName = name.replace(".md", "-summary.md");
+            const summaryPath = `views/${release.release_id}/search/${module}/${summaryName}`;
+            const summaryContent = `# ${r.title}\n\n${authoredSummary(r)}\n\nExact account: ${key(r)}\nDomains: ${r.scope.domains.join(", ")}\n`;
+            await atomic(this.store.p(summaryPath), summaryContent);
+            fileHashes[summaryPath] = hash(summaryContent);
+            searchMap[`${module}/${summaryName}`] = {
+              ...searchMap[`${module}/${name}`],
+              level: "summary",
+            };
+          }
         }
       }
-      const index = `# ${(await this.store.config()).title}\n\nRelease: ${release.release_id}\n\n${pages.join("\n")}\n`;
+      const config = await this.store.config();
+      const impacts = await readJson<any[]>(
+        this.store.p(`releases/${release.release_id}.impacts.json`),
+      ).catch(() => []);
+      const pending = new Set(
+        impacts
+          .filter((x) => x.status === "pending_reassessment")
+          .map((x) => x.record_ref.id),
+      );
+      const active = [...records.values()].filter(
+        (r) => !r.archived && r.lifecycle === "active",
+      );
+      const accounts = active.filter(isAccount);
+      const catalogue = accounts.map((r) => ({
+        ...navigationEntry(r),
+        freshness: pending.has(r.id) ? "pending_reassessment" : "current",
+      }));
+      const cataloguePath = `views/${release.release_id}/catalogue.json`;
+      const catalogueText = json({
+        interface_version: "1.0.0",
+        release_id: release.release_id,
+        manifest_sha256: receipt.manifest_sha256,
+        entries: catalogue,
+      });
+      await atomic(this.store.p(cataloguePath), catalogueText);
+      fileHashes[cataloguePath] = hash(catalogueText);
+      const topics: string[] = [];
+      const link = (r: RecordData, prefix = "../") =>
+        `[${r.title}](${prefix}${hash(r.id).slice(0, 24)}.md)`;
+      for (const domain of [
+        ...new Set(accounts.flatMap((r) => r.scope.domains)),
+      ].sort()) {
+        const members = accounts.filter((r) =>
+          r.scope.domains.includes(domain),
+        );
+        const title =
+          config.domains.find((d) => d.domain_id === domain)?.title ?? domain;
+        const topicName = hash(domain).slice(0, 24) + ".md";
+        const primers = members.filter(
+          (r) => (r.payload as any).form === "primer",
+        );
+        const describe = (r: RecordData) =>
+          `- ${link(r)} — ${(r.payload as any).form ?? r.record_type}. ${authoredSummary(r) ?? "Summary not authored; open the account."}${pending.has(r.id) ? " **Pending reassessment.**" : ""}`;
+        const memberIds = new Set(members.map((r) => r.id));
+        const connections = active
+          .filter(
+            (r) =>
+              r.record_type === "relationship" &&
+              (memberIds.has((r.payload as any).subject.id) ||
+                memberIds.has((r.payload as any).object.id)),
+          )
+          .map((r) => {
+            const p = r.payload as any;
+            const subject = records.get(p.subject.id),
+              object = records.get(p.object.id);
+            return `- ${subject ? link(subject) : key(p.subject)} (${key(p.subject)}) **${p.predicate}** ${object ? link(object) : key(p.object)} (${key(p.object)}): ${p.rationale} ([relationship](../${hash(r.id).slice(0, 24)}.md)). Conditions: ${r.scope.conditions.join("; ") || "inspect the account"}.`;
+          });
+        const topicText = `# ${title}\n\nRelease: ${release.release_id}\n\n## Primers\n\n${primers.map(describe).join("\n") || "No authored primer yet."}\n\n## Accounts and questions\n\n${members
+          .filter((r) => !primers.includes(r))
+          .map(describe)
+          .join(
+            "\n",
+          )}\n\n## Connections and disagreements\n\n${connections.join("\n") || "No explicit relationships yet."}\n`;
+        const topicPath = `views/${release.release_id}/wiki/_topics/${topicName}`;
+        await atomic(this.store.p(topicPath), topicText);
+        fileHashes[topicPath] = hash(topicText);
+        topics.push(
+          `- [${title}](_topics/${topicName}) — ${members.length} accounts${primers.length ? "; " + primers.map((r) => `${link(r, "")}: ${authoredSummary(r) ?? "summary missing"}${pending.has(r.id) ? " (pending reassessment)" : ""}`).join("; ") : "; no authored primer yet"}`,
+        );
+      }
+      const recordsPath = `views/${release.release_id}/wiki/_records.md`;
+      const recordsText = `# All records\n\nSources, evidence, relationships and authored accounts for release ${release.release_id}.\n\n${pages.join("\n")}\n`;
+      await atomic(this.store.p(recordsPath), recordsText);
+      fileHashes[recordsPath] = hash(recordsText);
+      const index = `# ${config.title}\n\nRelease: ${release.release_id}\n\nChoose a topic, or search directly for a precise question. Summaries guide reading; complete accounts and their material context establish the reasoning.\n\n${topics.join("\n")}\n\n[All records and supporting evidence](_records.md)\n\nThis owner-level projection contains the library's records. Scoped tool access filters metadata before exposure; do not serve these raw files as a scoped catalogue.\n`;
       const indexPath = `views/${release.release_id}/wiki/_index.md`;
       await atomic(this.store.p(indexPath), index);
       fileHashes[indexPath] = hash(index);

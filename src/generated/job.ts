@@ -87,4 +87,8 @@ export interface JobData {
     message: string;
     resumable: boolean;
   };
+  /**
+   * New jobs require explicit reweave decisions and an understanding-change report. Absent on preserved legacy jobs.
+   */
+  workflow_version?: 2;
 }

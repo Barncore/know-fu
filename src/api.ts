@@ -3,6 +3,7 @@ import path from "node:path";
 import { Store } from "./store.js";
 import { Jobs } from "./jobs.js";
 import { Retrieval } from "./retrieval.js";
+import { Reading } from "./reading.js";
 import { Projections } from "./projections.js";
 import { Lifecycle } from "./lifecycle.js";
 import { Maintenance } from "./maintenance.js";
@@ -31,9 +32,9 @@ export const descriptions: Record<string, string> = {
   kb_change:
     "Review or publish an existing staged job; input job_id and action=preview|publish. No overwrite on revision conflict.",
   kb_retrieve:
-    "Retrieve explanatory prose, sources, relevant graph relationships and material qualifications. Input query; optional purpose=explain|teach|apply|compare|invent|investigate, domains[], scope, semantic, rerank, graph, graph_required, limit, hops, release_id, context.",
+    "Discover or retrieve scoped research. mode=progressive returns authored summaries, exact next reads, material qualifications and provenance without loading every source body; supports purpose=explain|teach|apply|compare|invent|synthesize|investigate. mode=packet preserves the legacy evidence packet. Input query; optional domains, scope, semantic, rerank, graph, graph_required, limit, release_id, context. Progressive pagination uses offset; packet expansion uses hops. Open chosen accounts with kb_read.",
   kb_read:
-    "Read scoped evidence or bundled contracts without shell access. Record: record_ref={id,revision}, optional scope. Source unit: kind=unit, job_id, unit_id, optional offset and limit (max 32000); returns text and visual image. Guide: kind=guide, name=workflow|ingestion|retrieval|operations|books|video. Schema: kind=schema, name=proposal|record|job|corpus. Reading does not mark coverage complete.",
+    "Read scoped research without shell access. kind=catalogue lists topics; topic requires topic; account requires record_ref and optionally section_id; accounts reads 1–12 chosen record_refs together; sections lists hash-bound headings; context requires record_refs and optionally context_offset. Optional release_id, scope, purpose, context, limit, offset. Full-account reads carry material context and exact support. Legacy {record_ref} returns the raw full record. kind=unit with job_id,unit_id,offset,limit reads source text/image (max 32000 chars). Guides: workflow|ingestion|retrieval|operations|books|video. Schemas: proposal|record|job|corpus|reading|reading-request. Reading does not attest ingestion coverage.",
   kb_lifecycle:
     "Plan/execute archive, unarchive, withdraw, reinstate or purge. Planning: mode=plan, action, targets[], reason. Execution: mode=execute, plan_id, authorization={action,targets,user_instruction}; reinstatement also assessments. Authorization must reflect an actual user request.",
   kb_evaluate:
@@ -45,6 +46,7 @@ export class KnowledgeSystem {
   jobs: Jobs;
   projections: Projections;
   retrieval: Retrieval;
+  reading: Reading;
   lifecycle: Lifecycle;
   maintenance: Maintenance;
   evaluation: Evaluation;
@@ -52,6 +54,7 @@ export class KnowledgeSystem {
     this.jobs = new Jobs(store);
     this.projections = new Projections(store);
     this.retrieval = new Retrieval(store, this.projections);
+    this.reading = new Reading(store, this.projections);
     this.lifecycle = new Lifecycle(store, this.projections);
     this.maintenance = new Maintenance(store, this.projections);
     this.evaluation = new Evaluation(store, this.retrieval);
@@ -108,8 +111,26 @@ export class KnowledgeSystem {
           ),
         };
       case "kb_retrieve":
-        return this.retrieval.retrieve(p);
+        ensure(
+          p.mode === undefined || ["progressive", "packet"].includes(p.mode),
+          "VALIDATION_FAILED",
+          "Unknown retrieval mode",
+        );
+        return p.mode === "progressive"
+          ? this.reading.retrieve(p)
+          : this.retrieval.retrieve(p);
       case "kb_read": {
+        if (
+          [
+            "catalogue",
+            "topic",
+            "account",
+            "accounts",
+            "sections",
+            "context",
+          ].includes(p.kind)
+        )
+          return this.reading.read(p);
         if (p.kind === "unit")
           return this.jobs.readUnit(p.job_id, p.unit_id, p.offset, p.limit);
         if (p.kind === "guide") {
@@ -137,7 +158,14 @@ export class KnowledgeSystem {
         }
         if (p.kind === "schema") {
           ensure(
-            ["proposal", "record", "job", "corpus"].includes(p.name),
+            [
+              "proposal",
+              "record",
+              "job",
+              "corpus",
+              "reading",
+              "reading-request",
+            ].includes(p.name),
             "VALIDATION_FAILED",
             "Unknown schema",
           );
@@ -156,7 +184,12 @@ export class KnowledgeSystem {
           ? this.evaluation.run(p.run_id)
           : p.action === "report"
             ? this.evaluation.report(p.run_id)
-            : this.evaluation.prepare(p.cases, p.model, p.conditions);
+            : this.evaluation.prepare(
+                p.cases,
+                p.model,
+                p.conditions,
+                p.options,
+              );
       case "kb_maintain":
         switch (p.action) {
           case "configure":

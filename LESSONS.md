@@ -1,5 +1,21 @@
 # Engineering lessons
 
+## 2026-10-04 — Count the whole reading conversation
+
+Smaller evidence responses do not guarantee lower model input. Interactive reading can repeatedly send prior context, tool definitions and metadata. Measure actual cumulative usage, preserve budget overruns and compare quality by task. Compact repeated scope and assessment definitions without cutting complete explanations or hiding conditions. An optional reading interface can be useful without having earned default adoption.
+
+## 2026-10-04 — Assessment targets are not premises
+
+A judgment can assess several unrelated procedures. Traversing all of its issue targets as if they were prerequisites makes reading one procedure require the others. Keep the roles explicit: assessment targets, provenance inputs and conceptual prerequisites are different relationships. Preserve the full dependency closure for scope and withdrawal while making the reading obligation follow actual reasoning dependencies.
+
+## 2026-10-04 — New links can change old knowledge
+
+An incoming qualification can alter an existing explanation even when the explanation's own input list did not change. Calculate impact from both revised inputs and material relationship endpoints. Reconsider dependent primers, examples and questions, and bind each reassessment to the staged meaning. A new link or source count is not evidence that practical understanding improved; test changed applications and unaffected knowledge separately.
+
+## 2026-10-01 — Faithful extraction can preserve an incorrect source claim
+
+The representative paper pilot found a printed test cutoff that disagreed with exact arithmetic and a worked-table header that conflicted with the procedure's formula. The original pages confirmed both were source issues, not extraction defects. Preserve the author's account, store the independent check as a separate qualification and retrieve both when applying the method. Do not silently repair the source, or grade an application as correct merely because it repeats the source. Separate source fidelity, mathematical validity and empirical support; each needs its own evidence.
+
 ## 2026-10-01 — Test authority across operations
 
 A successful publication test did not cover exact reads of an interrupted candidate; a scoped read test did not cover full exports or executing somebody else's lifecycle plan. Express authority as shared invariants and test alternate entry points, historical reads, ordinary edits, interruption and resumption. Saved user-instruction receipts record intent but cannot grant the caller permissions it no longer has.

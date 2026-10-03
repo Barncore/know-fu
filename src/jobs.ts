@@ -30,6 +30,20 @@ import {
 import type { Ref, RecordData, Scope, JobData, ProposalData } from "./core.js";
 import { run } from "./process.js";
 import { Media } from "./media.js";
+import { knowledgeImpact } from "./knowledge-impact.js";
+
+type ReweaveResolution = {
+  record_ref: Ref;
+  decision: "revised" | "reaffirmed" | "pending";
+  rationale: string;
+};
+type UnderstandingChange = {
+  added: string[];
+  revised_refs: Ref[];
+  unresolved: string[];
+  checks: string[];
+  no_new_supported_understanding?: string;
+};
 const STAGES = [
   "register",
   "convert",
@@ -325,6 +339,7 @@ export class Jobs {
         });
       const job: JobData = {
         schema_version: VERSION,
+        workflow_version: 2,
         job_id: id,
         corpus_id: (await this.store.config()).corpus_id,
         base_release: await this.store.current(),
@@ -440,6 +455,102 @@ export class Jobs {
         ),
       ],
       staged_path: path.join(this.jobPath(id), "staged.json"),
+      ...(j.workflow_version === 2 &&
+      [
+        "integrate",
+        "discover",
+        "reweave",
+        "compile",
+        "check",
+        "publish",
+      ].includes(j.stage)
+        ? { reweave: await this.reweavePlan(id) }
+        : {}),
+    };
+  }
+
+  async reweavePlan(id: string) {
+    return this.store.withReadSession(() => this.reweaveSnapshot(id));
+  }
+  private async reweaveSnapshot(id: string) {
+    const job = await this.load(id);
+    const staged = await readJson<Materialized>(
+      path.join(this.jobPath(id), "staged.json"),
+    );
+    const base = await this.store.records(job.base_release);
+    const affected = knowledgeImpact(base, staged.records);
+    const previous = await readJson<any[]>(
+      this.store.p(`releases/${job.base_release}.impacts.json`),
+    ).catch(() => []);
+    for (const impact of previous)
+      if (
+        impact.status === "pending_reassessment" &&
+        base.has(impact.record_ref.id)
+      ) {
+        const newImpact = affected.get(impact.record_ref.id);
+        const triggers = [
+          ...(newImpact?.material_change_refs ?? []),
+          ...(impact.material_change_refs ?? impact.changed_dependencies),
+        ];
+        affected.set(impact.record_ref.id, {
+          record_ref: ref(base.get(impact.record_ref.id)!),
+          material_change_refs: [
+            ...new Map(triggers.map((r: Ref) => [key(r), r])).values(),
+          ] as Ref[],
+          changed_dependencies:
+            newImpact?.changed_dependencies ?? impact.changed_dependencies,
+          reason:
+            newImpact?.reason ??
+            "Unresolved reassessment from an earlier release remains pending.",
+        });
+      }
+    const assessments = new Map<string, any>();
+    for (const file of job.receipts) {
+      const receipt = await readJson(this.store.p(file));
+      for (const assessment of receipt.reweave_assessments ?? [])
+        assessments.set(assessment.record_ref.id, assessment);
+    }
+    const targets: any[] = [];
+    const allowed = new Map<string, boolean>();
+    let inaccessible = false;
+    for (const [recordId, impact] of affected) {
+      const record = base.get(recordId)!;
+      if (!(await this.store.allowed(record, job.scope_policy, allowed))) {
+        inaccessible = true;
+        continue;
+      }
+      const replacement = staged.records.find((r) => r.id === recordId);
+      const triggers = [];
+      for (const reference of impact.material_change_refs) {
+        const trigger =
+          staged.records.find((r) => key(r) === key(reference)) ??
+          (await this.store.exact(reference).catch(() => null));
+        // Unavailable trigger content remains unresolved rather than entering a scoped response.
+        if (trigger) triggers.push(hash(json(trigger)));
+      }
+      const digest = hash(
+        json({ record: replacement ?? record, triggers: triggers.sort() }),
+      );
+      const prior = assessments.get(recordId);
+      targets.push({
+        record_ref: impact.record_ref,
+        title: record.title,
+        record_type: record.record_type,
+        reason: impact.reason,
+        outside_write_scope: !job.scope_policy.write_modules.includes(
+          record.maintenance_module,
+        ),
+        staged_ref: replacement ? ref(replacement) : null,
+        assessment_hash: digest,
+        resolution:
+          prior?.assessment_hash === digest ? prior.decision : "unassessed",
+      });
+    }
+    return {
+      targets,
+      inaccessible_dependents: inaccessible,
+      instruction:
+        "Reassess prose, summaries, primers, examples and questions. A reaffirmation needs a staged revision recording the new assessment. Pending accounts remain visibly unresolved after publication.",
     };
   }
   async readUnit(id: string, unitId: string, offset = 0, limit = 16000) {
@@ -946,7 +1057,8 @@ export class Jobs {
         status: "complete" | "excluded";
         reason?: string;
       }[];
-      resolutions?: unknown[];
+      resolutions?: ReweaveResolution[];
+      understanding_change?: UnderstandingChange;
       capability?: string;
       stopping_reason?: string;
       unfinished?: string[];
@@ -997,6 +1109,80 @@ export class Jobs {
           "VALIDATION_FAILED",
           "Explicit capability state required",
         );
+      const reweaveAssessments: any[] = [];
+      let unresolvedReweave: string[] = [];
+      if (j.workflow_version === 2 && j.stage === "reweave") {
+        const plan = await this.reweavePlan(id);
+        for (const resolution of input.resolutions ?? []) {
+          const target = plan.targets.find(
+            (t) => key(t.record_ref) === key(resolution.record_ref),
+          );
+          ensure(
+            target &&
+              ["revised", "reaffirmed", "pending"].includes(
+                resolution.decision,
+              ) &&
+              resolution.rationale?.trim().length > 20,
+            "VALIDATION_FAILED",
+            "Reweave resolutions need an affected exact record, a decision and a substantive rationale",
+          );
+          ensure(
+            resolution.decision === "pending" ||
+              (!target.outside_write_scope &&
+                target.staged_ref?.revision > target.record_ref.revision),
+            "REASSESSMENT_INCOMPLETE",
+            "Revised or reaffirmed understanding needs a staged canonical revision within write scope",
+          );
+          reweaveAssessments.push({
+            ...resolution,
+            assessment_hash: target.assessment_hash,
+          });
+        }
+        unresolvedReweave = plan.targets
+          .filter(
+            (t) =>
+              t.resolution === "unassessed" &&
+              !reweaveAssessments.some(
+                (a) => a.record_ref.id === t.record_ref.id,
+              ),
+          )
+          .map((t) => t.record_ref.id);
+      }
+      if (j.workflow_version === 2 && j.stage === "check") {
+        const change = input.understanding_change;
+        ensure(
+          change &&
+            [change.added, change.unresolved, change.checks].every(
+              (xs) =>
+                Array.isArray(xs) &&
+                xs.every((s) => typeof s === "string" && s.trim()),
+            ) &&
+            Array.isArray(change.revised_refs),
+          "VALIDATION_FAILED",
+          "Check receipts require understanding_change: added, revised_refs, unresolved and checks",
+        );
+        ensure(
+          change.added.length || change.no_new_supported_understanding?.trim(),
+          "VALIDATION_FAILED",
+          "Describe added understanding or explain why the source adds none",
+        );
+        ensure(
+          input.capability !== "checked" || change.checks.length,
+          "VALIDATION_FAILED",
+          "Checked capability needs the actual checks described",
+        );
+        const staged = await readJson<Materialized>(
+          path.join(this.jobPath(id), "staged.json"),
+        );
+        for (const reference of change.revised_refs)
+          ensure(
+            staged.records.some(
+              (r) => key(r) === key(reference) && r.revision > 1,
+            ),
+            "VALIDATION_FAILED",
+            "Report only staged revised accounts",
+          );
+      }
       const field =
         j.stage === "reconstruct"
           ? "read"
@@ -1028,6 +1214,9 @@ export class Jobs {
           json({
             input_hash: hash(json(input)),
             input,
+            ...(j.workflow_version === 2 && j.stage === "reweave"
+              ? { reweave_assessments: reweaveAssessments }
+              : {}),
             timestamp: now(),
             actor: "codex",
           }),
@@ -1043,12 +1232,18 @@ export class Jobs {
             (u) => u[field] !== "complete" && u[field] !== "excluded",
           )
         : [];
-      if (!pending.length && input.capability !== "unresolved_failures")
+      if (
+        !pending.length &&
+        !unresolvedReweave.length &&
+        input.capability !== "unresolved_failures"
+      )
         j.stage = STAGES[STAGES.indexOf(j.stage) + 1] ?? "publish";
       j.status = "waiting_for_codex";
-      j.remaining_work = pending.length
-        ? pending.map((u) => u.unit_id)
-        : (input.unfinished ?? []);
+      j.remaining_work = unresolvedReweave.length
+        ? unresolvedReweave.map((r) => "Reassess " + r)
+        : pending.length
+          ? pending.map((u) => u.unit_id)
+          : (input.unfinished ?? []);
       await this.save(j);
       return this.next(id);
     });
@@ -1069,11 +1264,16 @@ export class Jobs {
           j.status = "complete";
           j.remaining_work = [];
           await this.save(j);
+          const understanding = await this.ingestionReport(
+            j,
+            release.release_id,
+          );
           return {
             release_id: release.release_id,
             status: "canonical_committed",
             views: "check_receipt",
             recovered: true,
+            understanding,
           };
         }
         release = release.parent_release
@@ -1092,6 +1292,14 @@ export class Jobs {
       const staged = await readJson<Materialized>(
         path.join(this.jobPath(id), "staged.json"),
       );
+      if (j.workflow_version === 2) {
+        const plan = await this.reweavePlan(id);
+        ensure(
+          !plan.targets.some((t) => t.resolution === "unassessed"),
+          "REASSESSMENT_INCOMPLETE",
+          "Staged meaning changed after reweaving or an affected account is unassessed; return to reweave and record the remaining decisions",
+        );
+      }
       const result = await this.store.publish(
         staged.records,
         staged.bodies,
@@ -1103,8 +1311,31 @@ export class Jobs {
       j.status = "complete";
       j.remaining_work = [];
       await this.save(j);
-      return result;
+      const report = await this.ingestionReport(j, result.release_id);
+      return { ...result, understanding: report };
     });
+  }
+  private async ingestionReport(job: JobData, releaseId: string) {
+    const receipts = await Promise.all(
+      job.receipts.map((file) => readJson(this.store.p(file))),
+    );
+    const check = receipts
+      .filter((r) => r.input?.stage === "check")
+      .at(-1)?.input;
+    const impacts = await readJson(
+      this.store.p(`releases/${releaseId}.impacts.json`),
+    );
+    const report = {
+      release_id: releaseId,
+      understanding_change: check?.understanding_change ?? null,
+      pending_reassessments: impacts,
+      capability: check?.capability ?? "not_assessed",
+    };
+    await atomic(
+      path.join(this.jobPath(job.job_id), "ingestion-report.json"),
+      json(report),
+    );
+    return report;
   }
   async action(id: string, action: string) {
     return withLock(this.store.root, "jobs", async () => {
@@ -1137,7 +1368,10 @@ export class Jobs {
           current,
         );
         j.base_release = await this.store.current();
-        j.stage = "reweave";
+        // Rebase invalidates completed reassessment, but cannot skip unfinished
+        // conversion, reading or integration obligations in an earlier-stage job.
+        if (STAGES.indexOf(j.stage) > STAGES.indexOf("reweave"))
+          j.stage = "reweave";
         j.status = "waiting_for_codex";
         await atomic(path.join(this.jobPath(id), "staged.json"), json(staged));
       } else throw new Error("Unknown job action");

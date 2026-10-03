@@ -54,3 +54,11 @@ The audit also found a correctness defect: QMD can return a URL with an `?index=
 In the source acceptance run, rebuilding 71 revised wiki documents took roughly another 7.5 minutes of CPU embedding. QMD retained orphaned embeddings from previous document versions until cleanup. The lookup optimization does not eliminate rebuild cost or provide automatic cache compaction; repeated full-library revisions need storage/embedding monitoring. Canonical originals and historical records have a separate intentional retention policy.
 
 Private benchmark scripts, raw packets and acceptance inputs remain excluded from Git. The transferable evidence is the methodology, results and limitations here, plus the automated regression suite. Real-source application results are recorded in [validation](VALIDATION.md).
+
+## 2026-10-04 — Reading cost is a complete trajectory
+
+Version 1.1.0 adds summary-led discovery, selected complete-account reads, batches and sections. The API/CLI keeps the structured reading contract; MCP presents shared scopes and assessment definitions once while retaining complete prose, source locators, warnings and exact references. This avoids repeated metadata without truncating an explanation to meet a token target.
+
+The real-source comparison holds the 109-record foundational release constant across fixed-packet, progressive-graph and progressive-prose conditions. Each answer uses the same model alias, medium reasoning setting, 1,000-word limit and 300,000 cumulative input-token ceiling. Progressive tool calls, delivered characters and wall time are bounded; the token ceiling is checked after completion and overruns remain in the results. Cached input is part of measured input, not a zero-cost omission. Grader usage is recorded separately.
+
+Intermediate runs showed why payload size alone is insufficient: a smaller response could still produce more cumulative model input through extra reads and repeated context. The final comparison and adoption decision are reported in [validation](VALIDATION.md). Earlier measurements of expanded JSON size were estimates of that representation, not the exact MCP wire presentation; final reading receipts hash and measure the actual compact presentation. Local lookup timings above answer a different question from total model reading cost.

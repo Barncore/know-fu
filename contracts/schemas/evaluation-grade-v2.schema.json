@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/research-kb/spec/evaluation-grade-v2.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {
+      "enum": [
+        "pass",
+        "partial",
+        "fail"
+      ]
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "citation_errors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "rubric_errors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "source_errors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "uncertainty": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "correctness": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "verdict": {
+              "enum": [
+                "pass",
+                "partial",
+                "fail",
+                "not_applicable"
+              ]
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "verdict",
+            "rationale"
+          ]
+        },
+        "completeness": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "verdict": {
+              "enum": [
+                "pass",
+                "partial",
+                "fail",
+                "not_applicable"
+              ]
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "verdict",
+            "rationale"
+          ]
+        },
+        "decisive_conditions": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "verdict": {
+              "enum": [
+                "pass",
+                "partial",
+                "fail",
+                "not_applicable"
+              ]
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "verdict",
+            "rationale"
+          ]
+        },
+        "citation_support": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "verdict": {
+              "enum": [
+                "pass",
+                "partial",
+                "fail",
+                "not_applicable"
+              ]
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "verdict",
+            "rationale"
+          ]
+        },
+        "coherent_teaching": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "verdict": {
+              "enum": [
+                "pass",
+                "partial",
+                "fail",
+                "not_applicable"
+              ]
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "verdict",
+            "rationale"
+          ]
+        },
+        "useful_synthesis": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "verdict": {
+              "enum": [
+                "pass",
+                "partial",
+                "fail",
+                "not_applicable"
+              ]
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "verdict",
+            "rationale"
+          ]
+        },
+        "justified_inference": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "verdict": {
+              "enum": [
+                "pass",
+                "partial",
+                "fail",
+                "not_applicable"
+              ]
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "verdict",
+            "rationale"
+          ]
+        },
+        "gap_recognition": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "verdict": {
+              "enum": [
+                "pass",
+                "partial",
+                "fail",
+                "not_applicable"
+              ]
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "verdict",
+            "rationale"
+          ]
+        }
+      },
+      "required": [
+        "correctness",
+        "completeness",
+        "decisive_conditions",
+        "citation_support",
+        "coherent_teaching",
+        "useful_synthesis",
+        "justified_inference",
+        "gap_recognition"
+      ]
+    },
+    "decisive_failures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": [
+    "verdict",
+    "reasons",
+    "citation_errors",
+    "rubric_errors",
+    "source_errors",
+    "uncertainty",
+    "dimensions",
+    "decisive_failures"
+  ]
+}

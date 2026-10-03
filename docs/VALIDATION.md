@@ -2,6 +2,103 @@
 
 The local development installation is Windows with Ubuntu WSL2, regular FalkorDB and CPU QMD. This repository is a reusable source baseline; not every deployment option has been provisioned on a fresh machine.
 
+## 2026-10-04: version 1.1.0 capability build
+
+The [approved architecture](NORTH_STAR.md) now has summary-led navigation, complete-account and section reading, canonical material-context checks, cumulative reassessment and interactive evaluation. The build passes **107 automated tests with none skipped**, including the existing authority, lifecycle, recovery and document-conversion regressions. TypeScript compilation, formatting and packaged-contract checks pass. Engineering correctness is separate from the application evidence below.
+
+### Controlled access-structure comparison
+
+The foundational 109-record release was frozen before the new cases were written. Every canonical record and body hash was checked again after the final comparison: unchanged. The seven task groups were explanation, teaching, application, comparison, invention, synthesis and investigation. Two additional answers repeated application and a known source-error check; these are nine answers, not nine independent task groups. The source-reading coordinator designed the cases and reviewed the evidence. Separate solver and grader sessions do not make this an independent blind benchmark.
+
+The final fixed-packet and progressive conditions used the same frozen release, implementation, model alias (`gpt-6-astra`), medium reasoning setting, 1,000-word answer instruction and 300,000-token cumulative answer-input ceiling. Progressive runs also had limits of 24 tool calls, 240,000 delivered characters and ten minutes. The token ceiling is measured after completion; it is not a hard context cutoff. Reported input sums the model's input across reading turns, including cached and repeated context. Grader usage is recorded separately.
+
+| Task | Fixed packet input | Progressive with graph | Progressive without optional graph |
+|---|---:|---:|---:|
+| Explain comparison targets | 53,394 | 204,197 | 183,496 |
+| Teach omnibus and pairwise claims | 61,323 | 144,983 | 140,992 |
+| Apply an unfamiliar Holm family | 58,572 | 109,659 | 146,241 |
+| Compare replicability measures | 62,685 | 100,258 | 127,086 |
+| Propose a teaching evaluation | 75,553 | 181,676 | 177,453 |
+| Synthesize the comparison pipeline | 57,199 | 269,929 | 346,006 |
+| Prioritize an evidence gap | 63,398 | 212,795 | 212,870 |
+| Repeat the Holm application | 58,569 | 111,080 | 109,827 |
+| Repeat the source-error check | 76,182 | 67,702 | 67,753 |
+| **Median per answer** | **61,323** | **144,983** | **146,241** |
+
+All final answers passed the correctness dimension and none received a decisive-failure finding. Overall grades were seven pass/two partial for the fixed route, seven pass/two partial with progressive graph, and eight pass/one partial without optional graph. These grades are not interchangeable with complete reading:
+
+- All three explanation answers left distributional conditions insufficiently explicit, especially symmetry for standard signed-rank location inference. The foundational source itself did not supply that condition explicitly; the later qualifying source does.
+- The fixed investigation answer lacked an effort budget or stopping criterion. The graph invention answer did not fully connect its benefit, error and cost thresholds to the final decision rule.
+- One graph teaching answer left two recorded material reads unmet: the sign-test qualification and hypothesis-family account. Its final prose was graded correct, but the reading protocol was incomplete.
+- The progressive-prose synthesis exceeded the common input ceiling. It remains descriptive evidence, not a matched-budget success.
+
+The predefined [default-adoption gate](ACCEPTANCE.md) was **not met**. Only the source-error task used less input through progressive reading; the requirement was two narrow task groups without quality loss. Packet retrieval therefore remains the API and routine-answer default. Progressive reading ships as an additional navigation/selected-reading capability. The comparison does not establish optional graph superiority, a universal token-saving policy or a reason to discard full explanatory prose.
+
+Earlier runs remain preserved, including budget overruns and a missed Holm stopping condition in intermediate answers. Their feedback prompted generic ranking, material-context and presentation repairs, so the final cases are exposed regression/acceptance evidence rather than untouched holdouts. Repetition also showed answer variability. Compacting a response did not remove the cost of resending prior context.
+
+### Source sequence and backward revision
+
+After the unchanged-release comparison, the isolated library added the complete 17-page [Bengio and Grandvalet (2004) paper](https://www.jmlr.org/papers/volume5/grandvalet04a/grandvalet04a.pdf), followed by the complete 10-page [Benavoli, Corani and Mangili (2016) paper](https://www.jmlr.org/papers/volume17/benavoli16a/benavoli16a.pdf). Primary text, complementary extraction and every original page image were read before publication. Original files and locators were preserved. Cited works were not thereby independently reviewed.
+
+The complementary account distinguishes fixed-model error from expected algorithm error, the cross-validation training-size target, covariance among losses and the scope of the no-universal-unbiased-variance-estimator result. A synthetic covariance calculation reproduced variance .105 versus the independence approximation .05, with the covariance eigenvalues checked. This is an arithmetic illustration, not a replication of training experiments.
+
+The qualifying account explains how a fixed pair's mean-rank statistic can change when other competitors change, even at fixed pool size. All 54 printed table rows were checked against the original image and layout extraction. Recalculation reproduced the reported subset counts and two fixed-four-classifier statistics, 3.05596 and 2.45967, on opposite sides of the same cutoff. Raw-pair alternatives retain their assumptions and multiplicity requirements. The printed tail convention and an unread cited proof remain explicit qualifications; Monte Carlo power and the reported Wilcoxon p-value were not independently reproduced.
+
+Both publications revised the earlier primer, near-miss guidance, methodological-currency question and proposed knowledge-system evaluation. Historical source accounts and unaffected calculations were explicitly reconsidered and reaffirmed without rewriting the author's position. New connected explanations and a three-source procedure preserve where the later evidence qualifies practical use. Publication reports had no unassessed affected targets left pending. Source checking and later capability evaluation retain distinct statuses.
+
+One ingestion-only repair occurred between the before/after capability runs: rebasing now preserves unfinished source stages instead of jumping ahead to reassessment. File hashes confirm that only `jobs.js` changed; all reading, search, graph and evaluation modules were byte-identical. The complete implementation fingerprints therefore differ, and this is recorded rather than presenting them as identical builds.
+
+The cumulative prompts and criteria were frozen before the two sources were authored into the library. The same coordinator read the sources, designed the cases and authored the accounts; this remains an exposed, supervised demonstration. Original-passages-only and no-library controls received the same three new questions. A further fixed-packet run checked the policy actually being shipped. That default-route verification was added after the adoption decision; it is not a matched fixed-packet before/after experiment.
+
+Each cell below gives the overall grade and cumulative answer-input tokens. An asterisk marks an overrun of the shared 300,000-token ceiling.
+
+| New task | Before: progressive | After: progressive | After: fixed packet | Original passages | No library |
+|---|---|---|---|---|---|
+| Cross-validation uncertainty and estimands | Partial / 313,286* | Pass / 184,590 | Pass / 97,891 | Partial / 37,929 | Pass / 13,677 |
+| Fixed-size comparator-pool effect | Partial / 298,344 | Pass / 154,168 | Pass / 108,530 | Pass / 40,467 | Partial / 13,680 |
+| Transfer into an AI-workflow evaluation | Partial / 624,877* | Partial / 344,274* | Pass / 124,057 | Partial / 38,976 | Partial / 13,677 |
+
+The later library supplied explicit signed-rank conditions, connected the three error/performance targets, preserved the historical disagreement and supported a practical transfer with separate critical-failure reporting in the fixed answer. The progressive transfer answer still left protection against averaging away decisive failures insufficiently explicit and exceeded the budget. The before/after cost reductions are descriptive where the before or after answer exceeded the ceiling; they are not matched-budget victories.
+
+The pool-effect repeat changed from partial before ingestion to pass after ingestion through both reading routes. Both earlier retention cases—the Holm stopping rule and the exact source-error correction—passed before and after. The final progressive cumulative run had five passes and one partial; the final fixed route passed all six checks within budget. This supports usable cumulative revision and retention in this demonstration. It does not establish universal expertise, an optional graph advantage, or that the model needs a library for these public-paper questions. The no-library condition already solved the cross-validation problem and much of the pool-effect reasoning; missing historical attribution is an evidence gap, not proof of inability to reason. Original passages also solved the pool case at substantially lower input cost.
+
+The cumulative progressive receipts reported eleven unmet exact-revision obligations across three answers. A separate review found that each had actually been read through a newer reaffirmed revision with identical body, payload, scope, assessments and exact dependencies. The original receipts remain unchanged: this explains the apparent content gap without making different revisions generally interchangeable. The separate transfer completeness failure remains unresolved by that equivalence check.
+
+Coordinator review retained the raw grades and checked the relevant source arithmetic, conditions, disputed attribution requirements and revision equivalence. Additional grader cautions about unqualified normal-limit and sign-test assumptions were checked against source text; the compiled procedures and evaluated answers did not endorse those overstatements. Original sources were not silently corrected. A small set of selected papers and model-graded answers remains a limited evidence base for future operational use.
+
+### Isolation and installed adapter
+
+Native fixed-packet and interactive probes each denied four synthetic external-file reads. The interactive probe also rejected an attempted scope override and read seven fictional accounts through the constrained MCP interface. Receipts bind the runtime policy and state configuration; a mismatched state binding was rejected before evaluation model calls. These probes are meaningful checks of the tested path, not an exhaustive security assessment.
+
+Additional grading evidence requires a frozen authorization naming the configured destination and exact source references or extract hashes. This demonstration used public papers and fictional fixtures. It does not establish permission to send arbitrary private library material to a grader.
+
+The owned plugin and its prior cache were backed up, then updated through the supported Codex plugin command to `1.1.0+codex.202610040600`. A fresh MCP process discovered all ten tools and read all six guides. The repository, owned-plugin and installed-cache machine bindings remained byte-identical; the production corpus still had no published release. This verifies installation without migrating production research.
+
+A separate fresh process used that installed server against the explicitly isolated acceptance binding. All six served guides exactly matched the installed files. Canonical/view verification passed for 182 records; the graph had 182 nodes and 546 edges, and QMD had 216 documents and 526 embeddings. Progressive retrieval used both semantic search and graph traversal without fallback warnings, selected complete accounts were delivered, and an original-page read returned image content. Two retries of the completed publication recovered the existing release and understanding report without advancing the canonical pointer. All three original-source SHA-256 checks passed. These checks establish the tested tool paths, not autonomous skill selection or universal source fidelity.
+
+## 2026-10-01: representative technical-paper pilot on 1.0.2
+
+The supervised pilot completed intake, reading, source review, compilation, publication, live retrieval and application checks for the complete 30-page [Demšar (2006) paper, *Statistical Comparisons of Classifiers over Multiple Data Sets*](https://www.jmlr.org/papers/volume7/demsar06a/demsar06a.pdf). It used an isolated corpus, runtime state, deletion ledger, graph namespace and QMD index. The production corpus still had no published release after the pilot. This is a successful technical-paper acceptance check, not an unattended bulk-ingestion result.
+
+The downloaded and preserved PDF have the same SHA-256: `aa5fa1c71338d0d380e7a97e3503ce486d4e5798069647a8d39f57a1f99a7c8c`. Technical-profile extraction retained Poppler flow/layout text, Docling JSON/Markdown/settings and all 30 original-page renders. All pages were read in primary text and visually inspected. The 121 coverage units were accounted for: 97 completed and 24 alternate layout-text duplicates explicitly excluded; no substantive pages were excluded. All seven numbered tables and seven figures were reviewed, with decisive cells and formulas checked against the original pages. This does not certify every cell in the large empirical table.
+
+Docling omitted displayed formulas and merged some table columns; Poppler flow text also lost useful table alignment. Raw outputs remain unchanged. Authored explanations contain separately checked mathematical reconstructions. The original pages also confirmed source-level issues: some stated two-tailed sign-test cutoffs disagree with exact binomial arithmetic, and a worked Holm table's header conflicts with its formula and values. These are recorded as qualifications of the source account. Unavailable score precision remains unresolved. Printed-rank calculations were reproduced deterministically, and selected exact-binomial checks also agreed with SciPy; classifier experiments and cited publications were not independently reproduced or reviewed.
+
+Publication produced 109 records: one source, 68 passages, five concepts, twelve explanatory knowledge records, three judgments, four learning records, three questions and thirteen relationships. A fresh stdio MCP connection discovered all ten tools, returned original-page pixels and passed canonical/view integrity verification. FalkorDB reported 109 nodes and 328 projected edges; QMD indexed 109 documents with 180 embeddings. Three application retrieval checks used both semantic search and graph traversal without fallback warnings. The sign-test qualification and correctly directed independence prerequisite were present. The initially stopped graph service was started and indexing retried successfully; the failed first receipt is retained separately.
+
+The release was frozen before designing five new application cases. A sixth case deliberately retested a source discrepancy already found during ingestion. Cases were designed by the source-reading coordinator after publication, not by an independent blind designer. A fresh native isolation probe denied all four attempted external-file reads. Answers and graders then ran in separate input-only contexts through the configured Codex account using `gpt-6-astra`; the grader did not receive the original PDF binary. The coordinator checked decisive outcomes against original-page images and deterministic arithmetic.
+
+| Application check | Result |
+|---|---|
+| Independent data sets versus repeated folds | Pass: distinguished independent units, reliable score estimation and overlapping collections. |
+| New Nemenyi all-pairs calculation | Pass: correct critical difference, all four significant pairs and non-equivalence caveat. |
+| Holm transfer to six comparisons | Pass: correct thresholds, stop at the first failure and preserve the printed-header discrepancy. |
+| Previously unused cells in Table 7(c) | Pass: correct row/column direction, rejection counts versus mean p-values and empirical limits. |
+| Known source-error regression | Pass: preserved the printed cutoff while applying the correct exact-binomial decision. |
+| Transfer to retrieval-mode evaluation | Pass: rejected dependent paraphrases as independent units and labeled the proposed experiment as a transfer. |
+
+All six answer/grade pairs completed with structured results; none reported citation or rubric errors. The release and proposal stayed frozen. This was one run of the full-library condition: actual answer input ranged from 55,026 to 74,786 tokens. There was no source-only/prose-only comparison, matched evidence-budget experiment or graph-advantage estimate. Large evidence packets remain an efficiency concern. These results support a small supervised migration as a next acceptance step; they do not establish full-book/course/video fidelity, fresh-machine provisioning, broad domain mastery or production-scale performance. Local raw evidence, scripts, case files and model receipts remain outside the release package. No engine, schema or installed-plugin change was needed for this pilot.
+
 ## 2026-10-01: version 1.0.2 repair evidence
 
 The twelve reproduced audit groups have targeted regression coverage. Tests use disposable fictional corpora; paid/model calls are stubbed where their orchestration is under test. No production research was migrated or ingested.

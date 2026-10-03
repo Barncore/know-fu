@@ -4,6 +4,31 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-04 — Version 1.1.0: connected reading and cumulative understanding
+
+- Implemented summary-led wiki/topic navigation, authored navigation metadata, summary/body search identities and the versioned progressive reading interface. Complete accounts, batches, sections, exact support and mandatory material context remain available; optional graph exploration is separate from qualification checks.
+- Added compact MCP presentation without shortening explanatory bodies, and corrected passage-body ranking and the distinction between assessment targets and conceptual prerequisites. The established packet route remains available; the default-adoption decision follows the measured acceptance criteria rather than response size alone.
+- Added workflow-version-2 reweaving, including impact from new or revised material relationships, revision-backed reassessment decisions, stale-decision rejection and recoverable understanding-change reports. Rebasing preserves unfinished source stages and reopens later reassessment.
+- Added version-3 interactive evaluations through a constrained native Codex MCP reader, immutable run/resume checks, runtime-bound isolation receipts, explicit grader-source authorization, complete reading traces, separate quality dimensions and honest reporting of cumulative token overruns.
+- Documented the approved north star, acceptance contract, component responsibilities, reading guidance and cumulative-ingestion workflow. Existing source identities and the production binding are preserved; this release does not authorize a historical corpus migration or a new service.
+- Validation and rollout evidence are recorded in [VALIDATION.md](docs/VALIDATION.md); total reading-cost boundaries are in [PERFORMANCE.md](docs/PERFORMANCE.md). Private source corpora, cases, raw runs and installation backups remain excluded from Git.
+- Verification: 107 tests passed without skips; build, formatting, 14 packaged schema copies and live installed MCP checks passed. The source/graph/search/image and recovered-publication paths were checked in an isolated three-source library. The production binding and its empty published state were preserved.
+
+### 2026-10-02 — Product intent and implementation plan
+
+- Added a [north star and implementation plan](docs/NORTH_STAR.md), reconstructed from the original design conversations and checked against later accepted decisions, current runtime behavior and primary research references.
+- Described the remaining work on summary-led navigation, selective reading, cumulative reweaving, teaching/application/invention and interactive capability evaluation. Proposed changes remain unimplemented and subject to plan review.
+- Linked the document from contributor instructions and README so future work can recover the purpose without relying on a conversation summary. Private conversation evidence remains outside this repository.
+- Documentation-only update. No runtime, schema, installed-plugin, corpus, binding or dependency change.
+- Validation: package check passed (11 schema copies, valid example, 54 plugin links); all 38 local links across the new documents and edited entry points resolve; `git diff --check` passed. This verifies the documentation package, not the proposed behavior.
+
+### 2026-10-01 — Representative technical-paper pilot
+
+- Completed a supervised end-to-end pilot on a complete 30-page public paper in an isolated library. Verified preserved bytes, original-page reading, coverage accounting, publication, real MCP image delivery and live FalkorDB/QMD retrieval.
+- Recorded parser omissions and separately qualified source inconsistencies. All six frozen-release application checks passed: five cases designed after publication and one disclosed regression. The coordinator verified decisive answers against original images and arithmetic.
+- Documented the limits: one full-library condition, large answer inputs, no independent blind case designer, no equal-budget comparison and no claim of graph superiority or unattended migration readiness. See [validation](docs/VALIDATION.md) and [lessons](LESSONS.md).
+- Documentation-only update; no engine/schema/plugin change, production ingestion or migration. Private pilot evidence remains outside Git.
+
 ### 2026-10-01 — Version 1.0.2: audit repairs and complementary PDF extraction
 
 - Repaired all twelve reproduced audit groups: committed-only historical visibility, lifecycle-preserving edits, old-owner checks, current lifecycle/maintenance permissions, PDF page ownership, judgment/date/direction semantics, frozen structured evaluations, initial-registration recovery and EPUB visual readability.

@@ -5,6 +5,7 @@ import path from "node:path";
 import { Store } from "./store.js";
 import { KnowledgeSystem, descriptions } from "./api.js";
 import { APP, ENGINE_VERSION } from "./core.js";
+import { renderReadingResponse } from "./reading-render.js";
 const system = new KnowledgeSystem(
   new Store(
     process.env.KB_CORPUS ?? path.resolve(APP, "../knowledge-library"),
@@ -46,7 +47,9 @@ for (const [name, description] of Object.entries(descriptions))
           };
         }
         return {
-          content: [{ type: "text" as const, text: JSON.stringify(result) }],
+          content: [
+            { type: "text" as const, text: renderReadingResponse(result) },
+          ],
         };
       } catch (e: any) {
         return {

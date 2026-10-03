@@ -203,6 +203,10 @@ export type RecordData = {
         context: string | null;
       };
     };
+    navigation?: {
+      interface_version: "1.0.0";
+      summary: string;
+    };
   };
   payload: {
     [k: string]: unknown;

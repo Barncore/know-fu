@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { VerifiedCache, mapLimit } from "./verified-cache.js";
+import { knowledgeImpact } from "./knowledge-impact.js";
 import path from "node:path";
 import {
   APP,
@@ -935,7 +936,7 @@ export class Store {
           "exemplifies needs an attributable case",
         );
       }
-      if (Object.keys(r.extensions).length)
+      if (Object.keys(r.extensions).some((k) => k !== "navigation"))
         ensure(
           ["knowledge", "learning"].includes(r.record_type),
           "VALIDATION_FAILED",
@@ -1108,38 +1109,32 @@ export class Store {
       };
       await validate("release", release);
       const changed = new Set(records.map((r) => r.id)),
-        affected = new Set(changed),
+        affected = knowledgeImpact(base, records),
         impacts: any[] = await readJson<any[]>(
           this.p(`releases/${baseRelease}.impacts.json`),
         ).catch(() => []);
-      for (let round = 0; round < base.size; round++) {
-        let added = false;
-        for (const r of base.values())
-          if (
-            !affected.has(r.id) &&
-            r.depends_on.some((d) => affected.has(d.id))
-          ) {
-            affected.add(r.id);
-            added = true;
-          }
-        if (!added) break;
-      }
       for (const r of base.values())
-        if (
-          !changed.has(r.id) &&
-          affected.has(r.id) &&
-          !impacts.some((x) => x.record_ref.id === r.id)
-        )
-          impacts.push({
-            record_ref: ref(r),
-            changed_dependencies: r.depends_on.filter((d) =>
-              affected.has(d.id),
-            ),
+        if (!changed.has(r.id) && affected.has(r.id)) {
+          const previous = impacts.findIndex((x) => x.record_ref.id === r.id);
+          const prior = previous >= 0 ? impacts[previous] : null;
+          const currentImpact = affected.get(r.id)!;
+          const materialChanges = [
+            ...(prior?.material_change_refs ?? []),
+            ...currentImpact.material_change_refs,
+          ];
+          const impact = {
+            ...affected.get(r.id),
+            material_change_refs: [
+              ...new Map(materialChanges.map((x) => [key(x), x])).values(),
+            ],
             status: "pending_reassessment",
             outside_write_scope: !scope.write_modules.includes(
               r.maintenance_module,
             ),
-          });
+          };
+          if (previous >= 0) impacts[previous] = impact;
+          else impacts.push(impact);
+        }
       for (let i = impacts.length - 1; i >= 0; i--)
         if (changed.has(impacts[i].record_ref.id)) impacts.splice(i, 1);
       const event_id = uid("event-");

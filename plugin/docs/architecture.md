@@ -74,7 +74,10 @@ views/
   receipt.json                      Which projections are ready for which release
   <release-id>/
     wiki/_index.md                  Active, unarchived record navigation
+    wiki/_topics/<domain-hash>.md    Summarized topic accounts, primers and typed connections
+    wiki/_records.md                Full record/evidence directory
     wiki/<record-id-hash>.md         Generated record pages
+    catalogue.json                  Exact identities and authored navigation summaries
     search/<module-hash>/            Generated module-scoped search documents
     search-map.json                 Search document -> exact record/source mapping
     file-hashes.json                Projection integrity information
@@ -82,7 +85,25 @@ views/
 
 Jobs can contain raw API responses and paid-request reservations. Publication also uses transient journal/lock files. This diagram is a navigation guide; the schemas and engine define the exact structures.
 
-The wiki currently materializes record pages, including authored synthesis and learning records. It does not invent a separate textbook hierarchy automatically. Its filenames are stable hashes; `_index.md` supplies readable titles. Editing a generated page requires importing that edit through `wiki_edit` and publishing it as canonical prose. Rebuilding detects unimported changes.
+The wiki materializes complete record pages, topic indexes and an orientation index. It uses authored summaries and existing learning primers; it does not invent a textbook hierarchy or generate model summaries on each read. Optional `extensions.navigation` version 1.0.0 supplies an authored summary where existing fields are insufficient. A missing summary is explicit. Summary and body search documents map to the same exact record identity, not separate corroborating sources. These owner-level files contain the corpus; scoped tools filter visibility before exposing metadata, memberships or counts.
+
+Editing a generated account page requires importing that edit through `wiki_edit` and publishing it as canonical prose. Rebuilding detects unimported body changes. Topic indexes and catalogues are rebuildable navigation. Their integrity hashes and release binding prevent a same-count edit from appearing fresh.
+
+## Progressive reading
+
+`kb_retrieve {mode:"progressive",query,purpose}` returns orientation candidates, necessary reading and traceable supporting refs. `kb_read` opens a catalogue, topic, complete account, batch of up to 12 accounts, stable sections or material context. The [reading request](../contracts/schemas/reading-request.schema.json) and [response](../contracts/schemas/reading.schema.json) contracts have interface version 1.0.0. Existing exact full-record reads and `mode:"packet"` remain available.
+
+Packet retrieval remains the API default for routine answers. Progressive reading is available for navigation and selected reading, but the controlled small-library comparison did not meet the preset efficiency/completeness criteria for default adoption. Fewer delivered bodies do not necessarily mean less cumulative model input: each reading turn can resend previous context. The workflow keeps that distinction explicit.
+
+Known qualifications, challenges, conceptual prerequisites and current judgments are resolved from canonical records independently of optional graph exploration. The engine traces exact input metadata to find inherited caveats without automatically loading every supporting body. Top-level `depends_on` binds inputs and invalidation; a relationship with predicate `depends_on` expresses a conceptual prerequisite. Both retain their direction and provenance.
+
+Each account read carries scope, applicability, freshness and material context. Sections bind release, exact revision and body hash; section reads remain partial. Pagination, unavailable context and required reads remain explicit. A successful tool call establishes delivered content, not complete understanding. The [retrieval workflow](../skills/know-fu/references/retrieval.md) describes purpose-specific decisions and stopping criteria.
+
+## Cumulative ingestion and evaluation
+
+New ingestion jobs use workflow version 2. Their reweave plan includes dependent explanations, teaching and questions affected by changed inputs or material relationships. A revised or reaffirmed decision requires a staged canonical revision; unresolved or out-of-scope targets remain pending. Decisions are bound to staged meaning and expire if that meaning changes. Check receipts record added understanding, revised refs, unresolved issues and actual capability checks. The ingestion report is recoverable after a committed publication. Legacy jobs retain their original workflow contract.
+
+Version 3 evaluation freezes implementation, case/rubric material, release, scope, model, budgets and conditions. Interactive conditions use a pinned read-only MCP reader; fixed-packet and original-passage controls retain distinct names. The reader records chosen summaries, inspected bodies/sections, graph routes, repeated reads, delivered characters and unmet requirements. Codex-reported cumulative usage includes repeated context. The input-token ceiling is measured after completion, while tool-call, evidence and wall-time limits are enforced during execution. Separate quality dimensions and decisive failures prevent a favorable average from hiding a lost condition. Additional grader source payloads require an explicit per-run authorization bound to exact refs or hashes. See [operations](../skills/know-fu/references/operations.md) for the boundaries.
 
 ## Database and search layout
 
