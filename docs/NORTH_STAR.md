@@ -1,6 +1,6 @@
 # Know Fu north star and implementation plan
 
-Updated 4 October 2026. This document restores the original product intent and the work needed to realise it more fully. The vision and established boundaries below come from the design discussions. The owner approved the complete implementation and GitHub push on 4 October: “Confirmed. Build it. And push to github.” The [implementation record](IMPLEMENTATION.md) tracks delivery; approval is not a claim that the changes are installed or validated.
+Updated 5 October 2026: owner decisions on version 1.2.0 are recorded under "Decisions on 5 October 2026". This document restores the original product intent and the work needed to realise it more fully. The vision and established boundaries below come from the design discussions. The owner approved the complete implementation and GitHub push on 4 October: “Confirmed. Build it. And push to github.” The [implementation record](IMPLEMENTATION.md) tracks delivery; approval is not a claim that the changes are installed or validated.
 
 ## The experience we are building
 
@@ -48,6 +48,15 @@ The initial deployment uses local files and software without a required cloud-da
 Knowledge-promotion tiers, shared cross-harness writes and operational/project memory remain deferred. `analogous_to` was excluded. Domain compatibility does not require automatic cross-domain analogy. Each book does not become a skill, and fixed page/link/probe quotas do not define a successful ingest.
 
 “Every ingest makes it smarter” is the objective, not a promise of monotonic benchmark gains from arbitrary material. A redundant source may add little; a weak source may be qualified; a contradictory source may improve judgment by reducing false certainty. The useful question is what understanding or capability changed and whether unrelated knowledge remained sound.
+
+## Decisions on 5 October 2026
+
+The owner reviewed the 1.2.0 audit and rebuild and decided:
+
+- Version 1.2.0 is the line going forward, rather than lifting parts of it into 1.1.0. Its `kb_recall` is the routine route for answering; packet and progressive retrieval remain available for comparison. This supersedes the 1.1.0 default named in the implementation plan below.
+- A Claude Code adapter will be added once the owner judges the system finished. Shared writes from several harnesses remain deferred.
+
+Since 1.2.0, multi-hop connection runs in process over the canonical records (spreading activation in recall, prerequisite chains for explain and teach), so answering no longer depends on the FalkorDB service. Whether FalkorDB stays as an optional view is an open decision in [ROADMAP.md](ROADMAP.md), together with how assessments should be used.
 
 ## One knowledge system with several ways to read it
 
@@ -251,4 +260,4 @@ For each material change, explain which capability it improves, what understandi
 
 When the user changes a decision, update its reason here and the affected technical documentation. Preserve historical evidence without maintaining multiple competing current specifications. This document governs product intent; schemas/runtime describe current mechanics; [VALIDATION.md](VALIDATION.md) records what has actually been demonstrated. New user direction can revise any project decision.
 
-The approved build is delivered as **version 1.1.0**, with installed-tool checks and controlled application evidence. Follow [IMPLEMENTATION.md](IMPLEMENTATION.md) for the handover and [VALIDATION.md](VALIDATION.md) for outcomes and limits. Progressive reading is implemented but did not meet the preset default-adoption gate; the packet route remains the routine default. Production migration and wider independent capability testing remain separate work. Preserve the earlier pilot and distinguish implemented mechanisms from demonstrated capability.
+The approved 1.1.0 build was delivered with installed-tool checks and controlled application evidence; [IMPLEMENTATION.md](IMPLEMENTATION.md) records that handover. Version 1.2.0 followed on 5 October 2026 and is the line the owner chose to continue (below). Its budgeted recall replaced the packet as the routine route after a blind comparison found equal answer quality at about one-eighth of the material. [ROADMAP.md](ROADMAP.md) holds the current task list and open decisions, and [VALIDATION.md](VALIDATION.md) the outcomes and limits. Production migration and wider independent capability testing remain separate work. Preserve the earlier pilots and distinguish implemented mechanisms from demonstrated capability.

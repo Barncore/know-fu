@@ -1,0 +1,731 @@
+import { Store } from "./store.js";
+import { Projections } from "./projections.js";
+import { LibraryIndex } from "./library-index.js";
+import {
+  ensure,
+  key,
+  ref,
+  readJson,
+  uid,
+  atomic,
+  json,
+  hash,
+  ENGINE_VERSION,
+} from "./core.js";
+import type { RecordData, Ref, Scope } from "./core.js";
+import { summary } from "./navigation.js";
+
+export type RecallPurpose =
+  | "explain"
+  | "teach"
+  | "apply"
+  | "compare"
+  | "invent"
+  | "synthesize"
+  | "investigate";
+
+export type RecallRequest = {
+  query: string;
+  purpose?: RecallPurpose;
+  budget_tokens?: number;
+  depth?: "brief" | "standard" | "deep";
+  domains?: string[];
+  scope?: Scope;
+  release_id?: string;
+  /** true forces semantic search, false disables it; omitted runs it only when keywords look weak. */
+  semantic?: boolean;
+  graph?: boolean;
+  seen?: (Ref | string)[];
+  context?: Record<string, { value: unknown; unit?: string | null }>;
+};
+
+/** Default reading budgets: enough for a real answer, far below loading every connected body. */
+const DEFAULT_BUDGET: Record<RecallPurpose, number> = {
+  explain: 7000,
+  teach: 9000,
+  apply: 7000,
+  compare: 8000,
+  invent: 9000,
+  synthesize: 12000,
+  investigate: 6000,
+};
+
+/** Forms that answer each purpose most directly; a soft ranking prior, never a filter. */
+const PURPOSE_FORMS: Record<RecallPurpose, string[]> = {
+  explain: ["mechanism", "explanation", "synthesis", "concept"],
+  teach: [
+    "primer",
+    "teaching_sequence",
+    "worked_example",
+    "near_miss",
+    "lesson",
+    "concept",
+  ],
+  apply: ["procedure", "application", "worked_example", "near_miss"],
+  compare: ["synthesis", "judgment", "explanation"],
+  invent: ["mechanism", "question", "synthesis"],
+  synthesize: ["primer", "synthesis", "teaching_sequence", "judgment"],
+  investigate: ["question", "judgment"],
+};
+
+/** A filed answer is real but second-hand: it ranks just below the accounts it cites. */
+export const FILED_ANSWER_WEIGHT = 0.9;
+
+export const estimateTokens = (text: string) => Math.ceil(text.length / 4);
+
+type Ranked = { id: string; score: number };
+type Candidate = { record: RecordData; score: number; channels: string[] };
+type Packed = {
+  record: RecordData;
+  role: "account" | "caveat" | "prerequisite" | "evidence";
+  tokens: number;
+  channels: string[];
+  reason: string;
+};
+
+export function form(record: RecordData) {
+  return (record.payload as any).form ?? record.record_type;
+}
+
+export function isFiledAnswer(record: RecordData) {
+  return record.provenance.method === "filed_answer";
+}
+
+function shortSource(record: RecordData | undefined) {
+  if (!record) return "unknown source";
+  return record.title.replace(
+    /\.(pdf|epub|md|txt|html?|mp4|mkv|mov|webm|mp3|wav|m4a|vtt|srt)$/i,
+    "",
+  );
+}
+
+function pageLabel(passage: RecordData) {
+  const l = (passage.payload as any).locator;
+  if (!l) return passage.title;
+  if (l.kind === "pages")
+    return l.start === l.end ? `p.${l.start}` : `pp.${l.start}-${l.end}`;
+  if (l.kind === "lines") return `lines ${l.start}-${l.end}`;
+  return l.label ?? l.kind;
+}
+
+/** Collapse page labels into ranges: pp.5-8, p.12. */
+function compactPages(labels: string[]) {
+  const pages = [
+    ...new Set(
+      labels.flatMap((l) => {
+        const range = /^pp?\.(\d+)(?:-(\d+))?$/.exec(l);
+        if (!range) return [];
+        const start = Number(range[1]),
+          end = Number(range[2] ?? range[1]);
+        return Array.from(
+          { length: Math.min(end - start + 1, 500) },
+          (_, i) => start + i,
+        );
+      }),
+    ),
+  ].sort((a, b) => a - b);
+  const other = labels.filter((l) => !/^pp?\.\d+(?:-\d+)?$/.test(l));
+  const ranges: string[] = [];
+  for (let i = 0; i < pages.length;) {
+    let j = i;
+    while (j + 1 < pages.length && pages[j + 1] === pages[j] + 1) j++;
+    ranges.push(
+      pages[i] === pages[j] ? `p.${pages[i]}` : `pp.${pages[i]}-${pages[j]}`,
+    );
+    i = j + 1;
+  }
+  return [...new Set([...ranges, ...other])].join(", ");
+}
+
+export function clip(text: string, n: number) {
+  const flat = text.replace(/\s+/g, " ").trim();
+  return flat.length > n ? flat.slice(0, n - 1) + "…" : flat;
+}
+
+/**
+ * Deterministic weight of evidence: the distinct sources (by evidence family) behind an
+ * account, with page labels, and whether an active challenge targets it. Repeated pages
+ * from one source count once; a summary or filed answer is never a second source.
+ */
+export function supportTally(index: LibraryIndex, r: RecordData) {
+  const bySource = new Map<string, string[]>();
+  for (const s of r.provenance.source_refs)
+    bySource.set(s.id, bySource.get(s.id) ?? []);
+  for (const input of r.provenance.input_refs) {
+    const passage = index.visible.get(input.id);
+    if (passage?.record_type !== "passage") continue;
+    const sourceId = (passage.payload as any).source_ref.id;
+    bySource.set(sourceId, [
+      ...(bySource.get(sourceId) ?? []),
+      pageLabel(passage),
+    ]);
+  }
+  const families = new Map<string, string[]>();
+  for (const [sourceId, pages] of bySource) {
+    const source = index.visible.get(sourceId);
+    const family = (source?.payload as any)?.evidence_family ?? sourceId;
+    const label = `${shortSource(source)}${pages.length ? " " + compactPages(pages) : ""}`;
+    families.set(family, [...(families.get(family) ?? []), label]);
+  }
+  const challenged = (index.incoming.get(r.id) ?? []).some(
+    (l) => l.predicate === "challenges",
+  );
+  return {
+    sources: [...families.values()].map((labels) => labels.join(" + ")),
+    challenged,
+  };
+}
+
+function scopeText(r: RecordData) {
+  if (!r.scope.conditions.length && !r.scope.exclusions.length) return "";
+  return `Holds when: ${r.scope.conditions.join("; ") || "unstated"}${r.scope.exclusions.length ? ` · Not for: ${r.scope.exclusions.join("; ")}` : ""}`;
+}
+
+/**
+ * Budgeted, fused recall. One call returns the explanations that answer the question,
+ * the caveats that must travel with them, and a map of what else exists, instead of
+ * every transitively connected body.
+ */
+export class Recall {
+  constructor(
+    readonly store: Store,
+    readonly projections = new Projections(store),
+  ) {}
+
+  async recall(input: RecallRequest) {
+    ensure(
+      typeof input.query === "string" && input.query.trim(),
+      "VALIDATION_FAILED",
+      "A nonempty recall query is required",
+    );
+    const purpose = input.purpose ?? "explain";
+    ensure(
+      Object.hasOwn(DEFAULT_BUDGET, purpose),
+      "VALIDATION_FAILED",
+      "Unknown recall purpose",
+    );
+    ensure(
+      input.budget_tokens === undefined ||
+        (Number.isInteger(input.budget_tokens) &&
+          input.budget_tokens >= 500 &&
+          input.budget_tokens <= 60000),
+      "VALIDATION_FAILED",
+      "budget_tokens must be an integer from 500 to 60000",
+    );
+    ensure(
+      input.depth === undefined ||
+        ["brief", "standard", "deep"].includes(input.depth),
+      "VALIDATION_FAILED",
+      "depth must be brief, standard or deep",
+    );
+    return this.store.withReadSession(() => this.run({ ...input, purpose }));
+  }
+
+  /** Ranked candidates from every channel, fused by reciprocal rank. */
+  async rank(
+    index: LibraryIndex,
+    input: RecallRequest & { purpose: RecallPurpose },
+  ) {
+    const depth = input.depth ?? "standard";
+    const warnings: string[] = [];
+    const channels: Record<string, string> = {};
+    const searchable = (id: string) => {
+      const r = index.visible.get(id);
+      return (
+        !!r &&
+        index.usableIds.has(id) &&
+        (index.isAccount(r) || r.record_type === "passage")
+      );
+    };
+    const lists = new Map<string, Ranked[]>();
+
+    // Lexical BM25 over titles, summaries, bodies and passage text.
+    const lexical = index.lexical.search(input.query, 60, searchable);
+    lists.set("lexical", lexical);
+    channels.lexical = `ok (${lexical.length})`;
+
+    // Semantic search through the QMD projection: forced, disabled, or automatic when keywords look weak.
+    const coverage = index.lexical.coverage(input.query);
+    const lexicalAccounts = lexical.filter((h) =>
+      index.isAccount(index.visible.get(h.id)!),
+    ).length;
+    const weak = coverage < 0.7 || lexicalAccounts < 5;
+    if (input.semantic === false) channels.semantic = "off (requested)";
+    else if (input.semantic !== true && !weak)
+      channels.semantic = `skipped (keywords matched ${Math.round(coverage * 100)}% of query terms)`;
+    else {
+      const receipt = await this.projections.receipt();
+      const semantic = receipt?.search?.semantic === true;
+      if (!(await this.projections.fresh(index.release, "search"))) {
+        channels.semantic =
+          "unavailable (search projection not ready for this release)";
+        if (weak)
+          warnings.push(
+            "Keyword match is weak and semantic search is unavailable; reword the query or reindex.",
+          );
+      } else
+        try {
+          const hits = await this.projections.search(
+            input.query,
+            index.scope.read_modules,
+            semantic,
+            60,
+            false,
+          );
+          const mapping = await readJson<Record<string, any>>(
+            this.store.p(`views/${index.release}/search-map.json`),
+          );
+          const seen = new Set<string>();
+          const list: Ranked[] = [];
+          for (const hit of hits.items) {
+            const file = String(hit.file ?? "")
+              .replace(/^qmd:\/\//, "")
+              .split(/[?#]/, 1)[0];
+            const entry = mapping[file];
+            const r = entry && index.visible.get(entry.record_ref.id);
+            if (
+              !r ||
+              key(r) !== key(entry.record_ref) ||
+              !searchable(r.id) ||
+              seen.has(r.id)
+            )
+              continue;
+            seen.add(r.id);
+            list.push({ id: r.id, score: Number(hit.score ?? 0) });
+          }
+          lists.set("semantic", list);
+          channels.semantic = `${semantic ? "ok" : "keyword index only"} (${list.length})`;
+        } catch (error: any) {
+          channels.semantic = "failed: " + error.message;
+        }
+    }
+
+    const fuse = (weights: Record<string, number>) => {
+      const fused = new Map<string, { score: number; channels: Set<string> }>();
+      for (const [channel, list] of lists)
+        list.forEach((hit, rank) => {
+          const entry = fused.get(hit.id) ?? {
+            score: 0,
+            channels: new Set<string>(),
+          };
+          entry.score += (weights[channel] ?? 1) / (60 + rank + 1);
+          entry.channels.add(channel);
+          fused.set(hit.id, entry);
+        });
+      return fused;
+    };
+    const weights = { lexical: 1, semantic: 1, graph: 0.8 };
+    let fused = fuse(weights);
+
+    // Spreading activation from the strongest text matches over typed links.
+    if (input.graph === false) channels.graph = "off (requested)";
+    else if (!index.adjacency.size) channels.graph = "no links in scope";
+    else {
+      const seeds = new Map(
+        [...fused]
+          .sort((a, b) => b[1].score - a[1].score)
+          .slice(0, 12)
+          .map(([id, v]) => [id, v.score]),
+      );
+      const activation = index.spread(seeds);
+      const graph = [...activation]
+        .filter(([id]) => searchable(id))
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 60)
+        .map(([id, score]) => ({ id, score }));
+      lists.set("graph", graph);
+      channels.graph = `ok (${graph.length})`;
+      fused = fuse(weights);
+    }
+
+    // Priors: prefer explanations to raw evidence, and forms that serve the purpose.
+    const domainBoost = new Set(input.domains ?? []);
+    const candidates: Candidate[] = [];
+    for (const [id, entry] of fused) {
+      const r = index.visible.get(id)!;
+      let score = entry.score;
+      if (r.record_type === "passage") score *= depth === "deep" ? 0.8 : 0.45;
+      if (PURPOSE_FORMS[input.purpose].includes(form(r))) score *= 1.25;
+      if (domainBoost.size && r.scope.domains.some((d) => domainBoost.has(d)))
+        score *= 1.15;
+      if (index.pending.has(r.id)) score *= 0.9;
+      if (isFiledAnswer(r)) score *= FILED_ANSWER_WEIGHT;
+      candidates.push({ record: r, score, channels: [...entry.channels] });
+    }
+    candidates.sort(
+      (a, b) => b.score - a.score || key(a.record).localeCompare(key(b.record)),
+    );
+    return { candidates, channels, warnings };
+  }
+
+  private async run(input: RecallRequest & { purpose: RecallPurpose }) {
+    const started = performance.now();
+    const index = await LibraryIndex.open(this.store, input);
+    const purpose = input.purpose;
+    const depth = input.depth ?? "standard";
+    const budget =
+      input.budget_tokens ??
+      Math.round(
+        DEFAULT_BUDGET[purpose] *
+          (depth === "brief" ? 0.5 : depth === "deep" ? 2 : 1),
+      );
+    const { candidates, channels, warnings } = await this.rank(index, input);
+    if (index.visible.size < index.records.size)
+      warnings.push(
+        "Some library material is outside this scope and was not considered.",
+      );
+
+    // Pack in rank order. Caveats travel with what they qualify; whatever does not fit is skipped, not cut.
+    // A held id@revision suppresses only that revision, so a newer one is still sent; a bare id suppresses any.
+    const heldIds = new Set<string>(),
+      heldKeys = new Set<string>();
+    for (const s of input.seen ?? []) {
+      if (typeof s !== "string") heldKeys.add(key(s));
+      else if (s.includes("@")) heldKeys.add(s.trim());
+      else heldIds.add(s.trim());
+    }
+    const seen = {
+      has: (id: string) => {
+        const r = index.visible.get(id);
+        return heldIds.has(id) || (!!r && heldKeys.has(key(r)));
+      },
+      size: heldIds.size + heldKeys.size,
+    };
+    const packed = new Map<string, Packed>();
+    let used = 0;
+    const reserve = Math.round(budget * 0.12);
+    const cost = (r: RecordData) =>
+      estimateTokens(index.text(r)) + estimateTokens(r.title) + 60;
+    const tryPack = (
+      r: RecordData,
+      role: Packed["role"],
+      reason: string,
+      via: string[],
+      limit: number,
+    ) => {
+      if (packed.has(r.id) || seen.has(r.id)) return true;
+      const tokens = cost(r);
+      if (used + tokens > limit) return false;
+      packed.set(r.id, { record: r, role, tokens, channels: via, reason });
+      used += tokens;
+      return true;
+    };
+    const caveatsOf = (r: RecordData) => ({
+      links: (index.incoming.get(r.id) ?? []).filter((l) =>
+        ["qualifies", "challenges"].includes(l.predicate),
+      ),
+      judgments: (index.judgmentsByIssue.get(r.id) ?? []).filter(
+        (j) => index.live.get(j.id)?.revision === j.revision,
+      ),
+    });
+    const accounts = candidates.filter(
+      (c) => c.record.record_type !== "passage",
+    );
+    const evidence = candidates.filter(
+      (c) => c.record.record_type === "passage",
+    );
+    const primary = accounts.length ? accounts : evidence;
+    primary.forEach((c, position) => {
+      if (used >= budget - reserve) return;
+      // The best match is always delivered whole, even when it alone exceeds the budget.
+      const limit = position === 0 ? Number.MAX_SAFE_INTEGER : budget - reserve;
+      const role = c.record.record_type === "passage" ? "evidence" : "account";
+      if (!tryPack(c.record, role, "match", c.channels, limit)) return;
+      const { links, judgments } = caveatsOf(c.record);
+      for (const link of links) {
+        const subject = index.visible.get(link.subject);
+        // A qualifying passage is the qualification itself; carry it like an account.
+        if (
+          subject &&
+          (index.isAccount(subject) || subject.record_type === "passage")
+        )
+          tryPack(
+            subject,
+            "caveat",
+            `${link.predicate} ${c.record.title}`,
+            ["context"],
+            budget,
+          );
+      }
+      for (const judgment of judgments)
+        tryPack(
+          judgment,
+          "caveat",
+          `judgment on ${c.record.title}`,
+          ["context"],
+          budget,
+        );
+      if (purpose === "teach" || purpose === "explain")
+        for (const link of index.outgoing.get(c.record.id) ?? [])
+          if (link.predicate === "depends_on") {
+            const prerequisite = index.visible.get(link.object);
+            if (prerequisite && index.isAccount(prerequisite))
+              tryPack(
+                prerequisite,
+                "prerequisite",
+                `prerequisite of ${c.record.title}`,
+                ["context"],
+                budget - reserve,
+              );
+          }
+    });
+    if (depth === "deep" && accounts.length)
+      for (const c of evidence) {
+        if (used >= budget - reserve) break;
+        if ((index.citedBy.get(c.record.id) ?? []).some((id) => packed.has(id)))
+          tryPack(
+            c.record,
+            "evidence",
+            "cited by a loaded account",
+            c.channels,
+            budget - reserve,
+          );
+      }
+
+    // Render: shared scope lines printed once, then each account, then what was left out.
+    const loaded = [...packed.values()];
+    const scopeCounts = new Map<string, number>();
+    for (const p of loaded) {
+      const text = scopeText(p.record);
+      if (text) scopeCounts.set(text, (scopeCounts.get(text) ?? 0) + 1);
+    }
+    const sharedScopes = new Map<string, string>();
+    for (const [text, count] of scopeCounts)
+      if (count > 1) sharedScopes.set(text, `S${sharedScopes.size + 1}`);
+    const blocks = loaded.map((p) =>
+      this.block(index, p, packed, sharedScopes, input.context),
+    );
+
+    const notLoaded = accounts
+      .filter((c) => !packed.has(c.record.id) && !seen.has(c.record.id))
+      .slice(0, 10);
+    const questions = new Map<string, RecordData>();
+    for (const p of loaded)
+      for (const id of (
+        index.adjacency.get(p.record.id) ?? new Map<string, number>()
+      ).keys()) {
+        const r = index.visible.get(id);
+        if (
+          r?.record_type === "question" &&
+          !packed.has(id) &&
+          (r.payload as any).resolution_status !== "answered"
+        )
+          questions.set(id, r);
+      }
+    const unresolvedCaveats: string[] = [];
+    for (const p of loaded) {
+      const { links, judgments } = caveatsOf(p.record);
+      for (const link of links)
+        if (!packed.has(link.subject))
+          unresolvedCaveats.push(
+            `${p.record.title} (${key(p.record)}) is ${link.predicate === "challenges" ? "challenged" : "qualified"} by ${index.visible.get(link.subject)?.title} (${link.subject}): ${link.rationale}`,
+          );
+      for (const j of judgments)
+        if (!packed.has(j.id))
+          unresolvedCaveats.push(
+            `${p.record.title} (${key(p.record)}) has a ${(j.payload as any).outcome} judgment: ${j.title} (${key(j)})`,
+          );
+    }
+    const pending = loaded.filter((p) => index.pending.has(p.record.id)).length;
+    if (pending)
+      warnings.push(
+        `${pending} loaded account(s) await reassessment after newer evidence; treat them as provisional.`,
+      );
+    if (!loaded.length)
+      warnings.push(
+        "Nothing in the permitted library matches. Say so instead of presenting memory as library evidence.",
+      );
+    else if (!accounts.length)
+      warnings.push(
+        "Only raw source passages matched; no authored explanation covers this yet.",
+      );
+
+    const header = [
+      `# Recall: ${input.query}`,
+      `Purpose ${purpose} · release ${index.release}${index.release !== index.current ? ` (current is ${index.current})` : ""} · loaded ${loaded.length} of ${candidates.length} matches · ~${used} of ${budget} tokens`,
+      `Channels: ${Object.entries(channels)
+        .map(([name, status]) => `${name} ${status}`)
+        .join(" · ")}`,
+    ];
+    if (purpose === "teach" || purpose === "explain") {
+      const top = loaded.find((p) => p.role === "account");
+      if (top) {
+        const path = index
+          .foundations(top.record.id)
+          .filter((id) => id !== top.record.id);
+        if (path.length)
+          header.push(
+            `Foundations first: ${path.map((id) => index.visible.get(id)!.title).join(" → ")} → ${top.record.title}`,
+          );
+      }
+    }
+    if (sharedScopes.size)
+      header.push(
+        ...[...sharedScopes].map(
+          ([text, label]) =>
+            `Scope ${label}: ${text.replace(/^Holds when: /, "holds when ")}`,
+        ),
+      );
+    const footer: string[] = [];
+    if (unresolvedCaveats.length)
+      footer.push(
+        "## Caveats not loaded (open these before relying on the account)",
+        ...unresolvedCaveats.slice(0, 12).map((c) => `- ${c}`),
+      );
+    if (notLoaded.length)
+      footer.push(
+        "## Also relevant, not loaded",
+        ...notLoaded.map(
+          (c) =>
+            `- ${key(c.record)} · ${c.record.title}${summary(c.record) ? ": " + clip(summary(c.record)!, 150) : ""}`,
+        ),
+      );
+    if (questions.size)
+      footer.push(
+        "## Open questions nearby",
+        ...[...questions.values()]
+          .slice(0, 5)
+          .map((q) => `- ${key(q)} · ${q.title}`),
+      );
+    if (seen.size)
+      footer.push(
+        `${seen.size} account(s) you already hold were not sent again.`,
+      );
+    footer.push(
+      'Open more with kb_read {kind:"accounts", record_refs:[{id,revision}]}, or call kb_recall again with seen=[ids you hold] and a narrower query. Cited pages open as passages.',
+    );
+    const briefing = [
+      header.join("\n"),
+      ...(warnings.length ? ["> " + warnings.join("\n> ")] : []),
+      ...blocks,
+      footer.join("\n"),
+    ].join("\n\n");
+
+    const result = {
+      interface_version: "recall-1",
+      request_id: uid("recall-"),
+      release_id: index.release,
+      current_release: index.current,
+      purpose,
+      query: input.query,
+      channels,
+      budget: { requested: budget, used, estimated: true },
+      items: loaded.map((p) => ({
+        record_ref: ref(p.record),
+        role: p.role,
+        title: p.record.title,
+        tokens: p.tokens,
+        channels: p.channels,
+        reason: p.reason,
+      })),
+      not_loaded: notLoaded.map((c) => ({
+        record_ref: ref(c.record),
+        title: c.record.title,
+      })),
+      unresolved_caveats: unresolvedCaveats,
+      warnings,
+      briefing,
+      timings_ms: { total: Math.round(performance.now() - started) },
+      engine: ENGINE_VERSION,
+    };
+    await atomic(
+      this.store.p(`retrieval-receipts/${result.request_id}.json`),
+      json({
+        interface_version: result.interface_version,
+        request_id: result.request_id,
+        release_id: result.release_id,
+        query_hash: hash(input.query),
+        record_refs: result.items.map((i) => i.record_ref),
+        budget: result.budget,
+        channels,
+        timings_ms: result.timings_ms,
+      }),
+    );
+    return result;
+  }
+
+  /** One account as compact Markdown: identity line, scope, prose, sources and the links that change its use. */
+  block(
+    index: LibraryIndex,
+    p: Packed,
+    packed: Map<string, Packed>,
+    sharedScopes: Map<string, string>,
+    context?: RecallRequest["context"],
+  ) {
+    const r = p.record;
+    const payload = r.payload as any;
+    const lines: string[] = [];
+    const flags: string[] = [];
+    if (!["source_account", form(r)].includes(r.epistemic))
+      flags.push(r.epistemic);
+    if (isFiledAnswer(r)) flags.push("filed answer");
+    const support = supportTally(index, r);
+    if (support.sources.length > 1)
+      flags.push(`${support.sources.length} independent sources`);
+    if (support.challenged) flags.push("contested");
+    if (index.pending.has(r.id)) flags.push("pending reassessment");
+    if (r.scope.condition_expression) {
+      const applicability = index.applicability(r, context);
+      if (applicability !== "true")
+        flags.push(`applicability ${applicability}`);
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    if (
+      (r.scope.valid_from && today < r.scope.valid_from) ||
+      (r.scope.valid_until && today > r.scope.valid_until)
+    )
+      flags.push(
+        `outside validity ${r.scope.valid_from ?? "…"} to ${r.scope.valid_until ?? "…"}`,
+      );
+    const scope = scopeText(r);
+    if (scope && sharedScopes.has(scope))
+      flags.push(`scope ${sharedScopes.get(scope)}`);
+    lines.push(`### ${r.title}${p.role !== "account" ? ` (${p.role})` : ""}`);
+    lines.push(
+      `${key(r)} · ${form(r)}${flags.length ? " · " + flags.join(" · ") : ""}`,
+    );
+    if (scope && !sharedScopes.has(scope)) lines.push(scope);
+    if (r.record_type === "judgment")
+      lines.push(
+        `Outcome: ${payload.outcome}. What would change it: ${payload.what_would_change}`,
+      );
+    lines.push(index.text(r).trim());
+    if (support.sources.length)
+      lines.push(`Sources: ${support.sources.join("; ")}`);
+    for (const citation of ((r.extensions as any)?.citations ?? []).slice(
+      0,
+      3,
+    )) {
+      const passage = index.visible.get(citation.ref.id);
+      lines.push(
+        `> "${clip(citation.quote, 280)}" (${passage ? pageLabel(passage) : citation.ref.id}, verified)`,
+      );
+    }
+    const builds = (index.outgoing.get(r.id) ?? []).filter(
+      (l) => l.predicate === "depends_on",
+    );
+    if (builds.length)
+      lines.push(
+        `Builds on: ${builds.map((l) => `${index.visible.get(l.object)?.title} (${l.object}${packed.has(l.object) ? ", loaded" : ""})`).join("; ")}`,
+      );
+    for (const link of index.incoming.get(r.id) ?? [])
+      if (["qualifies", "challenges"].includes(link.predicate))
+        lines.push(
+          `⚠ ${link.predicate === "challenges" ? "Challenged" : "Qualified"} by ${index.visible.get(link.subject)?.title} (${link.subject}${packed.has(link.subject) ? ", loaded" : ""}): ${link.rationale}`,
+        );
+    for (const link of index.outgoing.get(r.id) ?? [])
+      if (
+        [
+          "qualifies",
+          "challenges",
+          "explains",
+          "exemplifies",
+          "applies_to",
+        ].includes(link.predicate)
+      )
+        lines.push(
+          `→ ${link.predicate.replace("_", " ")} ${index.visible.get(link.object)?.title} (${link.object})`,
+        );
+    return lines.join("\n");
+  }
+}

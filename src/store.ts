@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { VerifiedCache, mapLimit } from "./verified-cache.js";
 import { knowledgeImpact } from "./knowledge-impact.js";
+import { closestSpan, quoteFound } from "./quote.js";
 import path from "node:path";
 import {
   APP,
@@ -80,6 +81,10 @@ export class Store {
 
   p(relative: string) {
     return path.join(this.root, relative);
+  }
+  /** Identifies the controls snapshot of the active read session, for derived caches. */
+  sessionSignature() {
+    return this.sessions.getStore()?.signature ?? null;
   }
   cacheStats() {
     return this.files.stats();
@@ -540,10 +545,35 @@ export class Store {
       reason: description,
     };
     await validate("audit-event", event);
-    // Each event is immutable; the readable journal is rebuilt under the caller's operation lock.
+    // Each event is immutable. The derived journal is appended under the caller's
+    // operation lock and fully rebuilt only when it is out of step with the events.
     await immutable(this.p(`audit/events/${eventId}.json`), json(event));
-    await this.renderAudit();
+    await this.appendAudit(event);
     return event;
+  }
+  private auditEntry(e: any) {
+    return `## [${e.timestamp.slice(0, 10)}] ${e.operation} | ${e.description}\n\nOutcome: ${e.outcome}; release: ${e.after_release ?? "none"}.\n`;
+  }
+  private async appendAudit(event: any) {
+    const state = await readJson(this.p("audit/journal-state.json")).catch(
+      () => null,
+    );
+    const count = (
+      await fs.readdir(this.p("audit/events")).catch(() => [] as string[])
+    ).filter((x) => x.endsWith(".json")).length;
+    if (!state || state.count !== count - 1) return this.renderAudit();
+    await fs.appendFile(
+      this.p("audit/events.jsonl"),
+      JSON.stringify(event) + "\n",
+    );
+    await fs.appendFile(
+      this.p("log.md"),
+      (count > 1 ? "\n" : "") + this.auditEntry(event),
+    );
+    await atomic(
+      this.p("audit/journal-state.json"),
+      json({ count, last_event_id: event.event_id }),
+    );
   }
   async renderAudit() {
     const names = (
@@ -563,12 +593,14 @@ export class Store {
     );
     await atomic(
       this.p("log.md"),
-      events
-        .map(
-          (e) =>
-            `## [${e.timestamp.slice(0, 10)}] ${e.operation} | ${e.description}\n\nOutcome: ${e.outcome}; release: ${e.after_release ?? "none"}.\n`,
-        )
-        .join("\n"),
+      events.map((e) => this.auditEntry(e)).join("\n"),
+    );
+    await atomic(
+      this.p("audit/journal-state.json"),
+      json({
+        count: events.length,
+        last_event_id: events.at(-1)?.event_id ?? null,
+      }),
     );
   }
   async recover() {
@@ -936,12 +968,43 @@ export class Store {
           "exemplifies needs an attributable case",
         );
       }
-      if (Object.keys(r.extensions).some((k) => k !== "navigation"))
+      if (
+        Object.keys(r.extensions).some(
+          (k) => k !== "navigation" && k !== "citations",
+        )
+      )
         ensure(
           ["knowledge", "learning"].includes(r.record_type),
           "VALIDATION_FAILED",
           "Functional/application extensions belong to knowledge or learning",
         );
+      // Quotes are checked against the cited passage, so a recalled quote is the source's wording.
+      for (const citation of (r.extensions as any).citations ?? []) {
+        ensure(
+          r.provenance.input_refs.some((x) => key(x) === key(citation.ref)),
+          "VALIDATION_FAILED",
+          "A citation must quote one of the record's own inputs",
+          { ref: citation.ref },
+        );
+        const cited = await resolve(citation.ref);
+        ensure(
+          cited.record_type === "passage",
+          "VALIDATION_FAILED",
+          "Citations quote passages",
+          { ref: citation.ref },
+        );
+        const text = (cited.payload as any).text ?? "";
+        ensure(
+          quoteFound(citation.quote, text),
+          "QUOTE_NOT_FOUND",
+          "Quoted words do not appear in the cited passage",
+          {
+            ref: citation.ref,
+            quote: citation.quote,
+            closest: closestSpan(citation.quote, text),
+          },
+        );
+      }
       for (const previous of r.supersedes) {
         const old = await resolve(previous);
         ensure(

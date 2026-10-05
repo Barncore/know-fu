@@ -43,7 +43,7 @@ Use `kb_job` action `source_review` with `source_id`, a stable `review_id`, and 
 }
 ```
 
-This is a flexible example, not a quota or a universal book schema. Use real source ranges and evidence IDs. Review records preserve work but do not themselves publish knowledge. Carry consequential identity, mapping, findings, checks and limitations into canonical source metadata, explanatory records and relevant judgments through `kb_propose`. Keep the original source hash as the identity anchor.
+This is a flexible example, not a quota or a universal book schema. Use real source ranges and evidence IDs. Review records preserve work but do not themselves publish knowledge. Carry consequential identity, mapping, findings, checks and limitations into canonical source metadata, explanatory records and relevant judgments through `kb_write` notes ([notes.md](notes.md)). Keep the original source hash as the identity anchor.
 
 Submit actual per-unit reading receipts as work progresses. Integrate the section accounts into the whole source and the affected existing corpus. Teaching routes, exercises, worked applications and grounded questions should grow out of that account where useful. Update the current explanations and navigation, preserving stable identities and the history of corrections.
 

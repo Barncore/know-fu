@@ -365,6 +365,7 @@ export class Projections {
         };
       }
       receipt.completed_at = now();
+      receipt.collected_views = await this.collectOldViews(release.release_id);
       await atomic(this.store.p("views/receipt.json"), json(receipt));
       await this.store.audit(
         "reindex",
@@ -377,6 +378,49 @@ export class Projections {
       );
       return receipt;
     });
+  }
+  /**
+   * Views are rebuilt in full for each release and only the receipt's release is served.
+   * Remove older view folders so a long-lived library does not keep one wiki and one search
+   * copy per publication. A folder holding an unimported wiki edit is kept and reported.
+   */
+  async collectOldViews(keep: string) {
+    const removed: string[] = [],
+      kept: string[] = [];
+    const entries = await fs
+      .readdir(this.store.p("views"), { withFileTypes: true })
+      .catch(() => []);
+    for (const entry of entries) {
+      if (
+        !entry.isDirectory() ||
+        entry.name === keep ||
+        !/^release-[a-zA-Z0-9-]+$/.test(entry.name)
+      )
+        continue;
+      const files = await readJson<Record<string, string>>(
+        this.store.p(`views/${entry.name}/file-hashes.json`),
+      ).catch(() => ({}));
+      let edited = false;
+      for (const [p, digest] of Object.entries(files))
+        if (
+          p.includes("/wiki/") &&
+          (await exists(this.store.p(p))) &&
+          hash(await fs.readFile(this.store.p(p))) !== digest
+        ) {
+          edited = true;
+          break;
+        }
+      if (edited) {
+        kept.push(entry.name);
+        continue;
+      }
+      await fs.rm(this.store.p(`views/${entry.name}`), {
+        recursive: true,
+        force: true,
+      });
+      removed.push(entry.name);
+    }
+    return { removed: removed.length, kept_with_unimported_edits: kept };
   }
   async search(
     query: string,

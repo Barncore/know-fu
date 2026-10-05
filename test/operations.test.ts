@@ -261,7 +261,7 @@ test("MCP source reads are paginated, scoped and separate from reading attestati
     kind: "guide",
     name: "ingestion",
   });
-  assert.match(guide.text, /conversion is not reading/);
+  assert.match(guide.text, /conversion is not reading/i);
   await assert.rejects(
     () => system.call("kb_read", { kind: "guide", name: "../../secret" }),
     { code: "VALIDATION_FAILED" },

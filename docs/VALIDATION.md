@@ -2,6 +2,29 @@
 
 The local development installation is Windows with Ubuntu WSL2, regular FalkorDB and CPU QMD. This repository is a reusable source baseline; not every deployment option has been provisioned on a fresh machine.
 
+## 2026-10-05: version 1.2.0 recall against the packet route
+
+The question was whether a budgeted `kb_recall` briefing answers as well as the 1.1.0 packet while sending far less. Both routes ran against a byte-for-byte copy of the three-source acceptance library (release `release-6eabd081`, 182 records), using the ten cases frozen on 2026-10-04 (seven access cases and three cumulative cases) with their original queries, purposes and rubrics. The FalkorDB service was not used: the packet route ran without graph expansion and recall used its in-process link-following, so the packet is, if anything, slightly smaller than the 1.1.0 graph route would produce.
+
+| Measure | Packet | Recall |
+|---|---:|---:|
+| Library material per answer, median (characters ÷ 4) | 69,700 | 8,400 |
+| Range | 18,400-80,100 | 6,100-11,900 |
+| Material across all ten answers | 2,368,000 characters | 339,000 characters |
+| Retrieval time per call | 2.9-3.7 s (semantic search every call) | 7-180 ms (semantic search skipped as unnecessary on all ten) |
+| Overall grades | 9 pass, 1 partial | 10 pass |
+| Decisive failures | 0 | 0 |
+| Rubric points (four dimensions, 0-2 each) | 75 of 80 | 74 of 80 |
+| Grader preference | 5 | 5 |
+
+Method: each case's material went to a fresh solver subagent (Claude Sonnet 5.5) that saw only the question and that material, with the same 1,000-word instruction for both routes; the packet was rendered as readable text carrying all of its fields, and long lines in both conditions were wrapped identically so a file reader could not truncate them. Answers were 785-1,033 words in both conditions. A separate grader (Claude Opus 5.5) per case saw the question, the original rubric, the source grounding and the cited source pages, and the two answers under random X/Y labels. Graders never saw which route produced which answer; the unblinding key stayed outside their files.
+
+Where the routes differed: the packet answer to the commensurability case dropped the condition that Wilcoxon needs comparable difference magnitudes (partial). The packet transfer answer did not justify that its twelve problems were independent. The recall teaching answer did not explain why the critical difference depends on the comparison family, although the account that explains it was in its briefing. The recall synthesis answer left the paired-mean branch and per-test commensurability implicit: the two accounts that cover them did not fit the 12,000-token synthesis budget and were listed under "Also relevant, not loaded", which a one-shot solver cannot open.
+
+Limits: ten cases on one small library of public papers the models may already know; one solver run per condition, so answer-to-answer variance is unmeasured; same-family models for solving and grading; graders worked from text and could not inspect page images; the cases were designed by the coordinator who wrote the library. Recall was tested as a single call; in real use the agent can follow the not-loaded list, which this setup does not credit. The cosmetic separator in the "Also relevant" list changed after the briefings were generated; content did not. An earlier attempt with ten parallel Opus solvers was stopped by a usage limit; its one completed answer was set aside unread and the run was repeated with Sonnet throughout. Raw prompts, answers and grades remain private under the engine's `.bench/` folder.
+
+Reading: on these cases, recall holds answer quality at about one-eighth of the material and without the semantic-search delay. It does not show that recall is better, and broad synthesis is where its budget bites first.
+
 ## 2026-10-04: version 1.1.0 capability build
 
 The [approved architecture](NORTH_STAR.md) now has summary-led navigation, complete-account and section reading, canonical material-context checks, cumulative reassessment and interactive evaluation. The build passes **107 automated tests with none skipped**, including the existing authority, lifecycle, recovery and document-conversion regressions. TypeScript compilation, formatting and packaged-contract checks pass. Engineering correctness is separate from the application evidence below.

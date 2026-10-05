@@ -1,5 +1,17 @@
 # Engineering lessons
 
+## 2026-10-05 - Compiling should compress
+
+The three-paper acceptance library held about 11,000 tokens of authored explanation, 50,000 of verbatim passages and 157,000 of record metadata, and a single packet answer sent 52,000-80,000 tokens. The packet route followed every input and dependency of every match, so each explanation arrived with all the pages it cited. A dependency closure is the right tool for invalidation and scope checks and the wrong tool for deciding what to read. Rank, then pack to a budget: explanations first, their qualifications and judgments carried with them, sources as labels and verified quotes, and an explicit list of what was left out. Measure the compiled layer against what a retrieval sends; if one answer costs more than the whole understanding, the design is expanding knowledge instead of compressing it.
+
+## 2026-10-05 - Freshness follows publication order
+
+Records authored in one batch receive different `created_at` times, so comparing timestamps marked a primer stale against accounts published in the same release. Decide "newer than" by the committed release in which a revision first appeared.
+
+## 2026-10-05 - Make the right action the cheap action
+
+Agents spent most ingestion output on bookkeeping: proposal JSON with every default spelled out, full page text copied into passages the engine already held, and the same unit ids listed for three stages. When the honest action is expensive, it is skipped or faked. Let the engine fill identities, defaults and passages from what it already has, verify what the agent asserts (quotes against source text), and keep the agent's output for meaning.
+
 ## 2026-10-04 — Count the whole reading conversation
 
 Smaller evidence responses do not guarantee lower model input. Interactive reading can repeatedly send prior context, tool definitions and metadata. Measure actual cumulative usage, preserve budget overruns and compare quality by task. Compact repeated scope and assessment definitions without cutting complete explanations or hiding conditions. An optional reading interface can be useful without having earned default adoption.

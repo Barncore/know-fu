@@ -12,7 +12,7 @@ Know Fu turns books, PDFs, videos and other specialized sources into a connected
 
 The ambition is the “I know kung fu” moment. The implementation is more inspectable: a persistent knowledge system, not a change to the model's weights or a promise of instant mastery.
 
-[Set up with your AI](plugin/docs/setup-ai.md) · [North star and implementation plan](docs/NORTH_STAR.md) · [Architecture](plugin/docs/architecture.md) · [Design lineage](plugin/docs/lineage.md) · [Setup choices](plugin/docs/setup-choices.md) · [Change log](CHANGELOG.md)
+[Set up with your AI](plugin/docs/setup-ai.md) · [North star and implementation plan](docs/NORTH_STAR.md) · [Roadmap](docs/ROADMAP.md) · [Architecture](plugin/docs/architecture.md) · [Design lineage](plugin/docs/lineage.md) · [Setup choices](plugin/docs/setup-choices.md) · [Change log](CHANGELOG.md)
 
 ## What you get
 
@@ -20,7 +20,10 @@ The ambition is the “I know kung fu” moment. The implementation is more insp
 - **Connected explanations.** Mechanisms, assumptions, procedures, examples and exceptions survive alongside individual assertions.
 - **Honest disagreement.** Source accounts, inference, hypotheses and judgments are distinguished. Conflicting knowledge can remain useful without being silently flattened into one answer.
 - **A maintained wiki and graph.** Topic summaries, primers and complete accounts derive from the same published meaning. New research triggers reconsideration of affected explanations and teaching material.
-- **Selected reading.** Keyword/vector search and qualified connections help the AI find an entry point, read the needed explanations and check consequential evidence. Known caveats remain visible even without optional graph exploration.
+- **One-call recall on a budget.** `kb_recall` fuses keyword, semantic and link-following search, then packs the best explanations, the caveats and judgments that qualify them, and their page-labelled sources into a set token budget. On the three-paper acceptance library that is 6,000-12,000 tokens per answer instead of 52,000-80,000.
+- **A brief at the start of every session.** `kb_brief` loads each domain's primer, its most connected ideas, live disagreements, the next questions worth answering and what recent sources added.
+- **Answers that compound.** `kb_file` keeps a good answer as a cited synthesis that later sessions start from, and flags it when the accounts it rests on change.
+- **Cheap, checked authoring.** `kb_write` turns Markdown notes into canonical records, builds passages from the source extraction and verifies every quote against the source text.
 - **Questions worth pursuing.** Missing evidence and grounded opportunities become explicit records for future investigation.
 - **Local ownership.** Versioned JSON and Markdown carry the knowledge; graph and search views can be rebuilt.
 
@@ -47,7 +50,7 @@ Download or clone this repository, open it in your coding assistant, and say:
 
 Setup should fit your environment. The [decision matrix](plugin/docs/setup-choices.md) distinguishes architectural requirements from the first owner's preferences: WSL versus a separately managed FalkorDB service, storage paths, native/WSL media utilities, API versus local transcript preparation, and retrieval tradeoffs.
 
-**Status:** local research engine and Codex adapter implemented; 107 automated tests pass on the development installation. The original deployment uses Windows, Ubuntu WSL2, FalkorDB and CPU QMD. A different machine still needs dependency provisioning and its own live checks. Docker deployment and an integrated local speech-decoding adapter are not claimed as end-to-end tested. See [validation](docs/VALIDATION.md) and the measured [performance boundaries](docs/PERFORMANCE.md).
+**Status:** local research engine and Codex adapter implemented; 125 automated tests on the development installation (122 pass, 3 Python conversion tests skip where that runtime is absent). The original deployment uses Windows, Ubuntu WSL2, FalkorDB and CPU QMD. A different machine still needs dependency provisioning and its own live checks. Docker deployment and an integrated local speech-decoding adapter are not claimed as end-to-end tested. See [validation](docs/VALIDATION.md) and the measured [performance boundaries](docs/PERFORMANCE.md).
 
 ## Repository versus your data
 

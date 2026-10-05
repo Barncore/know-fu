@@ -1057,6 +1057,7 @@ export class Jobs {
         status: "complete" | "excluded";
         reason?: string;
       }[];
+      coverage_all?: { status: "complete" | "excluded"; reason?: string };
       resolutions?: ReweaveResolution[];
       understanding_change?: UnderstandingChange;
       capability?: string;
@@ -1192,7 +1193,23 @@ export class Jobs {
               ? "checked"
               : null;
       if (field) {
-        for (const update of input.coverage ?? []) {
+        // coverage_all asserts the same thing as listing every remaining unit of this stage.
+        const updates = [...(input.coverage ?? [])];
+        if (input.coverage_all) {
+          ensure(
+            ["complete", "excluded"].includes(input.coverage_all.status),
+            "VALIDATION_FAILED",
+            "coverage_all.status must be complete or excluded",
+          );
+          const listed = new Set(updates.map((u) => u.unit_id));
+          for (const unit of j.coverage)
+            if (
+              !listed.has(unit.unit_id) &&
+              !["complete", "excluded"].includes((unit as any)[field])
+            )
+              updates.push({ unit_id: unit.unit_id, ...input.coverage_all });
+        }
+        for (const update of updates) {
           const unit = j.coverage.find((u) => u.unit_id === update.unit_id);
           ensure(unit, "VALIDATION_FAILED", "Unknown coverage unit");
           if (update.status === "excluded") {

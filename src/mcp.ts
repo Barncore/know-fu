@@ -5,7 +5,7 @@ import path from "node:path";
 import { Store } from "./store.js";
 import { KnowledgeSystem, descriptions } from "./api.js";
 import { APP, ENGINE_VERSION } from "./core.js";
-import { renderReadingResponse } from "./reading-render.js";
+import { presentResult } from "./present.js";
 const system = new KnowledgeSystem(
   new Store(
     process.env.KB_CORPUS ?? path.resolve(APP, "../knowledge-library"),
@@ -20,7 +20,13 @@ for (const [name, description] of Object.entries(descriptions))
       description,
       inputSchema: { request: z.record(z.string(), z.unknown()).default({}) },
       annotations: {
-        readOnlyHint: ["kb_status", "kb_read", "kb_retrieve"].includes(name),
+        readOnlyHint: [
+          "kb_status",
+          "kb_read",
+          "kb_retrieve",
+          "kb_recall",
+          "kb_brief",
+        ].includes(name),
         destructiveHint: name === "kb_lifecycle",
         openWorldHint: false,
       },
@@ -48,7 +54,7 @@ for (const [name, description] of Object.entries(descriptions))
         }
         return {
           content: [
-            { type: "text" as const, text: renderReadingResponse(result) },
+            { type: "text" as const, text: presentResult(request, result) },
           ],
         };
       } catch (e: any) {

@@ -207,6 +207,18 @@ export type RecordData = {
       interface_version: "1.0.0";
       summary: string;
     };
+    /**
+     * Verbatim quotes from cited passages. The engine checks each quote against the passage text at publication.
+     *
+     * @minItems 1
+     */
+    citations?: {
+      ref: {
+        id: string;
+        revision: number;
+      };
+      quote: string;
+    }[];
   };
   payload: {
     [k: string]: unknown;

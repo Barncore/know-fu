@@ -953,6 +953,61 @@
                   "interface_version",
                   "summary"
                 ]
+              },
+              "citations": {
+                "type": "array",
+                "description": "Verbatim quotes from cited passages. The engine checks each quote against the passage text at publication.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "ref": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+                            },
+                            "revision": {
+                              "type": "integer",
+                              "minimum": 1
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "revision"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "local_ref": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "local_ref"
+                          ]
+                        }
+                      ]
+                    },
+                    "quote": {
+                      "type": "string",
+                      "minLength": 8,
+                      "maxLength": 600
+                    }
+                  },
+                  "required": [
+                    "ref",
+                    "quote"
+                  ]
+                },
+                "minItems": 1
               }
             },
             "required": []

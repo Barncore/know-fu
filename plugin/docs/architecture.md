@@ -93,11 +93,25 @@ Editing a generated account page requires importing that edit through `wiki_edit
 
 `kb_retrieve {mode:"progressive",query,purpose}` returns orientation candidates, necessary reading and traceable supporting refs. `kb_read` opens a catalogue, topic, complete account, batch of up to 12 accounts, stable sections or material context. The [reading request](../contracts/schemas/reading-request.schema.json) and [response](../contracts/schemas/reading.schema.json) contracts have interface version 1.0.0. Existing exact full-record reads and `mode:"packet"` remain available.
 
-Packet retrieval remains the API default for routine answers. Progressive reading is available for navigation and selected reading, but the controlled small-library comparison did not meet the preset efficiency/completeness criteria for default adoption. Fewer delivered bodies do not necessarily mean less cumulative model input: each reading turn can resend previous context. The workflow keeps that distinction explicit.
+Since 1.2.0 the recommended route for answering is `kb_recall` (below). `kb_retrieve` keeps packet mode as its default for compatibility and comparison. Progressive reading is available for navigation and selected reading, but the controlled small-library comparison did not meet the preset efficiency/completeness criteria for default adoption. Fewer delivered bodies do not necessarily mean less cumulative model input: each reading turn can resend previous context. The workflow keeps that distinction explicit.
 
 Known qualifications, challenges, conceptual prerequisites and current judgments are resolved from canonical records independently of optional graph exploration. The engine traces exact input metadata to find inherited caveats without automatically loading every supporting body. Top-level `depends_on` binds inputs and invalidation; a relationship with predicate `depends_on` expresses a conceptual prerequisite. Both retain their direction and provenance.
 
 Each account read carries scope, applicability, freshness and material context. Sections bind release, exact revision and body hash; section reads remain partial. Pagination, unavailable context and required reads remain explicit. A successful tool call establishes delivered content, not complete understanding. The [retrieval workflow](../skills/know-fu/references/retrieval.md) describes purpose-specific decisions and stopping criteria.
+
+## Recall, briefs and filed answers
+
+`kb_recall` reads from a `LibraryIndex`: one scoped, release-pinned snapshot holding the usable records, their bodies, a BM25 index over titles, summaries, bodies and passage text, and an adjacency map. Edges come from relationship records (weighted by predicate), concept, knowledge, issue and related references, and citations of passages. The snapshot is built once per combination of control signature (binding, deletion ledger, CURRENT), release and scope, then reused in the long-lived MCP process. It applies the same visibility and reliance rules as the reading view: scope and source restrictions, withdrawal of any exact input, archive state and pending reassessment.
+
+Ranking fuses three channels by reciprocal rank (k = 60): BM25, the QMD semantic index when keyword coverage of the query is weak or the caller forces it, and personalized PageRank seeded from the best text matches. Purpose, domain, pending reassessment and filed-answer priors adjust the fused score. Packing follows rank order inside the budget: the best match is always delivered whole; each packed account brings its qualifying and challenging accounts or passages and its current judgments; explain and teach also bring conceptual prerequisites. What does not fit is listed. The briefing is Markdown; the API also returns the structured item list, channel status and budget, and each call writes a retrieval receipt.
+
+`kb_brief` uses the same snapshot to describe each domain: its newest primer and whether any account in the domain was published or revised in a later release, the most central accounts by global PageRank, unresolved judgments, open questions ranked by impact and effort, and the `understanding_change.added` of recent in-scope ingestion reports.
+
+`kb_file` compiles a filed answer through the normal proposal compiler and publishes it directly, without an ingestion job. Its provenance method is `filed_answer`, its inputs are the exact revisions it cites, and its sources are theirs. Knowledge impact therefore marks it pending when a cited revision changes, like any other dependent account.
+
+## Note authoring
+
+`kb_write` parses Markdown notes with YAML frontmatter and builds a proposal for the job: slugs become local references (and are saved in `jobs/<job>/slugs.json` for later batches), cited unit ids become passages copied exactly from the extraction mapping, `links` become relationship records with the note as subject, and a `revises` note starts from the current revision of its target. The result goes through `kb_propose` validation unchanged. `extensions.citations` holds `{ref, quote}` pairs; publication rejects a quote that does not occur in the cited passage after folding typography, hyphenated line breaks and whitespace.
 
 ## Cumulative ingestion and evaluation
 

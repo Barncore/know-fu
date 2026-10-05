@@ -1,6 +1,6 @@
 # Working on Know Fu
 
-Before material architecture, ingestion, retrieval or evaluation work, read `docs/NORTH_STAR.md`. It preserves product intent and established decisions. The owner approved its implementation and GitHub publication on 2026-10-04. `docs/IMPLEMENTATION.md` tracks that build; approval is not evidence of installed behavior. Current schemas/runtime and `docs/VALIDATION.md` remain the references for implementation and demonstrated capability.
+Before material architecture, ingestion, retrieval or evaluation work, read `docs/NORTH_STAR.md`. It preserves product intent and established decisions. The owner approved its implementation and GitHub publication on 2026-10-04. `docs/IMPLEMENTATION.md` tracks that build; approval is not evidence of installed behavior. Current schemas/runtime and `docs/VALIDATION.md` remain the references for implementation and demonstrated capability. For the current task list and the decisions waiting on the owner, read `docs/ROADMAP.md`.
 
 Preserve the established README and documentation style. The owner reviewed a writing-style replacement on 2026-10-01 and preferred the original. Do not automatically apply the owner's personal writing voice to repository documentation. Write clearly, keep technical claims within the evidence, and leave replacement drafts separate until explicitly chosen.
 
