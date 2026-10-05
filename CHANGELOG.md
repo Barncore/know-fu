@@ -4,6 +4,15 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-05 - Docs in a conversational voice
+
+Why: the owner read the plain rewrite below and found it a little dull and robotic next to the audit report and the chat explanations it was based on. The docs were rewritten again in that voice: conversational, specific, with a view where a choice was made and a little personality.
+
+- Rewrote the README, AGENTS.md, north star, roadmap, maintenance, implementation, acceptance and performance docs, the lessons, the architecture, lineage and three setup docs, the plugin, contract and asset READMEs, and the skill with its ingestion, notes, retrieval, operations, books and video guides. Facts, numbers and links are unchanged. Roadmap tasks are now numbered subheadings, and the setup guide's two graph deployments have their own subheadings.
+- AGENTS.md and MAINTENANCE.md now describe this voice for future doc work, and say it isn't the owner's personal writing voice.
+- Past change log entries and earlier validation records are unchanged.
+- Documentation only. No runtime, schema, dependency or library change.
+
 ### 2026-10-05 - `kb_connect`, assessments that get used, and plainer docs
 
 Why: connecting distant ideas is what the project is for, and recall found connected accounts without ever showing the path. Assessment fields existed on every record, but all 235 revisions in the acceptance library were `not_assessed`, because the guide discouraged them and nothing read them. The owner approved building `kb_connect`, keeping FalkorDB as an optional view, and a plan for assessments, and asked for a plainer documentation style.

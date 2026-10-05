@@ -1,8 +1,8 @@
 # Writing notes
 
-A note is one unit of understanding: a mechanism, a procedure, a concept, a lesson, a judgment about a disagreement or an open question. Write it as Markdown with a short frontmatter block. `kb_write {job_id, notes:[...]}` turns a batch of notes into canonical records. It creates the passages for the units you cite, checks your quotes against the source text, turns `links` into relationship records and fills every identity, hash and default. Then the normal validation runs.
+A note is one unit of understanding: a mechanism, a procedure, a concept, a lesson, a judgment about a disagreement, or an open question. You write it as Markdown with a short frontmatter block, and `kb_write {job_id, notes:[...]}` turns a batch of them into canonical records. The engine does the tedious parts for you. It creates the passages for the units you cite, checks your quotes against the source text, turns `links` into relationship records, and fills in every identity, hash and default. Then the normal validation runs.
 
-Write prose a reader can learn from: why the thing works, what it rests on, where it stops working, an example. The frontmatter carries only what the engine and later readers need to find, connect and weigh the note.
+Put your effort into the prose. Write something a reader can actually learn from: why the thing works, what it rests on, where it stops working, and an example. The frontmatter only carries what the engine and later readers need to find, connect and weigh the note.
 
 ## A complete example
 
@@ -31,7 +31,7 @@ starting at i=1. Keep rejecting until the first failure, then retain that hypoth
 one after it. ...
 ```
 
-The batch can hold the `family-wise-error` concept and the `post-hoc-comparisons` note too; slugs resolve inside the batch and across later batches of the same job.
+The same batch can hold the `family-wise-error` concept and the `post-hoc-comparisons` note. Slugs resolve inside a batch and across later batches of the same job, so you can refer to notes by their short names throughout.
 
 ## Fields
 
@@ -56,7 +56,7 @@ Family fields: a concept may set `definition`, `meaning_scope` and `aliases`. A 
 
 ## Assessing a note
 
-Recall shows every level you set to every later session, on the note's identity line and with its reason. So assess what you actually checked, and leave the rest out.
+Every level you set will be shown to every later session, right on the note's identity line with its reason. That's what makes assessments useful, and also why a careless one does damage. So assess what you actually checked, and leave the rest out.
 
 | Dimension | What it judges | Assess it when |
 |---|---|---|
@@ -84,7 +84,7 @@ assess:
   fidelity: {level: high, why: Table 3 checked cell by cell against the page image}
 ```
 
-`unknown` means you looked and couldn't tell. Leaving a dimension out means nobody looked; on a revision, a dimension you leave out keeps its earlier value. A guessed level is worse than none, because later sessions will weigh it. Levels never pick a winner: when accounts conflict, recall shows both sides' levels next to each other, and a judgment note settles or keeps the disagreement with reasons.
+`unknown` means you looked and couldn't tell. Leaving a dimension out means nobody looked, and on a revision a dimension you leave out keeps its earlier value. A guessed level is worse than none, because later sessions will trust it. And levels never pick a winner: when accounts conflict, recall shows both sides' levels next to each other, and it's a judgment note that settles or keeps the disagreement, with reasons.
 
 ## Revising and reaffirming
 
@@ -96,12 +96,12 @@ reaffirm: The ventilation notice adds a humid-room wait but leaves the dry-room 
 ---
 ```
 
-A revision with a body replaces the prose; one without keeps it. `holds_when`, `not_for`, `objectives` and `preferred` replace the inherited values when you set them. `cites`, `uses`, `issues`, `alternatives`, `related` and `aliases` add to them. Retiring an input or a link is a lifecycle change, not a revision.
+That's a complete reaffirmation: one line saying why the old account still holds. A revision with a body replaces the prose; one without keeps it. `holds_when`, `not_for`, `objectives` and `preferred` replace the inherited values when you set them, while `cites`, `uses`, `issues`, `alternatives`, `related` and `aliases` add to them. Retiring an input or a link is a lifecycle change, not a revision.
 
 ## Before you call
 
 - Ground every knowledge, learning, judgment and question note in `cites` or `uses`. The engine rejects ungrounded notes.
-- Copy quotes exactly. A failed quote returns the closest wording in the source; fix it or drop the quote.
-- Run `dry_run:true` on a large batch first. It validates everything and stages nothing.
-- At most 60 notes per call. Send related notes in the same batch so their slugs resolve.
+- Copy quotes exactly. If a quote fails, the engine sends back the closest wording in the source; fix it or drop the quote.
+- Run `dry_run:true` on a big batch first. It validates everything and stages nothing.
+- Send at most 60 notes per call, and keep related notes in the same batch so their slugs resolve.
 - Keep the author's account apart from your synthesis: one note says what the source says, another says what follows from combining it with other sources.

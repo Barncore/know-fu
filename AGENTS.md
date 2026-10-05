@@ -1,33 +1,35 @@
 # Working on Know Fu
 
-Read `docs/NORTH_STAR.md` before changing architecture, ingestion, retrieval or evaluation. It holds the product intent and the owner's decisions. `docs/ROADMAP.md` holds the current task list, open decisions and failure modes to watch. The schemas in `contracts/schemas/` and the code in `src/` say what the system does today, and `docs/VALIDATION.md` says what has actually been demonstrated. Approval of a plan is not evidence that it works.
+Start with `docs/NORTH_STAR.md` before you change architecture, ingestion, retrieval or evaluation. It holds what the product is for and every decision the owner has made. `docs/ROADMAP.md` has the task list and the failure modes worth watching. For what the system does today, trust the schemas in `contracts/schemas/` and the code in `src/`; for what has actually been shown to work, trust `docs/VALIDATION.md`. An approved plan is not evidence that it works.
 
 ## Writing docs
 
-On 5 October 2026 the owner chose a plainer documentation style over the earlier one. Write so a tired reader understands on the first pass: short sentences, the real names of files, tools and fields, concrete numbers, and a stated view where a choice was made. Accuracy comes first. If you cannot confirm a fact, leave the existing wording rather than guess. Do not apply the owner's personal writing voice to repository docs, and keep the owner's name and personal details out of them.
+Write docs the way you'd explain the project to a sharp colleague out loud: conversational, specific, with a view where a choice was made, and a little personality. Mix short sentences with longer ones that carry a fact and its consequence. Use the real names of files, tools and fields, and real numbers. Headings can say something ("Where it chokes") rather than just label a section. The owner settled on this voice on 5 October 2026, after finding a plain, stripped-down version dull next to an explainer written in it.
+
+Accuracy still comes first. If you can't confirm a fact, keep the existing wording rather than guess. Lookup material, such as field tables and schema lists, can stay dry. Leave past change log entries and earlier validation records as they were written. This is not the owner's personal writing voice: don't load a personal writing skill for repository docs, and keep the owner's name and personal details out of them.
 
 ## Installing
 
-For installation requests, start with `plugin/docs/setup-ai.md`. Offer the options, ask where the library and state should live before initializing anything, keep choices the owner already made, and say clearly which alternatives are configurable but untested.
+For installation requests, start with `plugin/docs/setup-ai.md`. Offer the options, ask where the library and state should live before initializing anything, keep choices the owner already made, and be clear about which alternatives are configurable but untested.
 
 ## Changing the engine
 
-The contracts in `contracts/schemas/` are the authority; `src/` validates against them. Full explanatory prose and source provenance matter as much as links. The wiki, graph and search index are projections of the canonical records, never separate authorities. Keep research memory and operational memory separate until the owner decides otherwise.
+The contracts in `contracts/schemas/` are the authority, and `src/` validates against them. Full explanatory prose and source provenance matter as much as the links. The wiki, graph and search index are views of the canonical records, never separate authorities. Research memory and operational memory stay separate until the owner decides otherwise.
 
-`kb_recall` is the routine answer route. Its rules (scope filtering, withdrawal and reliance blocking, pinned releases, caveats packed with what they qualify) must hold on every read path, including `kb_brief`, `kb_connect` and anything new. The older packet and progressive routes stay for comparison; do not delete them without a decision.
+`kb_recall` is the routine way to answer. Its rules (scope filtering, withdrawal and reliance blocking, pinned releases, caveats packed with what they qualify) have to hold on every read path, including `kb_brief`, `kb_connect` and anything you add. The older packet and progressive routes stay for comparison; don't delete them without a decision.
 
-Before migration or PDF-intake work, read the extraction policy and repair evidence in `docs/VALIDATION.md`. Keep the audit regression tests passing when changing publication, lifecycle, scope or retrieval. Engine tests do not establish source fidelity or answer quality; check those separately before relying on a live migration.
+Before migration or PDF-intake work, read the extraction policy and repair evidence in `docs/VALIDATION.md`. Keep the audit regression tests passing when you change publication, lifecycle, scope or retrieval. Engine tests don't prove source fidelity or answer quality, so check those separately before relying on a live migration.
 
-After edits, run the relevant tests, `npm run build` when TypeScript changes, `npm run format:check`, and `npm run check:package` when contracts, docs or configuration change. Use isolated fixtures for anything destructive. Existing research must never be migrated, purged or reclassified as a side effect.
+After edits, run the relevant tests, `npm run build` when TypeScript changes, `npm run format:check`, and `npm run check:package` when contracts, docs or configuration change. Use isolated fixtures for anything destructive. Existing research must never be migrated, purged or reclassified as a side effect of other work.
 
 ## Recording changes
 
-Every completed change to behavior, schemas, setup or dependencies needs a dated `CHANGELOG.md` entry and a matching doc update, or an explicit "Documentation impact: none" reason. Put reusable findings in `LESSONS.md`, not a second chronological log. `docs/MAINTENANCE.md` maps code areas to the docs they affect. Run `npm run check:release -- --staged` before committing; it checks the staged files, private paths, common credential patterns, links, and that the change log came along.
+Every finished change to behavior, schemas, setup or dependencies gets a dated `CHANGELOG.md` entry and a matching doc update, or an explicit "Documentation impact: none" with the reason. Reusable findings go in `LESSONS.md`, which is a set of lessons, not a second diary. `docs/MAINTENANCE.md` maps code areas to the docs they affect. Run `npm run check:release -- --staged` before committing; it checks the staged files for private paths, common credential patterns and broken links, and makes sure the change log came along.
 
 ## What never goes in the repository
 
-The library, credentials, the machine-local `plugin/.mcp.json`, runtime and model caches, private acceptance outputs, benchmark copies of real libraries, and conversation exports. The root `.gitignore` allows only release-owned areas; keep local benchmark material in the ignored `.bench/` folder. Review the actual staged paths and contents before pushing. The repository has been public since 30 September 2026; that covers the reusable code, not private research, transcripts or writing samples, and it does not grant an open-source license.
+The library, credentials, the machine-local `plugin/.mcp.json`, runtime and model caches, private acceptance outputs, benchmark copies of real libraries, and conversation exports. The root `.gitignore` only lets release-owned areas through; keep local benchmark material in the ignored `.bench/` folder. Look at the actual staged paths and contents before pushing. The repository has been public since 30 September 2026. That covers the reusable code, not private research, transcripts or writing samples, and it doesn't grant an open-source license.
 
-## Influences are not dependencies
+## Influences aren't dependencies
 
-Memory Graph, ste-bah's fork of it, Hindsight and Archon are design influences, not bundled code. Copying any of their code needs its provenance, license, purpose and tests recorded in `plugin/docs/lineage.md` and the change log first.
+Memory Graph, ste-bah's fork of it, Hindsight and Archon are design influences, not bundled code. Before copying any of their code, record its provenance, license, purpose and tests in `plugin/docs/lineage.md` and the change log.
