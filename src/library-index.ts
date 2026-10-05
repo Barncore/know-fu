@@ -1,5 +1,5 @@
 import { Store } from "./store.js";
-import { condition, ensure, key, readJson } from "./core.js";
+import { condition, ensure, key, readJson, ref } from "./core.js";
 import type { RecordData, Ref, Scope } from "./core.js";
 import { Bm25Index } from "./text-index.js";
 import { summary } from "./navigation.js";
@@ -24,6 +24,25 @@ const PREDICATE_WEIGHT: Record<string, number> = {
   supports: 0.7,
   applies_to: 0.6,
   derived_from: 0.4,
+};
+
+/** Reading a typed relationship from its subject, and back from its object. */
+const PREDICATE_WORDS: Record<string, [string, string]> = {
+  supports: ["supports", "is supported by"],
+  challenges: ["challenges", "is challenged by"],
+  qualifies: ["qualifies", "is qualified by"],
+  depends_on: ["builds on", "is a prerequisite for"],
+  explains: ["explains", "is explained by"],
+  exemplifies: ["is an example of", "has an example in"],
+  applies_to: ["applies to", "is applied by"],
+  derived_from: ["is derived from", "is the source of"],
+};
+
+export type EdgeInfo = {
+  weight: number;
+  label: string;
+  rationale: string | null;
+  via: Ref | null;
 };
 
 export type Link = {
@@ -52,6 +71,8 @@ export class LibraryIndex {
   readonly judgmentsByIssue = new Map<string, RecordData[]>();
   readonly citedBy = new Map<string, string[]>();
   readonly adjacency = new Map<string, Map<string, number>>();
+  /** How each directed link reads, for explaining a chain: label, weight and the relationship behind it. */
+  readonly edges = new Map<string, Map<string, EdgeInfo>>();
   readonly lexical = new Bm25Index();
   dimensions: Record<string, unknown> = {};
   private blockedMemo = new Map<string, boolean>();
@@ -165,15 +186,32 @@ export class LibraryIndex {
     );
   }
 
-  private link(a: string, b: string, weight: number) {
+  /** Records an undirected link for spreading activation, and how to read it in each direction. */
+  private link(
+    a: string,
+    b: string,
+    weight: number,
+    forward: string,
+    backward: string,
+    via?: RecordData,
+  ) {
     if (a === b || !this.usableIds.has(a) || !this.usableIds.has(b)) return;
-    for (const [x, y] of [
-      [a, b],
-      [b, a],
+    for (const [x, y, label] of [
+      [a, b, forward],
+      [b, a, backward],
     ]) {
       let row = this.adjacency.get(x);
       if (!row) this.adjacency.set(x, (row = new Map()));
-      row.set(y, Math.max(row.get(y) ?? 0, weight));
+      if ((row.get(y) ?? 0) >= weight && this.edges.get(x)?.has(y)) continue;
+      row.set(y, weight);
+      let labels = this.edges.get(x);
+      if (!labels) this.edges.set(x, (labels = new Map()));
+      labels.set(y, {
+        weight,
+        label,
+        rationale: (via?.payload as any)?.rationale ?? null,
+        via: via ? ref(via) : null,
+      });
     }
   }
 
@@ -225,10 +263,17 @@ export class LibraryIndex {
           this.outgoing.get(link.subject) ??
           this.outgoing.set(link.subject, []).get(link.subject)!
         ).push(link);
+        const [forward, backward] = PREDICATE_WORDS[link.predicate] ?? [
+          link.predicate,
+          `is the object of ${link.predicate}`,
+        ];
         this.link(
           link.subject,
           link.object,
           PREDICATE_WEIGHT[link.predicate] ?? 0.5,
+          forward,
+          backward,
+          record,
         );
         continue;
       }
@@ -238,20 +283,32 @@ export class LibraryIndex {
           const list = this.judgmentsByIssue.get(issue.id) ?? [];
           list.push(record);
           this.judgmentsByIssue.set(issue.id, list);
-          this.link(record.id, issue.id, 0.9);
+          this.link(record.id, issue.id, 0.9, "weighs", "is weighed by");
         }
         for (const alternative of [
           ...(p.alternatives ?? []),
           ...(p.preferred_refs ?? []),
         ])
-          this.link(record.id, alternative.id, 0.6);
+          this.link(
+            record.id,
+            alternative.id,
+            0.6,
+            "considers",
+            "is considered by",
+          );
       }
       for (const concept of p.concept_refs ?? [])
-        this.link(record.id, concept.id, 0.6);
+        this.link(record.id, concept.id, 0.6, "uses the concept", "is used by");
       for (const knowledge of p.knowledge_refs ?? [])
-        this.link(record.id, knowledge.id, 0.7);
+        this.link(record.id, knowledge.id, 0.7, "teaches", "is taught by");
       for (const related of p.related_refs ?? [])
-        this.link(record.id, related.id, 0.6);
+        this.link(
+          record.id,
+          related.id,
+          0.6,
+          "asks about",
+          "is asked about by",
+        );
       for (const input of record.provenance.input_refs) {
         const target = this.visible.get(input.id);
         if (!target) continue;
@@ -259,9 +316,9 @@ export class LibraryIndex {
           const list = this.citedBy.get(target.id) ?? [];
           list.push(record.id);
           this.citedBy.set(target.id, list);
-          this.link(record.id, target.id, 0.3);
+          this.link(record.id, target.id, 0.3, "cites", "is cited by");
         } else if (target.record_type !== "source")
-          this.link(record.id, target.id, 0.5);
+          this.link(record.id, target.id, 0.5, "draws on", "feeds");
       }
     }
 

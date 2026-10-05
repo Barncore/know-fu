@@ -1,40 +1,66 @@
-# Keeping behavior and documentation together
+# Keeping code and docs together
 
-Use this repository as the development source. The installed user-profile plugin/cache are deployment copies. The machine-local engine state and corpus remain outside versioned source.
+This repository is the development source. The plugin installed in an agent's profile, and its cache, are deployed copies. The machine-local engine state and the library stay outside version control.
 
-| Change | Update |
+| When you change | Also update |
 |---|---|
-| Product intent, accepted architecture decision or implementation-plan status | NORTH_STAR; preserve the distinction between intent, proposal, implementation and validation |
-| User-visible behavior or limitation | README, relevant workflow reference, CHANGELOG |
-| Schemas, record semantics or ownership | Engine contracts, generated types, plugin architecture/contracts docs, CHANGELOG |
-| Setup defaults, paths, backend/runtime support | Setup guide, setup-choices, setup-ai, configuration examples, CHANGELOG |
-| Copied code or new dependency | Lockfiles, lineage/dependency notes, applicable notices, CHANGELOG |
-| Validation/capability status | VALIDATION and any README/setup claims it changes |
-| Retrieval/indexing performance | PERFORMANCE, relevant architecture notes and correctness regressions for affected routes |
-| Durable implementation lesson | LESSONS, with reason and practical implication |
+| Product intent, an owner decision, or plan status | `docs/NORTH_STAR.md` for intent and decisions, `docs/ROADMAP.md` for tasks and open questions. Keep intent, proposals, implementation and evidence distinct |
+| Behavior a user or agent can see, or a known limit | The README, the affected skill guide, the change log |
+| Schemas, record meaning or ownership | The engine contracts, generated types (the build regenerates them), `plugin/docs/architecture.md`, the plugin's contract copies, the change log |
+| Setup defaults, paths, or backend support | `plugin/docs/setup.md`, `setup-choices.md`, `setup-ai.md`, the configuration examples, the change log |
+| Copied code or a new dependency | Lockfiles, `plugin/docs/lineage.md`, notices where needed, the change log |
+| What has been demonstrated | `docs/VALIDATION.md`, plus any README or setup claim that depends on it |
+| Retrieval or indexing performance | `docs/PERFORMANCE.md`, the architecture notes, and regression tests for the affected route |
+| A lesson worth keeping | `LESSONS.md`, with the reason and what to do differently |
 
-Run package generation after engine contract or transcription-example changes. `npm run check:package` checks bundled contract parity, the corpus example and local links. `npm run check:release -- --staged` checks the actual staged tree for excluded material, private-machine paths, common credential signatures, broken documentation links and change-log/doc accompaniment. These checks reduce mistakes; they cannot prove semantic correctness or catch every possible secret.
+Regenerate the plugin's contract copies after changing an engine schema or the transcription example. `npm run check:package` checks the copies, the corpus example and local links. `npm run check:release -- --staged` checks the staged files for excluded material, private machine paths, common credential patterns, broken links, and that a change log entry came with the change. These checks catch mistakes; they can't prove the meaning is right or that no secret slipped through.
 
-Keep a dated CHANGELOG entry for completed changes. If a code-only repair has no user-facing documentation impact, state that rationale in the entry. The release checker accepts documentation or a `Documentation impact: none` explanation in the staged changelog; reviewers must assess that explanation rather than treating it as an escape hatch.
+Every completed change gets a dated change log entry. A code-only fix with nothing for users to read can say so with "Documentation impact: none" and a reason; reviewers should judge that reason rather than treat it as a loophole.
 
-The first private commit summarizes earlier local development instead of fabricating old commits. The owner made the repository public on 2026-09-30. Private evidence files stay local. No open-source license has been selected for Know Fu itself yet.
+Repository docs follow the plainer style the owner chose on 5 October 2026: short sentences, real names of files, tools and fields, concrete numbers, and a stated view where a choice was made. Keep past change log entries and earlier validation records as they were written; they are history. The owner's personal writing voice is not the repository voice.
 
-Preserve the established documentation style. On 2026-10-01 the owner chose the original README/docs over the personal-writing-style draft; that draft was not adopted. Keep factual updates current, leave historical log entries intact, and keep replacement drafts separate until explicitly chosen. Repository prose does not require the owner's private writing skill.
+The first commit summarized earlier local development rather than inventing old commits. The repository has been public since 30 September 2026. Private evidence stays local, and no open-source license has been chosen yet.
 
-## Changing navigation or reading
+## Where things live in `src/`
 
-`navigation.ts` owns authored summaries, section boundaries and purpose requirements. `research-view.ts` owns the pinned, scoped canonical view and material-context rules. `reading.ts` selects and opens content; `reading-render.ts` presents that same content compactly to MCP clients. `projections.ts` builds the owner-level wiki and search documents. Change the canonical reading schemas first when altering the API, regenerate types with the build and regenerate plugin contracts with `node scripts/package-plugin.mjs`.
+| File | Owns |
+|---|---|
+| `core.ts` | Hashing, atomic and immutable writes, safe paths, locks, schema validation, condition evaluation |
+| `store.ts` | Releases, exact reads, scope checks, compilation and validation of proposals, publication, the audit journal |
+| `jobs.ts`, `source-workflow.ts`, `media.ts`, `visuals.ts` | Ingestion jobs, conversion, source review, frames, crops and paid media transcription |
+| `notes.ts`, `quote.ts` | `kb_write` note compilation and quote matching |
+| `knowledge-impact.ts` | Which accounts a change affects |
+| `library-index.ts`, `text-index.ts` | The recall index: visibility and reliance rules, BM25, the link map with labels, spreading activation |
+| `recall.ts`, `brief.ts`, `connect.ts`, `filing.ts` | `kb_recall`, `kb_brief`, `kb_connect`, `kb_file` |
+| `navigation.ts`, `research-view.ts`, `reading.ts`, `reading-render.ts` | Progressive reading and its MCP presentation |
+| `retrieval.ts` | The older packet route |
+| `projections.ts`, `graph-projection.ts`, `qmd-search.ts`, `qmd-worker.ts` | Wiki, FalkorDB and QMD views, and view cleanup |
+| `present.ts`, `job-render.ts`, `mcp.ts`, `api.ts`, `cli.ts` | Tool descriptions, dispatch, and what MCP clients receive |
+| `lifecycle.ts`, `governance.ts`, `maintenance.ts` | Archive, withdrawal, purge, configuration, meaning changes, export and restore |
+| `evaluation*.ts` | Frozen evaluations through Codex |
 
-Input provenance, assessment targets and conceptual prerequisites have different roles. Do not infer a prerequisite from a judgment's list of assessed issues. Keep qualification discovery independent of optional graph exploration, and keep complete explanations available even when discovery returns only summaries. The progressive-reading tests cover these distinctions alongside source scope, history and withdrawal.
+## Changing recall, brief or connect
+
+Any new read path must apply the same rules as the recall index: scope and source restrictions before anything is revealed, withdrawal anywhere in a record's exact inputs, archive state, pinned releases, and pending-reassessment flags. Caveats travel with what they qualify, independent of rank and of the graph. A summary or a filed answer never counts as an extra source. Keep `test/recall.test.ts` and `test/connect.test.ts` passing and add a case for each new rule.
+
+Judge a retrieval change by answer quality and by tokens sent, using the blind A/B method recorded in `docs/VALIDATION.md` on 5 October 2026. Never tune on the cases you report; write new ones. Keep local benchmark copies of real libraries in the ignored `.bench/` folder.
+
+## Changing progressive reading
+
+`navigation.ts` owns authored summaries, section boundaries and purpose requirements. `research-view.ts` owns the pinned, scoped view and the material-context rules. `reading.ts` selects and opens content, and `reading-render.ts` presents it compactly to MCP clients. When changing the API, change the reading schemas first, rebuild to regenerate types, and regenerate the plugin contracts with `node scripts/package-plugin.mjs`.
+
+Input provenance, assessment targets and conceptual prerequisites are different things. A judgment's list of assessed accounts does not make them prerequisites of each other. Keep qualification discovery independent of the graph, and keep complete explanations available even when discovery returns only summaries.
 
 ## Repeating capability checks
 
-Use an isolated library, freeze its release and case criteria before running, and preserve unsuccessful attempts. Version 3 evaluations record the full reading trajectory and measured cumulative input. Their immutable manifest binds implementation, budgets, scope, cases and grader-source authorization. A changed implementation needs a new run; a release mismatch requires a new comparison. Do not overwrite a receipt to resume through either mismatch.
+Use an isolated library, freeze its release and the case criteria before running, and keep failed attempts. Version 3 evaluations record the whole reading trajectory and the measured input. Their manifest binds the implementation, budgets, scope, cases and grader-source authorization, so a changed implementation needs a new run, and a release mismatch needs a new comparison. Never overwrite a receipt to get past either.
 
-Check the native isolation receipt against the exact runtime and state binding before model calls. A probe failure should stop the evaluation, not trigger a less restrictive sandbox. Public-source authorization in an example does not authorize sending private research to a grader. The default retrieval policy changes only when the [acceptance criteria](ACCEPTANCE.md) are met; packaging a new reading mode is not proof that it should replace the existing route.
+Check the isolation receipt against the exact runtime and state binding before any model call. If the isolation probe fails, stop; never fall back to a looser sandbox. Permission to send a public source to a grader is not permission to send private research.
 
-When a concurrently published source makes a job's base stale, use the job's `rebase` action and inspect its next stage. Unfinished conversion, reconstruction and integration remain required. A job already past reweaving returns there so its consequences can be reviewed against the new base; rebasing is not permission to mark old coverage complete.
+When another publication makes a job's base stale, use the job's `rebase` action and look at its next stage. Unfinished conversion, reading and integration stay required. A job already past reweaving goes back to it so its consequences can be reviewed against the new base. Rebasing never marks old coverage complete.
 
-Before refreshing an installed plugin, verify the old file hashes and preserve a local backup. Copy the approved package through the normal install script, refresh it using the harness's supported plugin command, then check real tool discovery, guides and the existing corpus binding in a fresh process. Keep that machine-local configuration out of Git.
+## Refreshing an installed plugin
 
-An adapter backup does not roll back the engine it points to. A rollback must deliberately align the engine Git revision, rebuilt output and plugin version. Keep corpus and independent-ledger backups together, and check the target engine can read any jobs or records created since the backup. Version 1.1.0 reads legacy jobs; that does not promise an older engine can read new workflow-version-2 jobs.
+Before refreshing, check the current plugin's file hashes and keep a local backup. Copy the package with the install script, refresh it with the agent's supported plugin command, then check tool discovery, the guides and the existing library binding in a fresh process. Keep machine-local configuration out of Git.
+
+A plugin backup does not roll back the engine it points at. A rollback has to line up the engine's Git revision, its rebuilt output and the plugin version. Keep library and ledger backups together, and check that the target engine can read any jobs or records created since the backup. Engine 1.2.0 reads earlier jobs and records; an older engine rejects records that carry quote citations.

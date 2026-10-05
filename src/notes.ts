@@ -59,6 +59,23 @@ const PREDICATES = [
 ];
 const ESSENTIAL = new Set(["qualifies", "challenges", "depends_on"]);
 const SLUG = /^[a-z0-9][a-z0-9-]{0,60}$/;
+const ASSESSMENT_LEVELS = [
+  "low",
+  "moderate",
+  "high",
+  "unknown",
+  "not_assessed",
+];
+const EVIDENCE_BASES = [
+  "review_of_studies",
+  "controlled_comparison",
+  "measured_observation",
+  "worked_case",
+  "reasoned_argument",
+  "bare_assertion",
+  "our_inference",
+];
+const THIN_BASES = ["worked_case", "bare_assertion", "our_inference"];
 
 const list = (value: unknown): any[] =>
   value == null ? [] : Array.isArray(value) ? value : [value];
@@ -239,6 +256,12 @@ export class Notes {
     };
     const passageFor = new Map<string, Target>();
     const passageItems: any[] = [];
+    // Sources sharing an evidence family (a PDF and its summary, say) count once.
+    const familyOf = (sourceRef: Ref) =>
+      (
+        (known.get(sourceRef.id) ?? sources.find((s) => s.id === sourceRef.id))
+          ?.payload as any
+      )?.evidence_family ?? sourceRef.id;
     const sourceTitle = (sourceRef: Ref) =>
       (known.get(sourceRef.id)?.title ?? sourceRef.id).replace(
         /\.[a-z0-9]+$/i,
@@ -539,26 +562,71 @@ export class Notes {
         "VALIDATION_FAILED",
         `${where}: cite source units or library records; an ungrounded note cannot enter the library`,
       );
+      // A level needs its one-line reason; a dimension left out stays as it was (or unassessed).
       const assessments = f.assess
         ? Object.fromEntries(
             ["fidelity", "evidence", "applicability"].map((dimension) => {
               const a = f.assess?.[dimension];
+              if (!a)
+                return [
+                  dimension,
+                  base?.assessments?.[
+                    dimension as "fidelity" | "evidence" | "applicability"
+                  ] ?? {
+                    level: "not_assessed",
+                    rationale: "No substantive assessment has been supplied.",
+                    context: null,
+                  },
+                ];
+              const level = text(a.level);
+              ensure(
+                ASSESSMENT_LEVELS.includes(level),
+                "VALIDATION_FAILED",
+                `${where}: assess.${dimension}.level must be one of ${ASSESSMENT_LEVELS.join(", ")}`,
+              );
+              const why = text(a.why) || text(a.rationale);
+              ensure(
+                level === "not_assessed" || why,
+                "VALIDATION_FAILED",
+                `${where}: assess.${dimension} needs a one-line why. Leave the dimension out rather than guess.`,
+              );
+              // An evidence level names the kind of support the source shows. High from thin
+              // support needs a second independent family, so repetition can never raise it.
+              const basis = text(a.basis);
+              if (dimension === "evidence" && basis)
+                ensure(
+                  EVIDENCE_BASES.includes(basis),
+                  "VALIDATION_FAILED",
+                  `${where}: assess.evidence.basis must be one of ${EVIDENCE_BASES.join(", ")}`,
+                );
+              if (
+                dimension === "evidence" &&
+                ["low", "moderate", "high"].includes(level)
+              ) {
+                ensure(
+                  basis,
+                  "VALIDATION_FAILED",
+                  `${where}: assess.evidence needs a basis naming the kind of support: ${EVIDENCE_BASES.join(", ")}`,
+                );
+                const families = new Set([...sourceRefs.values()].map(familyOf))
+                  .size;
+                ensure(
+                  level !== "high" ||
+                    !THIN_BASES.includes(basis) ||
+                    families >= 2,
+                  "VALIDATION_FAILED",
+                  `${where}: evidence high from a ${basis.replace(/_/g, " ")} needs at least two independent source families, and this note rests on ${families}. Lower the level or cite the other evidence.`,
+                );
+              }
               return [
                 dimension,
-                a
-                  ? {
-                      level: text(a.level) || "unknown",
-                      rationale:
-                        text(a.why) ||
-                        text(a.rationale) ||
-                        "Stated by the author of this note.",
-                      context: text(a.context) || null,
-                    }
-                  : {
-                      level: "not_assessed",
-                      rationale: "No substantive assessment has been supplied.",
-                      context: null,
-                    },
+                {
+                  level,
+                  rationale:
+                    why || "No substantive assessment has been supplied.",
+                  context: text(a.context) || null,
+                  ...(dimension === "evidence" && basis ? { basis } : {}),
+                },
               ];
             }),
           )

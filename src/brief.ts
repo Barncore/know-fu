@@ -4,7 +4,15 @@ import { LibraryIndex } from "./library-index.js";
 import { ensure, key, readJson } from "./core.js";
 import type { RecordData, Scope } from "./core.js";
 import { summary } from "./navigation.js";
-import { clip, estimateTokens, form, isFiledAnswer } from "./recall.js";
+import {
+  assessed,
+  clip,
+  estimateTokens,
+  form,
+  isFiledAnswer,
+  profile,
+  SIDE_BY_SIDE_NOTE,
+} from "./recall.js";
 
 export type BriefRequest = {
   domains?: string[];
@@ -152,16 +160,31 @@ export class Brief {
             (r.payload as any).outcome,
           ),
       );
-      if (disputes.length)
+      if (disputes.length) {
+        let weighed = false;
+        const lines = disputes.slice(0, 4).map((j) => {
+          const payload = j.payload as any;
+          const sides = [
+            ...new Set(
+              [...payload.issue_refs, ...payload.alternatives].map(
+                (s: { id: string }) => s.id,
+              ),
+            ),
+          ]
+            .map((id) => index.visible.get(id))
+            .filter((s): s is RecordData => !!s);
+          // Both sides' levels next to each other, never ranked.
+          if (!sides.some((s) => assessed(s).length))
+            return `- ${j.title} (${payload.outcome}; ${j.id})`;
+          weighed = true;
+          return `- ${j.title} (${payload.outcome}; ${j.id})\n  Side by side: ${sides.map((s) => `${s.title} (${profile(index, s)})`).join(" | ")}`;
+        });
         add(
           "### Live disagreements\n" +
-            disputes
-              .slice(0, 4)
-              .map(
-                (j) => `- ${j.title} (${(j.payload as any).outcome}; ${j.id})`,
-              )
-              .join("\n"),
+            lines.join("\n") +
+            (weighed ? `\n${SIDE_BY_SIDE_NOTE}` : ""),
         );
+      }
 
       const questions = openQuestions
         .filter((q) => q.scope.domains.includes(domain))

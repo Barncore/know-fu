@@ -50,9 +50,41 @@ The batch can hold the `family-wise-error` concept and the `post-hoc-comparisons
 | `domains` | Defaults to the job's domains. |
 | `revises` | A published record id. The note becomes its next revision and inherits every field you leave out. Needs `change` or `reaffirm`. |
 | `change`, `reaffirm` | Why this revision exists. `reaffirm` alone, with no body, keeps the record as it is and records that new evidence was considered. |
-| `assess` | Optional: `{evidence: {level: low|moderate|high|unknown, why}}`, and likewise `fidelity` and `applicability`. Leave it out rather than guess. |
+| `assess` | Optional: `{evidence: {level, basis, why}}`, and `{level, why}` for `fidelity` and `applicability`. Levels are `low`, `moderate`, `high` and `unknown`. Each level needs a one-line `why`. See "Assessing a note" below. |
 
 Family fields: a concept may set `definition`, `meaning_scope` and `aliases`. A learning note lists what it teaches under `uses` and may set `objectives`. A judgment sets `issues` (the accounts it weighs), `outcome` (`different_scope`, `compatible`, `qualified`, `provisional_preference`, `superseded_interpretation`, `unresolved`), optional `alternatives` and `preferred`, and `what_would_change`. A question sets `related`, `known`, `unknown`, `impact`, `next_action` and `priority: {impact, effort, why}`.
+
+## Assessing a note
+
+Recall shows every level you set to every later session, on the note's identity line and with its reason. So assess what you actually checked, and leave the rest out.
+
+| Dimension | What it judges | Assess it when |
+|---|---|---|
+| `evidence` | How well the claim is supported: the design, sample, replication and checks behind it | The note is a claim a decision could rest on, such as a procedure, a mechanism or a recommendation. Skip definitions and illustrations |
+| `fidelity` | How faithfully the note renders the source | You checked the wording, numbers or table against the original page or frame. Reserve `high` for after that check. It matters most on tables, figures, OCR pages, multi-column layouts and any claim that carries a number |
+| `applicability` | How well the note fits one specific case | You applied it to a case, in the check stage or a worked application. Put the case in `context` |
+
+An evidence level also names its `basis`, the kind of support the source actually shows. Pick it while the page is open:
+
+| `basis` | The source offers |
+|---|---|
+| `review_of_studies` | A pooled review of many studies with a stated method |
+| `controlled_comparison` | An experiment, trial or A/B test with a comparison group |
+| `measured_observation` | Data without a control: surveys, datasets, field counts, benchmarks |
+| `worked_case` | Cases, examples or the author's own experience |
+| `reasoned_argument` | A derivation or argument from stated premises, including a proof |
+| `bare_assertion` | The claim, stated without support |
+| `our_inference` | Your inference across records, not the source's claim |
+
+`high` from a `worked_case`, a `bare_assertion` or `our_inference` needs at least two independent source families behind the note; the engine refuses it otherwise. Repeating one source, or citing its summary, never adds a family.
+
+```yaml
+assess:
+  evidence: {level: moderate, basis: measured_observation, why: One benchmark of 14 datasets and no independent replication}
+  fidelity: {level: high, why: Table 3 checked cell by cell against the page image}
+```
+
+`unknown` means you looked and couldn't tell. Leaving a dimension out means nobody looked; on a revision, a dimension you leave out keeps its earlier value. A guessed level is worse than none, because later sessions will weigh it. Levels never pick a winner: when accounts conflict, recall shows both sides' levels next to each other, and a judgment note settles or keeps the disagreement with reasons.
 
 ## Revising and reaffirming
 

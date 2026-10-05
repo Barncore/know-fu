@@ -8,6 +8,7 @@ import { Recall } from "./recall.js";
 import { Brief } from "./brief.js";
 import { Filing } from "./filing.js";
 import { Notes } from "./notes.js";
+import { Connect } from "./connect.js";
 import { Projections } from "./projections.js";
 import { Lifecycle } from "./lifecycle.js";
 import { Maintenance } from "./maintenance.js";
@@ -41,6 +42,8 @@ export const descriptions: Record<string, string> = {
     "Load what the library knows at the start of research work: per domain, the current primer (with a staleness flag), the most connected core ideas, live disagreements, the questions worth answering next and what recent ingests added. Input: optional domains[], budget_tokens (800-30000, default 3500), scope, release_id.",
   kb_recall:
     "Answer from the library in one call. Returns a Markdown briefing packed to a token budget: the best-matching explanations in full, the caveats and judgments that must travel with them, sources with page labels, and a list of relevant accounts not loaded. Input: query; optional purpose=explain|teach|apply|compare|invent|synthesize|investigate, budget_tokens (500-60000), depth=brief|standard|deep, domains[], seen[] (ids you already hold), context, scope, release_id, semantic, graph.",
+  kb_connect:
+    "Connect the dots. With from and to: the strongest chains of recorded links between two ideas, each hop read in its direction with the reason written for it. With from only: ideas two or more hops away, split into other topics (possible bridges) and the same topic. from/to take a record id, id@revision, or a few words to search for. Optional max_hops (1-6, default 4), paths (1-8, default 3), limit, scope, release_id.",
   kb_file:
     "File a worked answer back into the library so later sessions start from it. Publishes a cited synthesis (or lesson/application) that pins the exact revisions it relied on and is flagged for review when they change. Input: title, answer_markdown, cites[] (id@revision or {id,revision}), authorization (the user request), optional question, summary, form, epistemic, domains[], module, conditions[], exclusions[], dry_run.",
   kb_retrieve:
@@ -132,6 +135,8 @@ export class KnowledgeSystem {
         return this.briefing.brief(p);
       case "kb_recall":
         return this.recall.recall(p);
+      case "kb_connect":
+        return new Connect(this.store).connect(p);
       case "kb_file":
         return new Filing(this.store).file(p);
       case "kb_retrieve":

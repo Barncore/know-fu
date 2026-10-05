@@ -392,3 +392,72 @@ test("an older held revision does not suppress the current one", async () => {
   assert(ids(result).includes("knowledge:handling"));
   assert.match(result.briefing, /logged room check/);
 });
+
+test("assessment levels show on the account and side by side in a conflict, without changing rank", async () => {
+  const f = await published("recall-assessed");
+  const recall = new Recall(f.store, noIndex);
+  const request = {
+    query: "may I move the lantern with an amber badge and closed valve",
+    purpose: "apply" as const,
+  };
+  // Revise both sides once without levels, so the comparison isolates the levels.
+  for (const id of ["knowledge:handling", "knowledge:alternative"]) {
+    const old = (await f.store.records()).get(id)!;
+    await revise(f, id, await f.store.body(old));
+  }
+  const before: any = await recall.recall(request);
+  assert(!/Side by side|Assessed:/.test(before.briefing));
+  assert(!before.warnings.some((w: string) => /Assessment levels/.test(w)));
+
+  const assess = (level: string, rationale: string, basis?: string) => ({
+    level,
+    rationale,
+    context: null,
+    ...(basis ? { basis } : {}),
+  });
+  for (const [id, evidence] of [
+    [
+      "knowledge:handling",
+      assess(
+        "moderate",
+        "Two workshop inspections agree.",
+        "controlled_comparison",
+      ),
+    ],
+    ["knowledge:alternative", assess("low", "One unreviewed memo.")],
+  ] as const) {
+    const old = (await f.store.records()).get(id)!;
+    await revise(f, id, await f.store.body(old), {
+      assessments: { ...old.assessments, evidence },
+    });
+  }
+  const after: any = await recall.recall(request);
+  assert.deepEqual(ids(after), ids(before), "levels never change the ranking");
+  assert.match(
+    after.briefing,
+    /knowledge:handling@3 · procedure · evidence moderate/,
+  );
+  assert.match(
+    after.briefing,
+    /Assessed: evidence \(a controlled comparison\), Two workshop inspections agree\./,
+  );
+  assert.match(
+    after.briefing,
+    /Side by side: this account \(evidence moderate from a controlled comparison; 1 independent source\) \| The alternative handbook conflicts on the valve condition \(evidence low; 1 independent source\)/,
+  );
+  assert.equal(
+    after.briefing.match(/^ {2}Side by side:/gm).length,
+    1,
+    "a pair shows once when both sides are loaded",
+  );
+  assert.match(after.briefing, /Weighs, side by side: /);
+  assert(
+    after.warnings.some((w: string) => /never settles a conflict/.test(w)),
+  );
+  const oriented: any = await new Brief(f.store).brief({});
+  assert.match(
+    oriented.briefing,
+    /Valve disagreement remains unresolved \(unresolved; judgment:readiness-conflict\)\n {2}Side by side: How the handbook permits moving a lantern \(evidence moderate from a controlled comparison; 1 independent source\) \| The alternative handbook conflicts on the valve condition \(evidence low; 1 independent source\)/,
+  );
+  assert.match(oriented.briefing, /never settles a conflict/);
+});

@@ -252,6 +252,17 @@
                 "string",
                 "null"
               ]
+            },
+            "basis": {
+              "enum": [
+                "review_of_studies",
+                "controlled_comparison",
+                "measured_observation",
+                "worked_case",
+                "reasoned_argument",
+                "bare_assertion",
+                "our_inference"
+              ]
             }
           },
           "required": [

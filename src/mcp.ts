@@ -26,6 +26,7 @@ for (const [name, description] of Object.entries(descriptions))
           "kb_retrieve",
           "kb_recall",
           "kb_brief",
+          "kb_connect",
         ].includes(name),
         destructiveHint: name === "kb_lifecycle",
         openWorldHint: false,

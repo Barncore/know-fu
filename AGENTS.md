@@ -1,19 +1,33 @@
 # Working on Know Fu
 
-Before material architecture, ingestion, retrieval or evaluation work, read `docs/NORTH_STAR.md`. It preserves product intent and established decisions. The owner approved its implementation and GitHub publication on 2026-10-04. `docs/IMPLEMENTATION.md` tracks that build; approval is not evidence of installed behavior. Current schemas/runtime and `docs/VALIDATION.md` remain the references for implementation and demonstrated capability. For the current task list and the decisions waiting on the owner, read `docs/ROADMAP.md`.
+Read `docs/NORTH_STAR.md` before changing architecture, ingestion, retrieval or evaluation. It holds the product intent and the owner's decisions. `docs/ROADMAP.md` holds the current task list, open decisions and failure modes to watch. The schemas in `contracts/schemas/` and the code in `src/` say what the system does today, and `docs/VALIDATION.md` says what has actually been demonstrated. Approval of a plan is not evidence that it works.
 
-Preserve the established README and documentation style. The owner reviewed a writing-style replacement on 2026-10-01 and preferred the original. Do not automatically apply the owner's personal writing voice to repository documentation. Write clearly, keep technical claims within the evidence, and leave replacement drafts separate until explicitly chosen.
+## Writing docs
 
-For installation requests, start with `plugin/docs/setup-ai.md`. Offer choices and ask for storage locations before initializing data. Preserve already accepted choices; distinguish configurable interfaces from unimplemented adapters and deployment-unverified alternatives.
+On 5 October 2026 the owner chose a plainer documentation style over the earlier one. Write so a tired reader understands on the first pass: short sentences, the real names of files, tools and fields, concrete numbers, and a stated view where a choice was made. Accuracy comes first. If you cannot confirm a fact, leave the existing wording rather than guess. Do not apply the owner's personal writing voice to repository docs, and keep the owner's name and personal details out of them.
 
-For implementation work, the canonical contract is `contracts/schemas/`, with runtime validation in `src/`. Full explanatory Markdown and source provenance matter as much as graph connectivity. Graph/search/wiki are projections, not separate authorities. Keep research and operational memory separate until explicitly authorized.
+## Installing
 
-Before migration or PDF-intake work, read the current repair evidence and approved extraction policy in `docs/VALIDATION.md`. Preserve the audit regressions when changing publication, lifecycle, scope or retrieval. Isolated engine checks do not establish full-source fidelity or application quality; verify those separately before relying on a live migration.
+For installation requests, start with `plugin/docs/setup-ai.md`. Offer the options, ask where the library and state should live before initializing anything, keep choices the owner already made, and say clearly which alternatives are configurable but untested.
 
-Every completed behavior, schema, setup or dependency change needs a dated entry in `CHANGELOG.md` and a matching documentation update (or an explicit no-doc-impact rationale). Add a reusable finding to `LESSONS.md` when a change reveals one; avoid turning that file into a second chronological log. `docs/MAINTENANCE.md` maps changes to the appropriate docs. Run `npm run check:release -- --staged` before committing; it checks the staged file set and change-log/documentation accompaniment.
+## Changing the engine
 
-Never commit the corpus, credentials, machine-local MCP configuration, runtime/model caches, private acceptance outputs or conversation exports. The root `.gitignore` intentionally allows only release-owned areas. Review the actual staged paths and contents before pushing. The owner made this repository public on 2026-09-30. That permission covers the reusable project, not private research, transcripts or writing samples. Public visibility does not grant an open-source license.
+The contracts in `contracts/schemas/` are the authority; `src/` validates against them. Full explanatory prose and source provenance matter as much as links. The wiki, graph and search index are projections of the canonical records, never separate authorities. Keep research memory and operational memory separate until the owner decides otherwise.
 
-After edits, run relevant tests plus `npm run build` when TypeScript changes, and `npm run check:package` when contracts/docs/configuration change. Use isolated fixtures for destructive/lifecycle checks. Existing research must not be migrated, purged or reclassified as a side effect of packaging.
+`kb_recall` is the routine answer route. Its rules (scope filtering, withdrawal and reliance blocking, pinned releases, caveats packed with what they qualify) must hold on every read path, including `kb_brief`, `kb_connect` and anything new. The older packet and progressive routes stay for comparison; do not delete them without a decision.
 
-The Memory Graph application and ste-bah fork are design influences, not bundled code dependencies. Do not add a fork or copy its implementation without recording provenance, license, purpose and validation in the lineage doc and change log.
+Before migration or PDF-intake work, read the extraction policy and repair evidence in `docs/VALIDATION.md`. Keep the audit regression tests passing when changing publication, lifecycle, scope or retrieval. Engine tests do not establish source fidelity or answer quality; check those separately before relying on a live migration.
+
+After edits, run the relevant tests, `npm run build` when TypeScript changes, `npm run format:check`, and `npm run check:package` when contracts, docs or configuration change. Use isolated fixtures for anything destructive. Existing research must never be migrated, purged or reclassified as a side effect.
+
+## Recording changes
+
+Every completed change to behavior, schemas, setup or dependencies needs a dated `CHANGELOG.md` entry and a matching doc update, or an explicit "Documentation impact: none" reason. Put reusable findings in `LESSONS.md`, not a second chronological log. `docs/MAINTENANCE.md` maps code areas to the docs they affect. Run `npm run check:release -- --staged` before committing; it checks the staged files, private paths, common credential patterns, links, and that the change log came along.
+
+## What never goes in the repository
+
+The library, credentials, the machine-local `plugin/.mcp.json`, runtime and model caches, private acceptance outputs, benchmark copies of real libraries, and conversation exports. The root `.gitignore` allows only release-owned areas; keep local benchmark material in the ignored `.bench/` folder. Review the actual staged paths and contents before pushing. The repository has been public since 30 September 2026; that covers the reusable code, not private research, transcripts or writing samples, and it does not grant an open-source license.
+
+## Influences are not dependencies
+
+Memory Graph, ste-bah's fork of it, Hindsight and Archon are design influences, not bundled code. Copying any of their code needs its provenance, license, purpose and tests recorded in `plugin/docs/lineage.md` and the change log first.

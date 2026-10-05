@@ -91,6 +91,58 @@ export function isFiledAnswer(record: RecordData) {
   return record.provenance.method === "filed_answer";
 }
 
+const DIMENSIONS = ["evidence", "fidelity", "applicability"] as const;
+const BASIS_WORDS: Record<string, string> = {
+  review_of_studies: "a review of studies",
+  controlled_comparison: "a controlled comparison",
+  measured_observation: "measured observation",
+  worked_case: "a worked case",
+  reasoned_argument: "a reasoned argument",
+  bare_assertion: "a bare assertion",
+  our_inference: "our inference",
+};
+
+/** Assessments someone actually made, evidence first. Unassessed dimensions are left out. */
+export function assessed(record: RecordData) {
+  return DIMENSIONS.flatMap((dimension) => {
+    const a = record.assessments?.[dimension];
+    return a && a.level !== "not_assessed"
+      ? [
+          {
+            dimension,
+            level: a.level,
+            rationale: a.rationale,
+            context: a.context,
+            basis: BASIS_WORDS[(a as { basis?: string }).basis ?? ""],
+          },
+        ]
+      : [];
+  });
+}
+
+/**
+ * One side of a conflict in a phrase, such as "evidence moderate from a controlled comparison,
+ * fidelity high; 2 independent sources". Never used for ranking.
+ */
+export function profile(index: LibraryIndex, record: RecordData) {
+  const list = assessed(record);
+  const count = supportTally(index, record).sources.length;
+  const levels = list.length
+    ? list
+        .map(
+          (a) =>
+            `${a.dimension} ${a.level}${a.basis ? ` from ${a.basis}` : ""}`,
+        )
+        .join(", ")
+    : "not assessed";
+  return count
+    ? `${levels}; ${count} independent source${count > 1 ? "s" : ""}`
+    : levels;
+}
+
+export const SIDE_BY_SIDE_NOTE =
+  "Assessment levels are recorded judgments with reasons. Weigh the reasons; a level alone never settles a conflict.";
+
 function shortSource(record: RecordData | undefined) {
   if (!record) return "unknown source";
   return record.title.replace(
@@ -492,8 +544,9 @@ export class Recall {
     const sharedScopes = new Map<string, string>();
     for (const [text, count] of scopeCounts)
       if (count > 1) sharedScopes.set(text, `S${sharedScopes.size + 1}`);
+    const marks = { sideBySide: false };
     const blocks = loaded.map((p) =>
-      this.block(index, p, packed, sharedScopes, input.context),
+      this.block(index, p, packed, sharedScopes, input.context, marks),
     );
 
     const notLoaded = accounts
@@ -526,6 +579,7 @@ export class Recall {
             `${p.record.title} (${key(p.record)}) has a ${(j.payload as any).outcome} judgment: ${j.title} (${key(j)})`,
           );
     }
+    if (marks.sideBySide) warnings.push(SIDE_BY_SIDE_NOTE);
     const pending = loaded.filter((p) => index.pending.has(p.record.id)).length;
     if (pending)
       warnings.push(
@@ -651,6 +705,7 @@ export class Recall {
     packed: Map<string, Packed>,
     sharedScopes: Map<string, string>,
     context?: RecallRequest["context"],
+    marks = { sideBySide: false },
   ) {
     const r = p.record;
     const payload = r.payload as any;
@@ -662,6 +717,8 @@ export class Recall {
     const support = supportTally(index, r);
     if (support.sources.length > 1)
       flags.push(`${support.sources.length} independent sources`);
+    const assessments = assessed(r);
+    for (const a of assessments) flags.push(`${a.dimension} ${a.level}`);
     if (support.challenged) flags.push("contested");
     if (index.pending.has(r.id)) flags.push("pending reassessment");
     if (r.scope.condition_expression) {
@@ -685,10 +742,35 @@ export class Recall {
       `${key(r)} · ${form(r)}${flags.length ? " · " + flags.join(" · ") : ""}`,
     );
     if (scope && !sharedScopes.has(scope)) lines.push(scope);
-    if (r.record_type === "judgment")
+    if (assessments.length)
+      lines.push(
+        `Assessed: ${assessments.map((a) => `${a.dimension}${a.basis ? ` (${a.basis})` : ""}, ${a.rationale}${a.context ? ` (context: ${a.context})` : ""}`).join("; ")}`,
+      );
+    // Conflicts show both sides' levels next to each other, in their recorded order, never ranked.
+    const sideBySide = (others: RecordData[]) => {
+      if (![r, ...others].some((x) => assessed(x).length)) return "";
+      marks.sideBySide = true;
+      return `\n  Side by side: ${[r, ...others].map((x) => `${x === r ? "this account" : x.title} (${profile(index, x)})`).join(" | ")}`;
+    };
+    if (r.record_type === "judgment") {
       lines.push(
         `Outcome: ${payload.outcome}. What would change it: ${payload.what_would_change}`,
       );
+      const sides = [
+        ...new Map(
+          [...payload.issue_refs, ...payload.alternatives].map((s: Ref) => [
+            s.id,
+            index.visible.get(s.id),
+          ]),
+        ).values(),
+      ].filter((s): s is RecordData => !!s);
+      if (sides.some((s) => assessed(s).length)) {
+        marks.sideBySide = true;
+        lines.push(
+          `Weighs, side by side: ${sides.map((s) => `${s.title} (${profile(index, s)})`).join(" | ")}`,
+        );
+      }
+    }
     lines.push(index.text(r).trim());
     if (support.sources.length)
       lines.push(`Sources: ${support.sources.join("; ")}`);
@@ -709,10 +791,12 @@ export class Recall {
         `Builds on: ${builds.map((l) => `${index.visible.get(l.object)?.title} (${l.object}${packed.has(l.object) ? ", loaded" : ""})`).join("; ")}`,
       );
     for (const link of index.incoming.get(r.id) ?? [])
-      if (["qualifies", "challenges"].includes(link.predicate))
+      if (["qualifies", "challenges"].includes(link.predicate)) {
+        const subject = index.visible.get(link.subject);
         lines.push(
-          `⚠ ${link.predicate === "challenges" ? "Challenged" : "Qualified"} by ${index.visible.get(link.subject)?.title} (${link.subject}${packed.has(link.subject) ? ", loaded" : ""}): ${link.rationale}`,
+          `⚠ ${link.predicate === "challenges" ? "Challenged" : "Qualified"} by ${subject?.title} (${link.subject}${packed.has(link.subject) ? ", loaded" : ""}): ${link.rationale}${link.predicate === "challenges" && subject ? sideBySide([subject]) : ""}`,
         );
+      }
     for (const link of index.outgoing.get(r.id) ?? [])
       if (
         [
@@ -722,10 +806,13 @@ export class Recall {
           "exemplifies",
           "applies_to",
         ].includes(link.predicate)
-      )
+      ) {
+        const object = index.visible.get(link.object);
         lines.push(
-          `→ ${link.predicate.replace("_", " ")} ${index.visible.get(link.object)?.title} (${link.object})`,
+          // A loaded target already shows this pair on its own challenge line.
+          `→ ${link.predicate.replace("_", " ")} ${object?.title} (${link.object})${link.predicate === "challenges" && object && !packed.has(object.id) ? sideBySide([object]) : ""}`,
         );
+      }
     return lines.join("\n");
   }
 }

@@ -6,7 +6,7 @@ import { published } from "./helpers.js";
 import { Jobs } from "../src/jobs.js";
 import { Notes, splitNote } from "../src/notes.js";
 import { Recall } from "../src/recall.js";
-import { key, readJson } from "../src/core.js";
+import { hash, key, objectPath, readJson } from "../src/core.js";
 import type { RecordData } from "../src/core.js";
 import { normalizeForQuote, quoteFound } from "../src/quote.js";
 
@@ -267,4 +267,92 @@ test("a reaffirmation is a one-line note that inherits the current revision", as
     }),
     /reason/,
   );
+});
+
+test("an assessment needs its reason, and a revision keeps the dimensions it leaves out", async () => {
+  const f = await converted("notes-assess");
+  // Publish handling@2 with an evidence assessment, as an earlier ingest would have.
+  const old = (await f.store.records()).get("knowledge:handling")!;
+  const assessedRevision = {
+    ...structuredClone(old),
+    revision: old.revision + 1,
+    change_reason: "Fixture assessment",
+    assessments: {
+      ...old.assessments,
+      evidence: {
+        level: "moderate",
+        rationale: "Two workshop inspections agree.",
+        context: null,
+      },
+    },
+  } as RecordData;
+  const body = await f.store.body(old);
+  assessedRevision.body = {
+    path: objectPath(assessedRevision) + "/body.md",
+    sha256: hash(body),
+  };
+  await f.store.publish(
+    [assessedRevision],
+    { [key(assessedRevision)]: body },
+    await f.store.current(),
+    "Fixture assessment",
+    f.scope,
+  );
+  await f.jobs.action(f.id, "rebase");
+  const note = (assess: string) =>
+    `---\nid: handling-checked\nrevises: knowledge:handling@2\nreaffirm: Checked against the handbook page.\nassess:\n${assess}\n---\n`;
+  await assert.rejects(
+    f.notes.write({
+      job_id: f.id,
+      notes: [note("  fidelity: {level: high}")],
+    }),
+    /needs a one-line why/,
+  );
+  await assert.rejects(
+    f.notes.write({
+      job_id: f.id,
+      notes: [note("  fidelity: {level: strong, why: Read twice}")],
+    }),
+    /must be one of/,
+  );
+  await assert.rejects(
+    f.notes.write({
+      job_id: f.id,
+      notes: [note("  evidence: {level: moderate, why: The handbook says so}")],
+    }),
+    /needs a basis/,
+  );
+  // One source family cannot carry "high" on a worked case, however often it is repeated.
+  await assert.rejects(
+    f.notes.write({
+      job_id: f.id,
+      notes: [
+        note(
+          "  evidence: {level: high, basis: worked_case, why: One workshop example}",
+        ),
+      ],
+    }),
+    /at least two independent source families, and this note rests on 1/,
+  );
+  await f.notes.write({
+    job_id: f.id,
+    notes: [
+      note(
+        "  fidelity: {level: high, why: Checked word for word against the handbook page}",
+      ),
+    ],
+  });
+  const batch = await readJson<any>(
+    path.join(f.jobs.jobPath(f.id), "staged.json"),
+  );
+  const revised: RecordData = batch.records.find(
+    (r: RecordData) => r.id === "knowledge:handling",
+  );
+  assert.equal(revised.assessments.fidelity.level, "high");
+  assert.equal(revised.assessments.evidence.level, "moderate");
+  assert.equal(
+    revised.assessments.evidence.rationale,
+    "Two workshop inspections agree.",
+  );
+  assert.equal(revised.assessments.applicability.level, "not_assessed");
 });

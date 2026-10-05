@@ -61,6 +61,14 @@ export type RecordData = {
       level: "not_assessed" | "unknown" | "low" | "moderate" | "high";
       rationale: string;
       context: string | null;
+      basis?:
+        | "review_of_studies"
+        | "controlled_comparison"
+        | "measured_observation"
+        | "worked_case"
+        | "reasoned_argument"
+        | "bare_assertion"
+        | "our_inference";
     };
     applicability: {
       level: "not_assessed" | "unknown" | "low" | "moderate" | "high";

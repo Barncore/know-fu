@@ -2,6 +2,16 @@
 
 The local development installation is Windows with Ubuntu WSL2, regular FalkorDB and CPU QMD. This repository is a reusable source baseline; not every deployment option has been provisioned on a fresh machine.
 
+Entries run newest first. Each one says what was shown and what wasn't. Older entries are kept as written.
+
+## 2026-10-05: `kb_connect` and assessments
+
+Engineering checks: 131 automated tests, 128 passing and 3 Python conversion tests skipped on this machine. Four tests cover `kb_connect`: a chain between two ideas with each hop's label and reason, words resolved to records and the `max_hops` limit, no path through withdrawn knowledge, and outward results only at two or more hops. Scope filtering comes from the index `kb_recall` uses, where a source-restricted scope is tested; no `kb_connect` test checks scope or the split between other topics and the same topic directly. New recall and notes tests show that assessment levels appear on the identity line with their basis and reason; that a conflict's two sides appear once, side by side, with each side's independent-source count; that the ranking is identical with and without levels; that `kb_brief` shows the same pair under live disagreements; and that `kb_write` refuses a level without a reason, an evidence level without a basis, and `high` from a worked case resting on one source family.
+
+On the copy of the three-source acceptance library (182 records), `kb_connect` from the cross-validation covariance account to the Holm step-down procedure returned the chain a careful reader would draw first: the covariance account feeds the three-source comparison procedure, which draws on Holm. The second and third chains went through a primer and a teaching sequence, which is a weaker connection. In outward mode, hops through a shared judgment ranked high, because a judgment's link to each account it weighs carries weight 0.9 in the link map that recall also uses. That weight was left alone, since recall's ranking was evaluated with it. Timings are in [PERFORMANCE.md](PERFORMANCE.md).
+
+Not shown: whether real notes will carry honest assessments, and whether `kb_connect` finds useful chains on a library built with notes. Both are checks in roadmap task 2. The acceptance library itself has no assessments (all 235 record revisions are `not_assessed`), so the side-by-side display has only been exercised on fictional fixtures.
+
 ## 2026-10-05: version 1.2.0 recall against the packet route
 
 The question was whether a budgeted `kb_recall` briefing answers as well as the 1.1.0 packet while sending far less. Both routes ran against a byte-for-byte copy of the three-source acceptance library (release `release-6eabd081`, 182 records), using the ten cases frozen on 2026-10-04 (seven access cases and three cumulative cases) with their original queries, purposes and rubrics. The FalkorDB service was not used: the packet route ran without graph expansion and recall used its in-process link-following, so the packet is, if anything, slightly smaller than the 1.1.0 graph route would produce.
