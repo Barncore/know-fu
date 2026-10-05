@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { VerifiedCache, mapLimit } from "./verified-cache.js";
 import { knowledgeImpact } from "./knowledge-impact.js";
+import { closestSpan, quoteFound } from "./quote.js";
 import path from "node:path";
 import {
   APP,
@@ -50,6 +51,8 @@ export type Ledger = {
   corpus_id: string;
   generation: number;
   blocked_ids: string[];
+  /** Exact historical revisions (id@revision) purged while later revisions of the id remain. */
+  blocked_refs?: string[];
   purged_hashes: string[];
   operations: unknown[];
 };
@@ -80,6 +83,10 @@ export class Store {
 
   p(relative: string) {
     return path.join(this.root, relative);
+  }
+  /** Identifies the controls snapshot of the active read session, for derived caches. */
+  sessionSignature() {
+    return this.sessions.getStore()?.signature ?? null;
   }
   cacheStats() {
     return this.files.stats();
@@ -382,8 +389,11 @@ export class Store {
       "records:" + (release?.release_id ?? "empty"),
       async () => {
         const blocked = new Set(ledger.blocked_ids);
+        const blockedRefs = new Set(ledger.blocked_refs ?? []);
         const entries = (release?.records ?? []).filter(
-          (entry) => !blocked.has(entry.record_ref.id),
+          (entry) =>
+            !blocked.has(entry.record_ref.id) &&
+            !blockedRefs.has(key(entry.record_ref)),
         );
         const records = await mapLimit(entries, async (entry) => {
           const record = await this.memo("exact:" + key(entry.record_ref), () =>
@@ -410,7 +420,8 @@ export class Store {
   async exact(reference: Ref): Promise<RecordData> {
     const ledger = await this.ledger();
     ensure(
-      !ledger.blocked_ids.includes(reference.id),
+      !ledger.blocked_ids.includes(reference.id) &&
+        !(ledger.blocked_refs ?? []).includes(key(reference)),
       "CONTENT_PURGED",
       "Record is blocked by deletion policy",
     );
@@ -540,10 +551,35 @@ export class Store {
       reason: description,
     };
     await validate("audit-event", event);
-    // Each event is immutable; the readable journal is rebuilt under the caller's operation lock.
+    // Each event is immutable. The derived journal is appended under the caller's
+    // operation lock and fully rebuilt only when it is out of step with the events.
     await immutable(this.p(`audit/events/${eventId}.json`), json(event));
-    await this.renderAudit();
+    await this.appendAudit(event);
     return event;
+  }
+  private auditEntry(e: any) {
+    return `## [${e.timestamp.slice(0, 10)}] ${e.operation} | ${e.description}\n\nOutcome: ${e.outcome}; release: ${e.after_release ?? "none"}.\n`;
+  }
+  private async appendAudit(event: any) {
+    const state = await readJson(this.p("audit/journal-state.json")).catch(
+      () => null,
+    );
+    const count = (
+      await fs.readdir(this.p("audit/events")).catch(() => [] as string[])
+    ).filter((x) => x.endsWith(".json")).length;
+    if (!state || state.count !== count - 1) return this.renderAudit();
+    await fs.appendFile(
+      this.p("audit/events.jsonl"),
+      JSON.stringify(event) + "\n",
+    );
+    await fs.appendFile(
+      this.p("log.md"),
+      (count > 1 ? "\n" : "") + this.auditEntry(event),
+    );
+    await atomic(
+      this.p("audit/journal-state.json"),
+      json({ count, last_event_id: event.event_id }),
+    );
   }
   async renderAudit() {
     const names = (
@@ -563,14 +599,50 @@ export class Store {
     );
     await atomic(
       this.p("log.md"),
-      events
-        .map(
-          (e) =>
-            `## [${e.timestamp.slice(0, 10)}] ${e.operation} | ${e.description}\n\nOutcome: ${e.outcome}; release: ${e.after_release ?? "none"}.\n`,
-        )
-        .join("\n"),
+      events.map((e) => this.auditEntry(e)).join("\n"),
+    );
+    await atomic(
+      this.p("audit/journal-state.json"),
+      json({
+        count: events.length,
+        last_event_id: events.at(-1)?.event_id ?? null,
+      }),
     );
   }
+  /** Whether an exact revision belongs to CURRENT or any release it descends from. */
+  async committed(reference: Ref) {
+    const wanted = key(reference);
+    return (await this.committedReleases()).some((release) =>
+      release.records.some((e) => key(e.record_ref) === wanted),
+    );
+  }
+
+  /**
+   * An interrupted publication can leave object files for a revision that never committed.
+   * When a corrected revision with the same number is published, those leftovers are removed,
+   * but only after proving no committed release refers to that revision. Runs under the
+   * publication lock, so no other publisher can be writing the same files.
+   */
+  private async clearAbortedRevision(
+    r: RecordData,
+    bodies: Record<string, string>,
+  ) {
+    const dir = this.p(objectPath(r));
+    const recordFile = path.join(dir, "record.json");
+    const differs = async (file: string, data: string) =>
+      (await exists(file)) && hash(await fs.readFile(file)) !== hash(data);
+    const stale =
+      (await differs(recordFile, json(r))) ||
+      (!!r.body &&
+        bodies[key(r)] !== undefined &&
+        (await differs(
+          await safePath(this.root, r.body.path, true),
+          bodies[key(r)],
+        )));
+    if (!stale || (await this.committed(r))) return;
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+
   async recover() {
     const journal = await readJson(this.p("publication.json")).catch(
       () => null,
@@ -792,7 +864,8 @@ export class Store {
         "Foreign corpus record",
       );
       ensure(
-        !ledger.blocked_ids.includes(r.id),
+        !ledger.blocked_ids.includes(r.id) &&
+          !(ledger.blocked_refs ?? []).includes(key(r)),
         "CONTENT_PURGED",
         "Cannot restore purged identity",
       );
@@ -936,12 +1009,43 @@ export class Store {
           "exemplifies needs an attributable case",
         );
       }
-      if (Object.keys(r.extensions).some((k) => k !== "navigation"))
+      if (
+        Object.keys(r.extensions).some(
+          (k) => k !== "navigation" && k !== "citations",
+        )
+      )
         ensure(
           ["knowledge", "learning"].includes(r.record_type),
           "VALIDATION_FAILED",
           "Functional/application extensions belong to knowledge or learning",
         );
+      // Quotes are checked against the cited passage, so a recalled quote is the source's wording.
+      for (const citation of (r.extensions as any).citations ?? []) {
+        ensure(
+          r.provenance.input_refs.some((x) => key(x) === key(citation.ref)),
+          "VALIDATION_FAILED",
+          "A citation must quote one of the record's own inputs",
+          { ref: citation.ref },
+        );
+        const cited = await resolve(citation.ref);
+        ensure(
+          cited.record_type === "passage",
+          "VALIDATION_FAILED",
+          "Citations quote passages",
+          { ref: citation.ref },
+        );
+        const text = (cited.payload as any).text ?? "";
+        ensure(
+          quoteFound(citation.quote, text),
+          "QUOTE_NOT_FOUND",
+          "Quoted words do not appear in the cited passage",
+          {
+            ref: citation.ref,
+            quote: citation.quote,
+            closest: closestSpan(citation.quote, text),
+          },
+        );
+      }
       for (const previous of r.supersedes) {
         const old = await resolve(previous);
         ensure(
@@ -1070,6 +1174,7 @@ export class Store {
         "Another job published first",
       );
       const base = await this.records();
+      const prior = new Map(base);
       await this.validateRecords(
         records,
         bodies,
@@ -1077,6 +1182,7 @@ export class Store {
         base,
       );
       for (const r of records) {
+        await this.clearAbortedRevision(r, bodies);
         if (r.body)
           await immutable(
             await safePath(this.root, r.body.path, true),
@@ -1109,7 +1215,12 @@ export class Store {
       };
       await validate("release", release);
       const changed = new Set(records.map((r) => r.id)),
-        affected = knowledgeImpact(base, records),
+        affected = knowledgeImpact(
+          base,
+          records,
+          prior,
+          [...omitIds].flatMap((id) => (prior.has(id) ? [prior.get(id)!] : [])),
+        ),
         impacts: any[] = await readJson<any[]>(
           this.p(`releases/${baseRelease}.impacts.json`),
         ).catch(() => []);

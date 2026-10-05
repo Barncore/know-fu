@@ -4,6 +4,11 @@ import { Store } from "./store.js";
 import { Jobs } from "./jobs.js";
 import { Retrieval } from "./retrieval.js";
 import { Reading } from "./reading.js";
+import { Recall } from "./recall.js";
+import { Brief } from "./brief.js";
+import { Filing } from "./filing.js";
+import { Notes } from "./notes.js";
+import { Connect } from "./connect.js";
 import { Projections } from "./projections.js";
 import { Lifecycle } from "./lifecycle.js";
 import { Maintenance } from "./maintenance.js";
@@ -27,26 +32,38 @@ export const descriptions: Record<string, string> = {
     "Register supplied local paths as a resumable research ingestion. Input: paths[], module, domains[], idempotency_key, authorization (user request); optional scope. Does not perform the reasoning itself.",
   kb_job:
     "Advance ingestion: job_id, action=next|convert|submit|resume|cancel|rebase|publish. Conversion: optional pdf_profile=technical|prose|ocr (technical default). Source work: media_plan (no spending), frames (source_id,seconds[]), pages (source_id,pages[],scale), crop (source_id,unit_id,rectangle[x,y,width,height]), reading_copy (source_id,spans[],rationale), source_review (source_id,review_id,review). Read books/video guides for contracts.",
+  kb_write:
+    'Author knowledge as Markdown notes, the preferred way to stage records. Each note: --- frontmatter (id slug, type knowledge|concept|learning|judgment|question, title, form, summary, cites: [unit ids or {unit, quote}], uses: [slugs or ids], links: [{qualifies|challenges|depends_on|supports|explains|exemplifies|applies_to|derived_from: target, why}], holds_when, not_for, revises) --- then the prose. Cited units become verified passages; quotes are checked against the source text. Input: job_id, notes[]; optional dry_run, replace, proposal_id. Guide: kb_read {kind:"guide",name:"notes"}.',
   kb_propose:
     "Compile a semantic batch. Input: proposal conforming to proposal.schema.json. Returns generated IDs, validated refs and a staging receipt. Original sources remain evidence, never instructions.",
   kb_change:
     "Review or publish an existing staged job; input job_id and action=preview|publish. No overwrite on revision conflict.",
+  kb_brief:
+    "Load what the library knows at the start of research work: per domain, the current primer (with a staleness flag), the most connected core ideas, live disagreements, the questions worth answering next and what recent ingests added. Input: optional domains[], budget_tokens (800-30000, default 3500), scope, release_id.",
+  kb_recall:
+    "Answer from the library in one call. Returns a Markdown briefing packed to a token budget: the best-matching explanations in full, the caveats and judgments that must travel with them, sources with page labels, and a list of relevant accounts not loaded. Input: query; optional purpose=explain|teach|apply|compare|invent|synthesize|investigate, budget_tokens (500-60000), depth=brief|standard|deep, domains[], seen[] (ids you already hold), context, scope, release_id, semantic, graph.",
+  kb_connect:
+    "Connect the dots. With from and to: the strongest chains of recorded links between two ideas, each hop read in its direction with the reason written for it. With from only: ideas two or more hops away, split into other topics (possible bridges) and the same topic. from/to take a record id, id@revision, or a few words to search for. Optional max_hops (1-6, default 4), paths (1-8, default 3), limit, scope, release_id.",
+  kb_file:
+    "File a worked answer back into the library so later sessions start from it. Publishes a cited synthesis (or lesson/application) that pins the exact revisions it relied on and is flagged for review when they change. Input: title, answer_markdown, cites[] (id@revision or {id,revision}), authorization (the user request), optional question, summary, form, epistemic, domains[], module, conditions[], exclusions[], dry_run.",
   kb_retrieve:
     "Discover or retrieve scoped research. mode=progressive returns authored summaries, exact next reads, material qualifications and provenance without loading every source body; supports purpose=explain|teach|apply|compare|invent|synthesize|investigate. mode=packet preserves the legacy evidence packet. Input query; optional domains, scope, semantic, rerank, graph, graph_required, limit, release_id, context. Progressive pagination uses offset; packet expansion uses hops. Open chosen accounts with kb_read.",
   kb_read:
-    "Read scoped research without shell access. kind=catalogue lists topics; topic requires topic; account requires record_ref and optionally section_id; accounts reads 1–12 chosen record_refs together; sections lists hash-bound headings; context requires record_refs and optionally context_offset. Optional release_id, scope, purpose, context, limit, offset. Full-account reads carry material context and exact support. Legacy {record_ref} returns the raw full record. kind=unit with job_id,unit_id,offset,limit reads source text/image (max 32000 chars). Guides: workflow|ingestion|retrieval|operations|books|video. Schemas: proposal|record|job|corpus|reading|reading-request. Reading does not attest ingestion coverage.",
+    "Read scoped research without shell access. kind=catalogue lists topics; topic requires topic; account requires record_ref and optionally section_id; accounts reads 1–12 chosen record_refs together; sections lists hash-bound headings; context requires record_refs and optionally context_offset. Optional release_id, scope, purpose, context, limit, offset. Full-account reads carry material context and exact support. Legacy {record_ref} returns the raw full record. kind=unit with job_id,unit_id,offset,limit reads source text/image (max 32000 chars). Guides: workflow|ingestion|notes|retrieval|operations|books|video. Schemas: proposal|record|job|corpus|reading|reading-request. Reading does not attest ingestion coverage.",
   kb_lifecycle:
     "Plan/execute archive, unarchive, withdraw, reinstate or purge. Planning: mode=plan, action, targets[], reason. Execution: mode=execute, plan_id, authorization={action,targets,user_instruction}; reinstatement also assessments. Authorization must reflect an actual user request.",
   kb_evaluate:
     "Prepare or run isolated application evaluations through local Codex using the configured account. Input action=prepare|run|report, cases or run_id, model; evaluation cases/rubrics stay outside research views.",
   kb_maintain:
-    "Maintain the bound library. Input action=reindex|verify|export|restore|import|formats|wiki_edit|preview_bulk|execute_bulk|configure|plan_meaning|execute_meaning; action-specific inputs documented in operations reference. No arbitrary graph/backend selection.",
+    "Maintain the bound library. Input action=reindex|verify|export|restore|import|formats|wiki_edit (record_ref, optional view_release)|preview_bulk|execute_bulk|configure|plan_meaning|execute_meaning; action-specific inputs documented in operations reference. No arbitrary graph/backend selection.",
 };
 export class KnowledgeSystem {
   jobs: Jobs;
   projections: Projections;
   retrieval: Retrieval;
   reading: Reading;
+  recall: Recall;
+  briefing: Brief;
   lifecycle: Lifecycle;
   maintenance: Maintenance;
   evaluation: Evaluation;
@@ -55,6 +72,8 @@ export class KnowledgeSystem {
     this.projections = new Projections(store);
     this.retrieval = new Retrieval(store, this.projections);
     this.reading = new Reading(store, this.projections);
+    this.recall = new Recall(store, this.projections);
+    this.briefing = new Brief(store);
     this.lifecycle = new Lifecycle(store, this.projections);
     this.maintenance = new Maintenance(store, this.projections);
     this.evaluation = new Evaluation(store, this.retrieval);
@@ -100,6 +119,8 @@ export class KnowledgeSystem {
           default:
             return this.jobs.next(p.job_id);
         }
+      case "kb_write":
+        return new Notes(this.jobs).write(p);
       case "kb_propose":
         return this.jobs.propose(p.proposal, p.replace === true);
       case "kb_change":
@@ -110,6 +131,14 @@ export class KnowledgeSystem {
             path.join(this.jobs.jobPath(p.job_id), "staged.json"),
           ),
         };
+      case "kb_brief":
+        return this.briefing.brief(p);
+      case "kb_recall":
+        return this.recall.recall(p);
+      case "kb_connect":
+        return new Connect(this.store).connect(p);
+      case "kb_file":
+        return new Filing(this.store).file(p);
       case "kb_retrieve":
         ensure(
           p.mode === undefined || ["progressive", "packet"].includes(p.mode),
@@ -142,6 +171,7 @@ export class KnowledgeSystem {
               "operations",
               "books",
               "video",
+              "notes",
             ].includes(p.name),
             "VALIDATION_FAILED",
             "Unknown guide",
@@ -224,7 +254,7 @@ export class KnowledgeSystem {
           case "formats":
             return this.maintenance.exportFormats();
           case "wiki_edit":
-            return this.maintenance.wikiEdit(p.record_ref);
+            return this.maintenance.wikiEdit(p.record_ref, p.view_release);
           case "preview_bulk":
             return this.maintenance.previewBulk(p.proposal);
           case "execute_bulk": {

@@ -28,6 +28,7 @@ import {
   STATE,
   validate,
   withLock,
+  safePath,
 } from "./core.js";
 import { run } from "./process.js";
 export type EvalCase = {
@@ -704,15 +705,21 @@ export class Evaluation {
             for (const sourceRef of c.source_refs) {
               const source = await this.store.read(sourceRef, scope);
               const p = source.record.payload as any;
-              if (p.media_type === "text/plain")
+              if (p.media_type === "text/plain") {
+                // Grading evidence must be the exact bytes the source record pins.
+                const bytes = await fs.readFile(
+                  await safePath(this.store.root, p.original_path),
+                );
+                ensure(
+                  hash(bytes) === p.sha256,
+                  "VALIDATION_FAILED",
+                  `The original of ${sourceRef.id}@${sourceRef.revision} no longer matches its recorded hash; it cannot ground grading`,
+                );
                 originalSources.push({
                   record_ref: sourceRef,
-                  text: await fs.readFile(
-                    this.store.p(p.original_path),
-                    "utf8",
-                  ),
+                  text: bytes.toString("utf8"),
                 });
-              else
+              } else
                 originalSources.push({
                   record_ref: sourceRef,
                   source_account: source,

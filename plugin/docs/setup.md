@@ -1,85 +1,89 @@
 # Setup, configuration and portability
 
-[Package overview](../README.md) · [Ask your AI to set it up](setup-ai.md) · [Options and their tradeoffs](setup-choices.md)
+[Package overview](../README.md) · [Ask your AI to set it up](setup-ai.md) · [Options and their trade-offs](setup-choices.md)
 
-## Choose the installation before running commands
+## Decide before you run anything
 
-The repository includes the engine; the plugin folder alone does not. Read the setup-choice matrix and agree on storage locations, graph deployment, media utilities and transcription route first. The existing Windows/Ubuntu installation is one tested profile, not a requirement for everyone.
+The engine lives in the repository, so the plugin folder on its own won't get you far. Read the [decision matrix](setup-choices.md) first and settle four things: where storage goes, how the graph runs, which media tools you'll use, and how transcription happens. The original Windows and Ubuntu installation is one setup that's been tested, not a requirement.
 
-The engine has configurable interfaces for a different state/library directory, a separately managed FalkorDB endpoint, and native or selected-WSL FFmpeg. Docker provisioning and full native installations still need their own live checks. Integrated local speech decoding and non-Codex harness adapters are not implemented by simply changing a setting.
+Some alternatives already work: a different state or library folder, a FalkorDB server you run yourself, and FFmpeg either native or inside a WSL distribution of your choice. Docker and fully native installs still need their own live checks before anyone should trust them. Local speech decoding and adapters for agents other than Codex aren't settings you flip; they need code.
 
 ## Dependencies
 
-- Node 24.14.x, with exact JS package versions/integrity in the repository `package-lock.json`. The build generates schema types and applies a version-guarded official FalkorDB client patch.
-- Regular FalkorDB; the original deployment used server 4.20.7 with Redis 8.0.5. A Docker/native service should use a reviewed compatible version, authentication, persistent storage and a loopback connection by default.
-- QMD from the Node dependencies and its model assets for vector retrieval. Current search forces CPU; reranking is optional and can be slow. Model/native-module downloads are separate from plain source code.
-- Python 3.12 and the repository `requirements.lock.txt` for document/visual conversion. The original Python was 3.12.14. CPU PyTorch wheels may require their CPU package index; a pip version lock does not install OS libraries or guarantee cross-platform wheel availability.
-- Poppler `pdftotext` for every PDF profile, found on PATH or set through runtime `pdftotext` / `KB_PDFTOTEXT`. Technical PDFs default to complementary Poppler/Docling extraction; `pdf_profile:"prose"` skips Docling and `"ocr"` forces full-page OCR. Each profile retains original-page images. SVG EPUB previews use the pinned `@resvg/resvg-js` package; other image previews use Pillow. Original asset bytes remain preserved.
-- FFmpeg/FFprobe for media, selected through native PATH or WSL. Speech API credentials are needed only for the hosted media-transcription route.
+- Node 24.14.x. Exact package versions and integrity hashes are in `package-lock.json`. The build generates schema types and applies a version-guarded patch to the official FalkorDB client.
+- Regular FalkorDB. The original deployment ran server 4.20.7 with Redis 8.0.5. A Docker or native server should use a reviewed compatible version, a password, persistent storage and a loopback connection by default. Since 1.2.0 it's optional for answering: `kb_recall`, `kb_brief` and `kb_connect` all work without it.
+- QMD, installed with the Node dependencies, plus its model files for vector search. Search is forced onto the CPU, and reranking is optional and can be slow. Model and native-module downloads come separately from the source code.
+- Python 3.12 with `requirements.lock.txt` for document and image conversion (the original was 3.12.14). CPU PyTorch wheels may need their CPU package index. A pip lock won't install operating-system libraries, and it can't promise wheels exist for every platform.
+- Poppler `pdftotext` for every PDF profile, on PATH or set with the runtime `pdftotext` key or `KB_PDFTOTEXT`. Technical PDFs get both Poppler and Docling by default; `pdf_profile:"prose"` skips Docling and `"ocr"` forces full-page OCR. Every profile keeps the original page images. SVG previews in EPUBs use the pinned `@resvg/resvg-js`, and other image previews use Pillow. Original asset bytes are always kept.
+- FFmpeg and FFprobe for media, native or through WSL. You only need speech API keys for hosted transcription.
 
-Use the engine's `package.json` scripts from repository root. Build/test commands do not create the database service, download every optional model or initialize a real library. A full clean-machine bootstrap has not been automated.
+Run the `package.json` scripts from the repository root. Building and testing won't create the database service, download every optional model or initialize a real library, and there's no automated clean-machine bootstrap yet.
 
-## Configuration locations
+## Where configuration lives
 
-| Location | Responsibility |
+| Location | What it holds |
 |---|---|
-| `plugin/.mcp.json` | Generated machine-local launcher: Node, engine path, corpus, state, media mode and optional project identity; ignored by Git |
-| `<state>/config.json` | Python executable, FalkorDB endpoint/password-file reference, optional speech/evaluation configuration |
-| `<corpus>/corpus.json` | Library identity, domains/modules and allowed projects; created through `init` |
-| `<corpus>/dimensions.json` | Applicability dimensions and units |
-| `<state>/ledgers/` | Independent deletion history; back up and retain with the library's recovery plan |
-| Chosen server volume/directory | FalkorDB persistence; distinct from corpus and engine state |
+| `plugin/.mcp.json` | The generated machine-local launcher: Node, engine path, library, state, media mode and optional project identity. Ignored by Git |
+| `<state>/config.json` | The Python executable, the FalkorDB endpoint and password-file reference, optional speech and evaluation settings |
+| `<corpus>/corpus.json` | Library identity, domains and modules, and allowed projects. Created by `init` |
+| `<corpus>/dimensions.json` | Applicability dimensions and their units |
+| `<state>/ledgers/` | The deletion history. Back it up and keep it with the library |
+| The server's own volume or folder | FalkorDB's data, separate from the library and the engine state |
 
-`KB_STATE_DIR` selects `<state>`; the legacy default is engine `.runtime/`. `KB_CORPUS` selects `<corpus>`. Neither variable moves an existing installation's data. `kb_status` reports engine, state and corpus locations.
+`KB_STATE_DIR` picks `<state>`; without it, the engine uses its own `.runtime/` folder. `KB_CORPUS` picks `<corpus>`. Neither variable moves an existing installation's data, so changing one points the engine somewhere new rather than migrating anything. `kb_status` tells you where the engine, state and library actually are.
 
-## Graph profiles
+## Graph setups
 
-**Managed original WSL profile:** [runtime example](../examples/runtime.example.json), `deployment: "ubuntu-wsl2-direct"`. The legacy setup/service scripts use Ubuntu, port 6387, `/opt/research-knowledge` and `/var/lib/research-knowledge`. `scripts/setup-wsl.sh` downloads and checks the pinned module, writes service configuration and starts it; it assumes Redis, its OS account, curl and Python are already installed. Inspect it before root execution. Choose another storage directory only by adapting the related service/config paths consistently. `auto_start` starts an existing installation; it does not provision one.
+### Managed WSL
 
-**Separately managed server:** [external runtime example](../examples/runtime.external.example.json), `deployment: "falkordb-external"`, `graph.auto_start: false`. Docker, native Linux or an already managed FalkorDB service can expose the same endpoint. Use the [official instructions](https://github.com/FalkorDB/FalkorDB), choose the persistent storage and authenticate it. The engine will not start the WSL service when this profile is selected. Remote access is an advanced deployment: use authenticated encrypted transport and network restrictions; `graph.tls` is available but not live-validated here.
+Use the [runtime example](../examples/runtime.example.json) with `deployment: "ubuntu-wsl2-direct"`. The legacy setup and service scripts assume Ubuntu, port 6387, `/opt/research-knowledge` and `/var/lib/research-knowledge`. `scripts/setup-wsl.sh` downloads and checks the pinned module, writes the service configuration and starts it. It expects Redis, its system account, curl and Python to be there already. Read it before you run it as root. If you want a different data folder, change the related service and config paths together. `auto_start` starts an existing installation; it won't create one.
 
-The Windows-readable `password_file` contains the matching service password. Do not commit its contents. Database data and service configuration belong to the chosen deployment, not the canonical corpus.
+### A server you run yourself
 
-## Corpus and launcher
+Use the [external runtime example](../examples/runtime.external.example.json) with `deployment: "falkordb-external"` and `graph.auto_start: false`. Docker, native Linux or an existing FalkorDB service can all provide the endpoint; set it up with the [official instructions](https://github.com/FalkorDB/FalkorDB), with persistent storage and a password. In this mode the engine never touches the WSL service. Remote access is advanced territory: use authenticated, encrypted transport and network restrictions. `graph.tls` exists but hasn't been tested live.
 
-Adapt [corpus.example.json](../examples/corpus.example.json) with a unique library ID, domain/module choices and the exact allowed project path. Library IDs select graph/search namespaces and deletion history, so different libraries need different IDs.
+Either way, the password lives in a file readable from Windows, and that file never gets committed. Database data and service configuration belong to the deployment, not the library.
 
-From the engine directory, with the accepted state directory exported in `KB_STATE_DIR`:
+## Library and launcher
+
+Adapt [corpus.example.json](../examples/corpus.example.json) with a unique library id, your domains and modules, and the exact allowed project path. The library id picks the graph and search namespaces and the deletion history, so two libraries need two ids.
+
+From the engine folder, with the chosen state folder exported in `KB_STATE_DIR`:
 
 ```powershell
 node dist/cli.js init --corpus 'C:/KnowFuData/library' --project 'C:/Research' --input 'corpus.local.json'
 node dist/cli.js kb_status --corpus 'C:/KnowFuData/library' --project 'C:/Research' --input 'status.local.json'
 ```
 
-The paths are examples; `corpus.local.json` is your adapted configuration and `status.local.json` contains `{}`. Initialization creates required ledger/audit state. Copying a corpus JSON manually is not equivalent. Restores use the matching existing deletion ledger rather than fresh initialization.
+The paths are just examples. `corpus.local.json` is your adapted configuration, and `status.local.json` contains `{}`. `init` creates the ledger and audit state the library needs, which is why copying a corpus JSON by hand doesn't work. A restore uses the matching existing ledger, never a fresh `init`.
 
-Run `node scripts/configure-plugin.mjs --help`, then supply the accepted absolute corpus/state paths and `--media native` or `--media wsl`. For WSL media, `--distro` selects the distribution. The generator creates a local `.mcp.json` without moving data or installing services. It refuses to overwrite an existing file.
+Next, run `node scripts/configure-plugin.mjs --help`, then pass the chosen absolute library and state paths and `--media native` or `--media wsl` (add `--distro` for WSL). It writes a local `.mcp.json` without moving data or installing services, and refuses to overwrite one that already exists.
 
-`KB_MEDIA_RUNTIME` selects media execution and `KB_WSL_DISTRO` selects its distribution. These do not redirect the legacy graph service helper. With a custom graph distribution/service, use external-server mode unless you deliberately adapt the managed helper.
+`KB_MEDIA_RUNTIME` chooses where media tools run and `KB_WSL_DISTRO` which distribution. Neither one redirects the legacy graph service helper. If your graph runs in a custom distribution or service, use external-server mode unless you deliberately adapt the helper.
 
-`KB_PROJECT` selects an explicit calling-project identity; absent that, the process working directory is used. A binding must match. Do not reuse another project's identity to evade a scope error. After initialization, authorized module/domain/binding changes go through `kb_maintain configure` as described in [operations](../skills/know-fu/references/operations.md).
+`KB_PROJECT` sets the calling project's identity; without it the working directory is used, and either way it has to match a binding. If you hit a scope error, fix the binding; never borrow another project's identity to get past it. After `init`, authorized module, domain and binding changes go through `kb_maintain configure`, described in [operations](../skills/know-fu/references/operations.md).
 
-Run `node scripts/install-plugin.mjs` to copy the configured plugin to the user's local plugin-source folder. This does not register a new marketplace or install infrastructure. Use the supported Codex local-plugin registration/reinstall workflow for the installed app version; refresh the chat and verify actual MCP discovery. A generic [MCP example](../examples/mcp.example.json) is included for inspection.
+`node scripts/install-plugin.mjs` copies the configured plugin into the local plugin-source folder, and that's all it does. It doesn't register a marketplace or install anything else. Use Codex's supported local plugin registration or reinstall flow for the installed version, restart the chat, and check that the MCP server really shows up. A generic [MCP example](../examples/mcp.example.json) is included for reference.
 
 ## Transcription and evaluation
 
-Text, PDF and EPUB use does not require speech API credentials. For hosted audio/video transcription, add the `transcription` object from [the example](../examples/transcription.example.json), set the API-key environment variables for the server process and authorize a job allowance. Check current provider/model support and costs. `media_plan` estimates requests without uploading; reservations do not guarantee the provider's final bill.
+Text, PDF and EPUB need no speech API keys. For hosted audio and video transcription, add the `transcription` object from [the example](../examples/transcription.example.json), set the API-key environment variables for the server process, and authorize an allowance per job. Check current provider support and prices first. `media_plan` estimates the requests without uploading anything, but the reservation can't guarantee what the provider finally bills.
 
-A local transcriber can prepare TXT/SRT/VTT for ingestion now. Those files are handled as textual sources: timestamp strings are not independently verified media locators, and visual evidence remains outside that transcript-only ingest. A full local decoder integration must retain original-media mappings, raw decoder output, coverage and uncertainty. It is not yet a drop-in setting.
+A local transcriber can already produce TXT, SRT or VTT for ingestion. Those come in as text sources: their timestamps aren't verified media locators, and the visuals stay outside a transcript-only ingest. Proper local decoder integration would need to keep media mappings, raw decoder output, coverage and uncertainty, so it's real work, not a setting.
 
-Evaluation needs a configured `codex_executable`, normal sign-in and a verified isolation receipt. Its model calls and speech API charges are separate. Confirm private material is authorized for its destination.
+Evaluation needs a configured `codex_executable`, a normal sign-in and a verified isolation receipt. Its model calls and any speech charges are billed separately. Before running one, confirm that private material is allowed to go where the evaluation sends it.
 
-## Recovery and verification
+## Backups and checks
 
-Back up canonical corpus data plus its matching independent ledger. The graph, QMD index and generated wiki are rebuildable, but active jobs can contain paid-request receipts that must also be retained. A missing/stale deletion ledger blocks restored service instead of silently reviving purged material.
+Back up the library together with its matching deletion ledger. The graph, the QMD index and the wiki can all be rebuilt, but active jobs may hold receipts for paid requests, so keep those too. If the ledger is missing or stale, a restored library refuses to serve, which beats quietly bringing purged material back.
 
-Verify a synthetic ingestion, exact source reads, publication, all three projections, retrieval, service restart and backup/restore for the selected deployment. Unit tests do not establish fresh-machine or real-source correctness. Keep the local setup record outside Git, and update the change log/docs when a setup change affects supported behavior.
+On whatever deployment you choose, try a throwaway ingestion, exact source reads, publication, all three views, recall, a service restart, and a backup and restore. Unit tests don't prove a fresh machine or a real source works. Keep your local setup record outside Git, and update the change log and docs when a setup change affects supported behavior.
 
-Maintain the bundled schema reference from the engine:
+Keep the bundled schema copies in step with the engine:
 
 ```powershell
 node scripts/package-plugin.mjs
 node scripts/package-plugin.mjs --check
 ```
 
-The packaging check verifies copied schema/config bytes, the corpus example and relative Markdown links. Private corpus/state/credentials and `.mcp.json` stay outside the tracked release.
+The check compares the copied schema and config bytes, validates the corpus example and checks relative Markdown links. The private library, state, credentials and `.mcp.json` stay out of the release.

@@ -1,34 +1,42 @@
 # Books, papers and supplied documents
 
-Use this with the common ingestion guide. The aim is a faithful account that supports explanation and application, including the author's reasoning, consequential examples, assumptions and disagreements. A chapter summary or a bag of claims is not a substitute for reading the requested material.
+Use this alongside the main [ingestion guide](ingestion.md). What you're after is a faithful account that someone could explain and apply from: the author's reasoning, the examples that matter, the assumptions and the disagreements. A chapter summary or a bag of claims can't stand in for actually reading the requested material.
 
 ## Establish the reading scope
 
-Identify the actual supplied edition from title, copyright and preface pages. Preserve ambiguous printings as ambiguous. Distinguish the original from supplied distillations, slides and earlier interpretations. A duplicated PDF, its summary and a lecture repeating it are not three independent evidence sources.
+Work out which edition you were actually given, from its title, copyright and preface pages. If the printing is ambiguous, record it as ambiguous rather than picking one. Tell the original apart from any supplied distillations, slides and earlier interpretations. A duplicated PDF, its summary and a lecture repeating it are one evidence source, not three, however convincing the chorus sounds.
 
-Register originals with `kb_ingest`. PDFs yield physical-page text and visual units; EPUBs follow their spine order. Account for substantive chapters, sidebars, exercises and appendices within the requested scope. Separately classify covers, blanks, bibliography and index apparatus. Reading a bibliography entry does not mean reading the cited work; reading an exercise is not solving it. For a selected-chapter request, preserve that boundary rather than calling it a full-book reading.
+Register originals with `kb_ingest`. PDFs produce text and visual units per physical page; EPUBs follow their spine order. Account for every substantive chapter, sidebar, exercise and appendix within the requested scope, and classify covers, blank pages, bibliography and index separately. Reading a bibliography entry is not reading the cited work, and reading an exercise is not solving it. When the user asks for selected chapters, keep that boundary and never call it a full-book reading.
 
-Keep physical PDF page numbers separate from printed labels. Inspect the mapping at section transitions, since Roman pages, inserts or missing leaves can defeat a single offset. Put the verified mapping, edition evidence and chapter ranges in a source review; do not silently replace tool locators with guessed printed pages.
+Keep physical PDF page numbers separate from printed page labels. Check the mapping at section transitions, because Roman numerals, inserts or missing leaves can break a single offset. Put the verified mapping, the edition evidence and the chapter ranges in a source review. Never silently replace the tool's locators with guessed printed pages.
 
 ## Read, reconstruct and check
 
-Choose the PDF extraction profile when calling `kb_job` action `convert`: `pdf_profile:"technical"` (default), `"prose"`, or `"ocr"`. Technical material keeps Poppler flow/layout text, Docling structured/Markdown output and original-page images together. Use prose for clean, mostly textual PDFs after checking their text layer and structure; it omits Docling. Use OCR for scans, missing text or misleading embedded text; it forces full-page Docling OCR while retaining Poppler and images for comparison. Formula enrichment remains off. Record profile, versions, settings and extraction limitations with the reading evidence.
+Choose the PDF extraction profile when you call `kb_job {action:"convert"}`:
 
-For technical tables, compare the two readings and check consequential row/column labels, blank cells, signs, values and units against the page image. Agreement, matching totals and matching cell counts cannot detect a shared text-layer error or a row permutation. For code, check indentation, wrapping and operators against the original; for equations and diagrams, reconstruct only legible notation and labels. A plausible extraction still needs these checks. Keep AI reconstructions separate from raw outputs and preserve unresolved consequential details as limitations.
+| Profile | Use it for | What it runs |
+|---|---|---|
+| `pdf_profile:"technical"` (default) | Technical material | Poppler flow and layout text, Docling structured and Markdown output, and original-page images together |
+| `"prose"` | Clean, mostly textual PDFs, after you've checked the text layer and structure | Poppler and images, without Docling |
+| `"ocr"` | Scans, missing text, or embedded text that misleads | Full-page Docling OCR, with Poppler and images kept for comparison |
 
-Docling text spanning several pages is split only when disjoint character spans establish page ownership. An ambiguous item is retained with an approximate page range. Check its original pages before narrowing the locator. Physical-page attribution establishes location, not verbatim fidelity. EPUB image previews retain their original asset/hash; animated previews show only the first frame and require separate review of consequential later frames.
+Formula enrichment stays off. Record the profile, versions, settings and extraction limits with the reading evidence.
 
-Read complete source units, following pagination. Inspect meaningful figures, table relationships, captions, equations, algorithms and code. When extraction loses symbols or layout, inspect the page image; use `kb_job` action `crop` for an unscaled region of an existing visual unit. If the initial render lacks sufficient detail, use `kb_job {action:"pages",job_id,source_id,pages:[...],scale:3}` for a higher-resolution render from the preserved PDF. It registers physical-page, render-setting and hash provenance. Do not upscale unreadable pixels and call the result verified.
+Tables are where extraction most often lies with a straight face. For technical tables, compare the two readings, then check the row and column labels, blank cells, signs, values and units that matter against the page image. Parsers agreeing, totals matching and cell counts matching can't catch a shared text-layer error or rows in the wrong order. For code, check indentation, wrapping and operators against the original. For equations and diagrams, reconstruct only notation and labels you can actually read. A plausible extraction still needs these checks. Keep AI reconstructions separate from raw outputs, and record any unresolved detail that matters as a limitation. When you've checked a note's wording or numbers against the page image, record that as its `fidelity` assessment ([notes.md](notes.md)).
 
-Reconstruct each section's argument before combining it with others: what problem it addresses, why the method should work, its premises, examples, boundary conditions and what remains discretionary. Keep individual authors' accounts distinguishable before synthesizing agreement or disagreement. Interpretive uncertainty belongs in the account, not just the work log.
+Docling text that spans several pages is split only when separate character spans show which page owns which text. An ambiguous item keeps an approximate page range; check its original pages before narrowing the locator. Knowing which physical page text came from tells you where it is, not that the wording is faithful. EPUB image previews keep their original asset and hash. An animated preview shows only the first frame, so review any later frames that matter separately.
 
-Recompute a consequential formula, table comparison or algorithmic example when a discrepancy or an application depends on it. Record inputs, units, method and the conclusion the check actually establishes. A synthetic calculation is not an independent reproduction of a published empirical experiment. Keep original wording and the checked correction side by side with their locators; do not rewrite the author into agreement with the check.
+Read complete source units and follow pagination. Inspect meaningful figures, table relationships, captions, equations, algorithms and code. When extraction loses symbols or layout, look at the page image. `kb_job {action:"crop"}` gives an unscaled region of an existing visual unit. If the first render lacks detail, `kb_job {action:"pages", job_id, source_id, pages:[...], scale:3}` renders those pages again at higher resolution from the preserved PDF, with provenance for the physical page, the render settings and the hash. Never upscale unreadable pixels and call the result verified.
 
-Compare earlier distillations after forming the source account. Track whether prior conclusions are supported, qualified, corrected or still unverified. Verify changing implementation facts against current primary documentation when needed; that check is separate from what the historical book says. Domain-specific research skills may help with substantive checks when available, but this workflow does not require a trading skill or import trading assumptions into other domains.
+Then do the real work: reconstruct each section's argument before combining it with others. What problem does it address, why should the method work, what are its premises, examples and boundary conditions, and what's left to judgment? Keep each author's account distinguishable before you synthesize agreement or disagreement. Interpretive uncertainty belongs in the account itself, not only in the work log.
 
-## Persist a usable reading record
+Recompute a formula, table comparison or algorithmic example when a discrepancy or an application depends on it. Record the inputs, units, method, and what the check actually establishes. A synthetic calculation is not an independent reproduction of a published experiment. Keep the original wording and the checked correction side by side, each with its locator, and never rewrite the author into agreement with the check.
 
-Use `kb_job` action `source_review` with `source_id`, a stable `review_id`, and `review`, for example:
+Compare earlier distillations only after you've formed the source account. Track whether each earlier conclusion is supported, qualified, corrected or still unverified. Check implementation facts that change over time against current primary documentation when needed; that check is separate from what the historical book says. Domain research skills can help with substantive checks when they're available. This workflow doesn't need a trading skill, and it never carries trading assumptions into other domains.
+
+## Keep a usable reading record
+
+Use `kb_job {action:"source_review"}` with `source_id`, a stable `review_id` and a `review`, for example:
 
 ```json
 {
@@ -43,8 +51,8 @@ Use `kb_job` action `source_review` with `source_id`, a stable `review_id`, and 
 }
 ```
 
-This is a flexible example, not a quota or a universal book schema. Use real source ranges and evidence IDs. Review records preserve work but do not themselves publish knowledge. Carry consequential identity, mapping, findings, checks and limitations into canonical source metadata, explanatory records and relevant judgments through `kb_propose`. Keep the original source hash as the identity anchor.
+That's a flexible example, not a quota or a fixed book schema. Use real source ranges and evidence ids. A review record keeps your work but doesn't publish knowledge. Carry the identity, mapping, findings, checks and limits that matter into canonical source metadata, explanatory records and the relevant judgments through `kb_write` notes ([notes.md](notes.md)). The original source hash stays the identity anchor.
 
-Submit actual per-unit reading receipts as work progresses. Integrate the section accounts into the whole source and the affected existing corpus. Teaching routes, exercises, worked applications and grounded questions should grow out of that account where useful. Update the current explanations and navigation, preserving stable identities and the history of corrections.
+Submit real reading receipts per unit as you go. Integrate the section accounts into the whole source and into the existing library where it's affected. Teaching routes, exercises, worked applications and grounded questions grow out of that account where they're useful. Update the current explanations and navigation, keeping stable identities and the history of corrections.
 
-Before publication, check source locators, meaningful visual coverage, unresolved disagreements and representative retrieval/application questions. Describe independent review accurately: a second review of implications is not a second reading of every page. Preserve limits when independent review is unavailable; never manufacture a review receipt.
+Before publication, check source locators, coverage of meaningful visuals, unresolved disagreements, and a few representative retrieval and application questions. Be precise about independent review: a second look at the implications is not a second reading of every page. When independent review isn't available, just say so; never manufacture a review receipt.

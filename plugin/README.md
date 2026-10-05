@@ -1,36 +1,32 @@
-# Know Fu
+# Know Fu plugin
 
-Ingest specialized research into a connected library that an AI can retrieve from, explain, teach and apply. Original sources, their interpretations and new hypotheses remain distinguishable.
-
-**This folder is the Codex adapter, documentation and schema reference. The executable engine and your knowledge library live outside it. Copying this folder alone does not install a working system.**
+This folder is the Codex adapter for Know Fu: the skill the agent follows, its reference guides, the MCP launch configuration and copies of the schemas. Here's the catch: the engine that does the actual work, and the library it builds, both live outside this folder. Copy this folder on its own and you get instructions for a system that isn't there.
 
 ## Start here
 
-- [Architecture, schema and directory layout](docs/architecture.md)
+- [Architecture, schema and folder layout](docs/architecture.md)
 - [Setup, configuration, backup and portability](docs/setup.md)
-- [Set up with an AI](docs/setup-ai.md) / [decision matrix](docs/setup-choices.md)
-- [Design lineage and dependency boundaries](docs/lineage.md)
-- [Formal JSON schemas](contracts/README.md)
-- [Ingestion and retrieval workflow](skills/know-fu/SKILL.md)
-- [Books and PDFs](skills/know-fu/references/books.md) / [video and audio](skills/know-fu/references/video.md)
-- [Operations](skills/know-fu/references/operations.md)
+- [Set up with an AI](docs/setup-ai.md) and the [decision matrix](docs/setup-choices.md)
+- [Design lineage, and what isn't a dependency](docs/lineage.md)
+- [The JSON schemas](contracts/README.md)
+- [The skill](skills/know-fu/SKILL.md), with guides for [ingestion](skills/know-fu/references/ingestion.md), [notes](skills/know-fu/references/notes.md), [books and PDFs](skills/know-fu/references/books.md), [video and audio](skills/know-fu/references/video.md), [using the knowledge](skills/know-fu/references/retrieval.md) and [operations](skills/know-fu/references/operations.md)
 
 ## Three parts of one system
 
-| Part | Owns | Included here? |
+| Part | What it holds | In this folder? |
 |---|---|---|
-| Plugin | Codex skill, reference guides, MCP launch configuration | Yes |
-| Engine | Source conversion, schema validation, publication, graph/search projection, retrieval, lifecycle operations | No; a separate local TypeScript project |
-| Corpus | Preserved sources, exact record revisions, explanatory Markdown, ingestion jobs and audit history | No; your separate data directory |
+| Plugin | The Codex skill, its guides, the MCP launch configuration | Yes |
+| Engine | Conversion, validation, publication, recall, brief, connect, views, lifecycle | No. It's the TypeScript project this folder sits inside |
+| Library | Original sources, exact record revisions, explanatory prose, jobs and audit history | No. It's your own data folder |
 
-The schema files bundled here are verified copies of the engine contracts. They explain the data model; they do not replace the engine or configure FalkorDB by themselves. See [the contract manifest](engine-contracts.json) for versions and hashes.
+The schemas in here are verified copies of the engine's contracts. They explain the data model, but they don't replace the engine or set up FalkorDB. [engine-contracts.json](engine-contracts.json) records their versions and hashes.
 
-In an installed chat, `kb_status` reports the actual engine and corpus paths. On disk, `.mcp.json` identifies the engine's `dist/mcp.js` and the corpus through `KB_CORPUS`. Its absolute paths belong to the local deployment. The engine repository's `README.md`, `docs/VALIDATION.md` and `docs/PERFORMANCE.md` describe its dependencies, checks and measured limits; these paths are relative to that repository, not this adapter folder.
+To see where things really are, ask `kb_status` in a running chat; it reports the actual engine and library paths. On disk, `.mcp.json` points at the engine's `dist/mcp.js` and sets the library through `KB_CORPUS`, and its absolute paths belong to one machine. The engine repository's `README.md`, `docs/VALIDATION.md` and `docs/PERFORMANCE.md` cover its dependencies, checks and measured limits.
 
-## Sharing or keeping a private repository
+## Keeping it together
 
-Preserve the engine source, contracts, lockfiles, tests, scripts and this adapter together. Keep the live corpus, credentials, runtime directories, model caches and personal acceptance outputs outside the code repository. A plugin-only repository would preserve instructions but omit most of Know Fu.
+Keep the engine source, contracts, lockfiles, tests, scripts and this adapter together. Keep the live library, credentials, runtime folders, model caches and personal acceptance outputs out of the code repository. A plugin-only copy keeps the instructions and loses most of Know Fu.
 
-The current deployment is local Windows plus Ubuntu WSL2, with FalkorDB and QMD. It has no cloud database or hosting subscription. Codex provides reasoning; optional transcription uses separately billed APIs. No local Whisper is required.
+The original deployment is Windows plus Ubuntu WSL2, with FalkorDB and QMD, and no cloud database or hosting subscription. Codex does the reasoning, and transcription, when it's used, goes through separately billed APIs. No local Whisper is needed.
 
-The repository contains the engine alongside this plugin; its machine-local `.mcp.json` is generated during setup and is not committed. A clean-machine installer and verified adapters for other harnesses have not been shipped. [Setup and portability](docs/setup.md) identifies the remaining work. Creating a private repository and allowing multiple harnesses to write the same corpus are separate decisions.
+The generated `.mcp.json` is machine-local and never committed. There's no clean-machine installer yet, and no verified adapter for other agents; [setup](docs/setup.md) lists what's left. Several agents writing to one library is a separate decision, saved for later.

@@ -76,6 +76,29 @@
       },
       "minItems": 0
     },
+    "affected_history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ]
+      },
+      "minItems": 0,
+      "description": "Exact historical revisions, outside affected_refs, that rest on purged material and are deleted by revision."
+    },
     "components": {
       "type": "array",
       "items": {

@@ -1043,6 +1043,15 @@ export class Jobs {
         "Injected interruption after proposal staging",
       );
       await this.recoverProposal(p.job_id);
+      // New meaning after the check reopens it: publication must check what is actually staged.
+      if (j.stage === "publish") {
+        const reopened = await this.load(p.job_id);
+        reopened.stage = "check";
+        reopened.remaining_work = [
+          "Staging changed after the check receipt; check what is now staged and submit a new check receipt",
+        ];
+        await this.save(reopened);
+      }
       return receipt;
     });
   }
@@ -1057,6 +1066,7 @@ export class Jobs {
         status: "complete" | "excluded";
         reason?: string;
       }[];
+      coverage_all?: { status: "complete" | "excluded"; reason?: string };
       resolutions?: ReweaveResolution[];
       understanding_change?: UnderstandingChange;
       capability?: string;
@@ -1192,7 +1202,23 @@ export class Jobs {
               ? "checked"
               : null;
       if (field) {
-        for (const update of input.coverage ?? []) {
+        // coverage_all asserts the same thing as listing every remaining unit of this stage.
+        const updates = [...(input.coverage ?? [])];
+        if (input.coverage_all) {
+          ensure(
+            ["complete", "excluded"].includes(input.coverage_all.status),
+            "VALIDATION_FAILED",
+            "coverage_all.status must be complete or excluded",
+          );
+          const listed = new Set(updates.map((u) => u.unit_id));
+          for (const unit of j.coverage)
+            if (
+              !listed.has(unit.unit_id) &&
+              !["complete", "excluded"].includes((unit as any)[field])
+            )
+              updates.push({ unit_id: unit.unit_id, ...input.coverage_all });
+        }
+        for (const update of updates) {
           const unit = j.coverage.find((u) => u.unit_id === update.unit_id);
           ensure(unit, "VALIDATION_FAILED", "Unknown coverage unit");
           if (update.status === "excluded") {
@@ -1216,6 +1242,10 @@ export class Jobs {
             input,
             ...(j.workflow_version === 2 && j.stage === "reweave"
               ? { reweave_assessments: reweaveAssessments }
+              : {}),
+            // A check receipt is bound to exactly what was staged when it was made.
+            ...(j.stage === "check"
+              ? { staged_digest: await this.stagedDigest(id) }
               : {}),
             timestamp: now(),
             actor: "codex",
@@ -1247,6 +1277,13 @@ export class Jobs {
       await this.save(j);
       return this.next(id);
     });
+  }
+  /** A digest of the staged records and bodies, so a check can be tied to what it checked. */
+  private async stagedDigest(id: string) {
+    const staged = await readJson<Materialized>(
+      path.join(this.jobPath(id), "staged.json"),
+    );
+    return hash(json({ records: staged.records, bodies: staged.bodies }));
   }
   async publish(id: string) {
     return withLock(this.store.root, "jobs", async () => {
@@ -1292,6 +1329,7 @@ export class Jobs {
       const staged = await readJson<Materialized>(
         path.join(this.jobPath(id), "staged.json"),
       );
+      // Reweaving is checked first: it is the earlier stage a change sends the job back to.
       if (j.workflow_version === 2) {
         const plan = await this.reweavePlan(id);
         ensure(
@@ -1300,6 +1338,19 @@ export class Jobs {
           "Staged meaning changed after reweaving or an affected account is unassessed; return to reweave and record the remaining decisions",
         );
       }
+      // Publication needs a check of what is actually staged. Older receipts carry no digest.
+      const checkReceipts = await Promise.all(
+        j.receipts.map((file) => readJson(this.store.p(file))),
+      );
+      const check = checkReceipts
+        .filter((r) => r.input?.stage === "check")
+        .at(-1);
+      ensure(
+        !check?.staged_digest ||
+          check.staged_digest === (await this.stagedDigest(id)),
+        "CHECK_STALE",
+        "Staging changed after the check receipt; return to the check stage, check what is now staged and submit a new check receipt",
+      );
       const result = await this.store.publish(
         staged.records,
         staged.bodies,

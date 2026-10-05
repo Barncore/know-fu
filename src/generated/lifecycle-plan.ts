@@ -22,6 +22,15 @@ export interface LifecyclePlanData {
     revision: number;
   }[];
   /**
+   * Exact historical revisions, outside affected_refs, that rest on purged material and are deleted by revision.
+   *
+   * @minItems 0
+   */
+  affected_history?: {
+    id: string;
+    revision: number;
+  }[];
+  /**
    * @minItems 0
    */
   components: (

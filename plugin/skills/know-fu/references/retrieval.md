@@ -1,45 +1,66 @@
 # Using the knowledge
 
-Domain tags influence ranking; they are not a strict filter. Use module/source scope for enforced access restrictions. Retrieval includes lifecycle, archive state and validity dates before body excerpts, and flags dates outside today's UTC date. A historical cited premise can remain in a packet without being a current recommendation. Automatic judgment expansion excludes retired or archived judgments. When following `depends_on`, its object is the prerequisite and its subject is the dependent account.
+## Recall first
 
-Establish what the task must resolve. For routine answers, call `kb_retrieve` with `mode:"packet"` (also the API default), `query` and a purpose: explain, teach, apply, compare, invent or investigate. Read its explanatory accounts and material qualifications; use `kb_read` for a complete exact record when needed. For a synthesis through this compatibility route, use the explain purpose and state the required branches in the query.
+`kb_recall {query, purpose}` is where every question starts. It searches by keyword and, when keywords look weak, by meaning through the semantic index. Then it spreads along typed links, so connected explanations surface even when they share no words with the question. It fuses those rankings and packs the result into a token budget. The briefing you get back holds:
 
-When the task calls for navigating a topic, choosing successive readings or explicitly using progressive access, call `kb_retrieve` with `mode:"progressive"`, `query` and one of those purposes or `synthesize`. Start precise lookups with three candidates and expand when a relevant branch is missing. Each follow-up can resend earlier context; smaller individual responses do not establish lower cumulative cost. Start with the relevant domain. Broaden within permitted modules only when the task warrants it; an expressly source-limited request stays source-limited. Set `scope.source_refs` for that restriction. Subject tags are not permissions.
+- the best explanations in full, best first, with their conditions ("Holds when / Not for");
+- the caveats that have to travel with them: accounts or passages that qualify or challenge them, and current judgments about them, each loaded right after the account it qualifies;
+- for `explain` and `teach`, conceptual prerequisites and a "Foundations first" reading order, from fundamentals up to the answer;
+- sources with page labels, verified quotes, and how many independent sources stand behind each account;
+- flags: `contested`, `pending reassessment` (newer evidence changed something it rests on), `filed answer` (a cited synthesis from an earlier session, ranked below its sources), and `applicability unknown` when a structured condition can't be checked;
+- assessment levels such as `evidence moderate` or `fidelity high`, when someone assessed the account, with an `Assessed:` line giving the basis and reason for each. No level means nobody assessed it, not that it's weak;
+- what didn't fit: caveats not loaded, related accounts not loaded, nearby open questions. "Caveats not loaded" also names premises underneath what was loaded that carry their own condition or boundary, and, on a pinned release, qualifications published after it. Read those as seriously as the ⚠ lines.
 
-Progressive discovery combines available keyword/vector search with optional graph exploration and mandatory material-context checks. It returns orientation candidates, necessary reading and traceable support. Summaries help select reading; they do not count as inspected evidence. `graph:false` disables optional exploration while retaining known qualifications, challenges, conceptual prerequisites and current judgments. `graph_required:true` errors when the graph projection is unavailable. `semantic:false` requests keyword lookup. CPU reranking is optional and can be expensive. Check the returned route rather than assume a backend ran.
+The header's token figure is the whole briefing. If it's over budget, the briefing says why: the best match is always whole, and caveats are listed even when they don't fit.
 
-Choose an entry point suited to the question:
+Pick the purpose that matches the task, because it shifts both ranking and the default budget:
 
-- Broad orientation: `kb_read {kind:"catalogue",purpose}` lists permitted topics and primers; `kind:"topic",topic:"domain_id"` lists summarized accounts. Follow `pagination.next_offset` when the relevant coverage extends beyond the page.
-- Targeted reading: `kb_read {kind:"account",record_ref:{id,revision},purpose}` opens a complete account. `kind:"accounts",record_refs:[...]` reads up to 12 selected accounts together.
-- Long accounts: `kind:"sections",record_ref` supplies stable section IDs. Read one using `kind:"account",record_ref,section_id`. A section is explicitly partial; its locator is tied to the exact revision, body hash and release. Re-list after a stale-section error.
-- Material context: `kind:"context",record_refs:[...]` resolves known context without opening every body. Follow `material_context.next_offset` using `context_offset` until resolved. Discovery and account reads also carry this context.
-- Supporting evidence: open exact passage references as accounts; existing `kb_read {record_ref:{id,revision}}` remains available. For ambiguous tables, equations or quotations, inspect the original evidence, including job visual units where available.
-
-Give a short reason for additional reading when it helps the user follow a consequential choice. Discovery's necessary reading is conditional on relying on the associated candidate. Choose relevant explanations, batch them with their identified qualifications and prerequisites, then resolve their returned material context; never drop a low-ranked exception just to save tokens. Resolve applicability facts or preserve them as unknown. Keep a task-local list of inspected exact refs, body hashes and any sections so repeated paths do not cause repeated full reads. Full input-dependency chains remain traceable in `traceable_support`; their bodies need not all be opened. Top-level `depends_on` records exact inputs and invalidation, whereas a relationship predicate `depends_on` identifies a conceptual prerequisite.
-
-MCP presents complete reading content with shared scope and assessment definitions printed once. Exact references appear as `id@revision`; pass them to tools as objects `{id,revision}`. The API/CLI and durable receipts retain the structured JSON contract. Section reads remain partial, and every source-specific warning and unresolved material-context page still matters.
-
-Stop when the task's material requirements are satisfied, or state what remains unresolved. A completed retrieval call or graph traversal does not establish completeness. Respect pending reassessment, historical status, inaccessible evidence, pagination and budget limits. If required reading cannot fit, narrow the claim or report the limitation. Do not silently treat a summary, excerpt or old revision as a current complete account. `mode:"packet"` retains the original expanded-packet route for explicit compatibility and comparison.
-
-Retrieval rank is relevance, not truth. Repeated derivative sources and summary/body matches are not independent corroboration. Consider source fidelity, evidence strength and applicability separately.
-
-Teach through coherent prose and examples suited to the learner. For application or invention, make premises, mechanisms, constraints and testing needs explicit. Distinguish a warranted deduction, a speculative hypothesis, and an empirical result. Skills can supply writing/product methods without pretending those methods came from research records.
-
-Match the reading to the purpose:
-
-| Purpose | Resolve before answering |
+| Purpose | Settle this before answering |
 |---|---|
-| Explain | Meaning, mechanism, reasoning and the boundary that changes the account |
-| Teach | Prerequisites, a coherent sequence, a worked case and a likely misunderstanding or near miss |
-| Apply | Necessary inputs, decision steps, failed preconditions and what the result permits |
-| Compare | Each account's definition, scope, evidence and unresolved differences |
-| Invent | Supported mechanisms, compatible assumptions, relevant prior attempts, the new inferential step and a test that could reject it |
-| Synthesize | Relevant branches, minority positions and exceptions; search beyond one connected component |
-| Investigate | The consequential gap, the decision it could change and the most useful next check |
+| `explain` | What it means, why it works, the boundary that changes the account |
+| `teach` | Prerequisites, a coherent sequence, a worked case, a likely misunderstanding |
+| `apply` | Required inputs, decision steps, failed preconditions, what the result allows |
+| `compare` | Each account's definition, scope and evidence, and what would decide between them |
+| `invent` | Supported mechanisms, compatible assumptions, the new inferential step, a test that could reject it |
+| `synthesize` | The relevant branches, minority positions and exceptions |
+| `investigate` | The gap that matters, the decision it could change, the most useful next check |
 
-Use functional facets when they help connect a task to a mechanism. Do not force novelty or cross-domain transfer. Rank a small set of useful questions by decision value, uncertainty, dependencies and resolution cost; a sparse graph is not itself a valuable research gap. Preserve the wider backlog rather than treating an answer as permission to launch new work.
+## Going further
 
-When accounts conflict, compare definitions, populations, timing, units, assumptions and method. Preserve genuine unresolved alternatives and explain what would decide between them. Missing applicability context remains unknown. Avoid automatic supersession by age, popularity, confident language or personal preference.
+Stop when the task's requirements are met. Go further only for a reason you could say out loud:
 
-Reusable improvements can enter a normal authorized research change. The fact that an answer was generated successfully does not automatically validate it or authorize a new research campaign.
+- A line under "Caveats not loaded" bears on your answer. Open it with `kb_read {kind:"accounts", record_refs:[{id, revision}]}` (up to 12 at once).
+- A related account matters. Open it the same way, or recall again with a narrower query and `seen:[ids you already hold]` so nothing gets sent twice.
+- The question is broad. Raise `budget_tokens` (the default is 6,000 to 12,000 depending on purpose; the maximum is 60,000), or set `depth:"deep"` to include the source pages behind loaded accounts.
+- An exact quotation, table cell or calculation matters. Open the cited passage. For tables, equations and figures, check the original page image through the job's units when the extraction looks ambiguous.
+- Keywords keep missing. Set `semantic:true` to force the semantic index.
+- You want the shape of a whole topic. `kb_read {kind:"catalogue"}` and `{kind:"topic", topic}` list accounts with summaries. Progressive retrieval (`kb_retrieve {mode:"progressive"}`) and the old packet route (`mode:"packet"`) are still there for comparison, but prefer recall.
+
+Every extra call resends the conversation so far, so a second narrow recall usually beats one huge one.
+
+## Connecting ideas
+
+Recall already follows links to decide what to load, but it doesn't show you the path. When the path is the point, use `kb_connect`:
+
+- `kb_connect {from, to}` returns up to three of the strongest chains between two ideas, within four hops. Each hop names the link in its direction ("qualifies", "is a prerequisite for", "weighs"), the record it reaches, and the reason written for that link.
+- `kb_connect {from}` with no target lists ideas two or more hops away. Ideas in other topics come first, as possible bridges; ideas in the same topic that aren't directly linked come second.
+- `from` and `to` take a record id, `id@revision`, or a few words. Words resolve to the best-matching account, and the briefing tells you which record it picked. If the default finds nothing, raise `max_hops` (up to 6) or `paths` (up to 8).
+
+Treat a chain as a lead, not a finding. Each hop is a link somebody recorded with a reason, so the chain tells you where to read. It doesn't show that one idea causes the other, or that a mechanism transfers. Before building an argument on a chain, open the accounts along it with `kb_read {kind:"accounts"}` and check that each hop's condition holds for your case. A chain through a broad hub idea is weaker than one through specific accounts. The search already penalizes hubs, but say so when a chain depends on one.
+
+"No chain within N hops" is a real answer too. It may mean the library doesn't link the ideas yet, and that gap can be the most useful thing you report, along with the source or question that would close it.
+
+## Answering
+
+Write connected prose in your own words, and cite record ids for the claims that carry weight. Inference is welcome when you name its premises. Keep three things visibly apart: what a source says, what follows from combining sources, and what you're proposing. Your own background knowledge can help you explain, but it's never library evidence. When the library lacks something, say so and name the source or question that would fill it.
+
+When accounts conflict, compare definitions, populations, timing, units, assumptions and method. Keep genuine alternatives open and say what would decide between them. Never settle a conflict by age, popularity, confident wording or your own preference. Missing applicability context stays unknown.
+
+When the sides of a conflict carry assessments, the briefing puts them on a "Side by side" line: each side's levels, the kind of support behind its evidence level, and its count of independent sources. Use the reasons behind the levels to explain where the evidence is stronger, and why. A higher level isn't a verdict. A well-supported claim can still be out of scope for the case, and an unassessed one may simply be unchecked.
+
+Retrieval rank means relevance, not truth. A repeated derivative source, or a summary and its own body, isn't independent corroboration. The independent-source count in the briefing already merges one source's pages into one.
+
+## Filing answers back
+
+A substantial answer that connects accounts in a reusable way is worth keeping. When the user agrees, call `kb_file {title, answer_markdown, cites:[ids you relied on], question, authorization}`. Use `form` `synthesis` for an explanation, or `application` and `worked_example` for an applied case. Use `epistemic:"inference"` when the answer goes beyond what the cited accounts state. `dry_run:true` previews the record first. The filed answer pins the revisions it cites, and when any of them changes, it gets flagged for review.
