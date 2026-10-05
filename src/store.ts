@@ -51,6 +51,8 @@ export type Ledger = {
   corpus_id: string;
   generation: number;
   blocked_ids: string[];
+  /** Exact historical revisions (id@revision) purged while later revisions of the id remain. */
+  blocked_refs?: string[];
   purged_hashes: string[];
   operations: unknown[];
 };
@@ -387,8 +389,11 @@ export class Store {
       "records:" + (release?.release_id ?? "empty"),
       async () => {
         const blocked = new Set(ledger.blocked_ids);
+        const blockedRefs = new Set(ledger.blocked_refs ?? []);
         const entries = (release?.records ?? []).filter(
-          (entry) => !blocked.has(entry.record_ref.id),
+          (entry) =>
+            !blocked.has(entry.record_ref.id) &&
+            !blockedRefs.has(key(entry.record_ref)),
         );
         const records = await mapLimit(entries, async (entry) => {
           const record = await this.memo("exact:" + key(entry.record_ref), () =>
@@ -415,7 +420,8 @@ export class Store {
   async exact(reference: Ref): Promise<RecordData> {
     const ledger = await this.ledger();
     ensure(
-      !ledger.blocked_ids.includes(reference.id),
+      !ledger.blocked_ids.includes(reference.id) &&
+        !(ledger.blocked_refs ?? []).includes(key(reference)),
       "CONTENT_PURGED",
       "Record is blocked by deletion policy",
     );
@@ -603,6 +609,40 @@ export class Store {
       }),
     );
   }
+  /** Whether an exact revision belongs to CURRENT or any release it descends from. */
+  async committed(reference: Ref) {
+    const wanted = key(reference);
+    return (await this.committedReleases()).some((release) =>
+      release.records.some((e) => key(e.record_ref) === wanted),
+    );
+  }
+
+  /**
+   * An interrupted publication can leave object files for a revision that never committed.
+   * When a corrected revision with the same number is published, those leftovers are removed,
+   * but only after proving no committed release refers to that revision. Runs under the
+   * publication lock, so no other publisher can be writing the same files.
+   */
+  private async clearAbortedRevision(
+    r: RecordData,
+    bodies: Record<string, string>,
+  ) {
+    const dir = this.p(objectPath(r));
+    const recordFile = path.join(dir, "record.json");
+    const differs = async (file: string, data: string) =>
+      (await exists(file)) && hash(await fs.readFile(file)) !== hash(data);
+    const stale =
+      (await differs(recordFile, json(r))) ||
+      (!!r.body &&
+        bodies[key(r)] !== undefined &&
+        (await differs(
+          await safePath(this.root, r.body.path, true),
+          bodies[key(r)],
+        )));
+    if (!stale || (await this.committed(r))) return;
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+
   async recover() {
     const journal = await readJson(this.p("publication.json")).catch(
       () => null,
@@ -824,7 +864,8 @@ export class Store {
         "Foreign corpus record",
       );
       ensure(
-        !ledger.blocked_ids.includes(r.id),
+        !ledger.blocked_ids.includes(r.id) &&
+          !(ledger.blocked_refs ?? []).includes(key(r)),
         "CONTENT_PURGED",
         "Cannot restore purged identity",
       );
@@ -1133,6 +1174,7 @@ export class Store {
         "Another job published first",
       );
       const base = await this.records();
+      const prior = new Map(base);
       await this.validateRecords(
         records,
         bodies,
@@ -1140,6 +1182,7 @@ export class Store {
         base,
       );
       for (const r of records) {
+        await this.clearAbortedRevision(r, bodies);
         if (r.body)
           await immutable(
             await safePath(this.root, r.body.path, true),
@@ -1172,7 +1215,12 @@ export class Store {
       };
       await validate("release", release);
       const changed = new Set(records.map((r) => r.id)),
-        affected = knowledgeImpact(base, records),
+        affected = knowledgeImpact(
+          base,
+          records,
+          prior,
+          [...omitIds].flatMap((id) => (prior.has(id) ? [prior.get(id)!] : [])),
+        ),
         impacts: any[] = await readJson<any[]>(
           this.p(`releases/${baseRelease}.impacts.json`),
         ).catch(() => []);

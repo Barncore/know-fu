@@ -41,7 +41,7 @@
     {
       "source": "contracts/schemas/lifecycle-plan.schema.json",
       "bundled": "contracts/schemas/lifecycle-plan.schema.json",
-      "sha256": "12872ada8bf1eab342f26ac3ca67d56c1a8370c23deaf671e8ef1c53b33ce9ce"
+      "sha256": "e00427a299afe4e4282f95183fe905ae6ff1003cb43f7103c03a9350b9e33df8"
     },
     {
       "source": "contracts/schemas/proposal.schema.json",

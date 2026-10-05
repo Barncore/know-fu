@@ -20,6 +20,8 @@ A job moves through fixed stages: convert, reconstruct, integrate, discover, rew
 
 If you hit `REVISION_CONFLICT`, another publication got there first. Run `kb_job {action:"rebase"}`, then redo the reweave and checks it reopens. Never overwrite the winning release.
 
+The check receipt is tied to exactly what was staged when you submitted it. If you write more notes after the check, the job goes back to the check stage; check the new material and submit a fresh check receipt with a new `step_id`. Publishing with a stale check fails with `CHECK_STALE`.
+
 ## What to report
 
 Finish by telling the user what the library can now explain or do that it couldn't before, which earlier accounts changed and why, the disagreements and gaps that remain, the checks you actually ran, and the release id. Don't claim that ingestion retrained the model or established mastery.

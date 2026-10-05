@@ -1043,6 +1043,15 @@ export class Jobs {
         "Injected interruption after proposal staging",
       );
       await this.recoverProposal(p.job_id);
+      // New meaning after the check reopens it: publication must check what is actually staged.
+      if (j.stage === "publish") {
+        const reopened = await this.load(p.job_id);
+        reopened.stage = "check";
+        reopened.remaining_work = [
+          "Staging changed after the check receipt; check what is now staged and submit a new check receipt",
+        ];
+        await this.save(reopened);
+      }
       return receipt;
     });
   }
@@ -1234,6 +1243,10 @@ export class Jobs {
             ...(j.workflow_version === 2 && j.stage === "reweave"
               ? { reweave_assessments: reweaveAssessments }
               : {}),
+            // A check receipt is bound to exactly what was staged when it was made.
+            ...(j.stage === "check"
+              ? { staged_digest: await this.stagedDigest(id) }
+              : {}),
             timestamp: now(),
             actor: "codex",
           }),
@@ -1264,6 +1277,13 @@ export class Jobs {
       await this.save(j);
       return this.next(id);
     });
+  }
+  /** A digest of the staged records and bodies, so a check can be tied to what it checked. */
+  private async stagedDigest(id: string) {
+    const staged = await readJson<Materialized>(
+      path.join(this.jobPath(id), "staged.json"),
+    );
+    return hash(json({ records: staged.records, bodies: staged.bodies }));
   }
   async publish(id: string) {
     return withLock(this.store.root, "jobs", async () => {
@@ -1309,6 +1329,7 @@ export class Jobs {
       const staged = await readJson<Materialized>(
         path.join(this.jobPath(id), "staged.json"),
       );
+      // Reweaving is checked first: it is the earlier stage a change sends the job back to.
       if (j.workflow_version === 2) {
         const plan = await this.reweavePlan(id);
         ensure(
@@ -1317,6 +1338,19 @@ export class Jobs {
           "Staged meaning changed after reweaving or an affected account is unassessed; return to reweave and record the remaining decisions",
         );
       }
+      // Publication needs a check of what is actually staged. Older receipts carry no digest.
+      const checkReceipts = await Promise.all(
+        j.receipts.map((file) => readJson(this.store.p(file))),
+      );
+      const check = checkReceipts
+        .filter((r) => r.input?.stage === "check")
+        .at(-1);
+      ensure(
+        !check?.staged_digest ||
+          check.staged_digest === (await this.stagedDigest(id)),
+        "CHECK_STALE",
+        "Staging changed after the check receipt; return to the check stage, check what is now staged and submit a new check receipt",
+      );
       const result = await this.store.publish(
         staged.records,
         staged.bodies,

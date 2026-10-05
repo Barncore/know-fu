@@ -11,6 +11,7 @@ import {
   form,
   isFiledAnswer,
   profile,
+  scopeText,
   SIDE_BY_SIDE_NOTE,
 } from "./recall.js";
 
@@ -109,12 +110,30 @@ export class Brief {
             (await index.releaseOrder(r)) > primerOrder
           )
             newer.push(r);
-        const freshness = newer.length
-          ? ` · stale: ${newer.length} account(s) published or revised in later releases; revise this primer when you next ingest here`
+        // Release freshness and temporal validity are separate: a primer can be up to date
+        // with the library and still be outside the dates or conditions it holds for.
+        const today = new Date().toISOString().slice(0, 10);
+        const limits: string[] = [];
+        if (newer.length)
+          limits.push(
+            `stale: ${newer.length} account(s) published or revised in later releases; revise this primer when you next ingest here`,
+          );
+        if (primer.scope.valid_until && today > primer.scope.valid_until)
+          limits.push(`expired: valid until ${primer.scope.valid_until}`);
+        if (primer.scope.valid_from && today < primer.scope.valid_from)
+          limits.push(`not yet valid: valid from ${primer.scope.valid_from}`);
+        if (primer.scope.condition_expression)
+          limits.push(
+            "holds only under a structured condition; check it with kb_recall before applying",
+          );
+        if (index.pending.has(primer.id)) limits.push("pending reassessment");
+        const freshness = limits.length
+          ? ` · ${limits.join(" · ")}`
           : " · current";
+        const boundary = scopeText(primer);
         const body = index.text(primer).trim();
         add(
-          `### Primer: ${primer.title.replace(/^primer:\s*/i, "")}\n${key(primer)}${freshness}`,
+          `### Primer: ${primer.title.replace(/^primer:\s*/i, "")}\n${key(primer)}${freshness}${boundary ? `\n${boundary}` : ""}`,
           true,
         );
         if (!add(body)) add(clip(summary(primer) ?? body, 600), true);

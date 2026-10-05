@@ -1,9 +1,18 @@
 import { Store } from "./store.js";
-import { condition, ensure, key, readJson, ref } from "./core.js";
+import {
+  blockedIds,
+  condition,
+  ensure,
+  key,
+  readJson,
+  ref,
+  relianceBlocked,
+} from "./core.js";
 import type { RecordData, Ref, Scope } from "./core.js";
 import { Bm25Index } from "./text-index.js";
 import { summary } from "./navigation.js";
 import { mapLimit } from "./verified-cache.js";
+import { ResearchView } from "./research-view.js";
 
 /** Records a reader can open as explanations, as opposed to evidence, links and sources. */
 export const ACCOUNT_TYPES = new Set([
@@ -75,7 +84,8 @@ export class LibraryIndex {
   readonly edges = new Map<string, Map<string, EdgeInfo>>();
   readonly lexical = new Bm25Index();
   dimensions: Record<string, unknown> = {};
-  private blockedMemo = new Map<string, boolean>();
+  private blockedLive?: Set<string>;
+  private guardView?: Promise<ResearchView>;
   private firstSeen?: Map<string, number>;
 
   private constructor(
@@ -126,23 +136,18 @@ export class LibraryIndex {
   }
 
   /** Withdrawal or missing support anywhere in the exact input chain blocks reliance. */
-  blocked(record: RecordData, trail = new Set<string>()): boolean {
-    const id = key(record);
-    const known = this.blockedMemo.get(id);
-    if (known !== undefined) return known;
-    if (trail.has(id)) return false;
-    trail.add(id);
-    const latest = this.live.get(record.id);
-    const result =
-      !latest ||
-      latest.lifecycle === "withdrawn" ||
-      record.lifecycle === "withdrawn" ||
-      record.depends_on.some((d) => {
-        const dependency = this.live.get(d.id);
-        return !dependency || this.blocked(dependency, trail);
-      });
-    this.blockedMemo.set(id, result);
-    return result;
+  blocked(record: RecordData): boolean {
+    this.blockedLive ??= blockedIds(this.live);
+    return relianceBlocked(record, this.live, this.blockedLive);
+  }
+
+  /** The canonical guard resolver shared with progressive reading, for the same release and scope. */
+  guards() {
+    this.guardView ??= ResearchView.open(this.store, {
+      scope: this.scope,
+      release_id: this.release,
+    });
+    return this.guardView;
   }
 
   usable(record: RecordData) {

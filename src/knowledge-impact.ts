@@ -1,10 +1,16 @@
 import { key, ref } from "./core.js";
 import type { RecordData, Ref } from "./core.js";
 
-/** Invalidation follows exact provenance and incoming changes to the meaning of existing accounts. */
+/**
+ * Invalidation follows exact provenance and incoming changes to the meaning of existing accounts.
+ * `base` is the resulting release; `prior` is the release before the change, which is where a
+ * retargeted or removed relationship or judgment still names its former endpoints.
+ */
 export function knowledgeImpact(
   base: Map<string, RecordData>,
   changes: RecordData[],
+  prior: Map<string, RecordData> = base,
+  removed: RecordData[] = [],
 ) {
   const causes = new Map<string, Map<string, Ref>>();
   const add = (id: string, references: Ref[]) => {
@@ -26,7 +32,7 @@ export function knowledgeImpact(
       )
         add(p.object.id, [ref(r)]);
       if (p.predicate === "depends_on") add(p.subject.id, [ref(r)]);
-      const old = base.get(r.id)?.payload as any;
+      const old = prior.get(r.id)?.payload as any;
       if (
         old &&
         ["qualifies", "challenges", "supports", "contradicts"].includes(
@@ -38,10 +44,25 @@ export function knowledgeImpact(
     }
     if (r.record_type === "judgment") {
       for (const reference of p.issue_refs) add(reference.id, [ref(r)]);
-      for (const reference of (base.get(r.id)?.payload as any)?.issue_refs ??
+      for (const reference of (prior.get(r.id)?.payload as any)?.issue_refs ??
         [])
         add(reference.id, [ref(r)]);
     }
+  }
+  // A relationship or judgment dropped from the release still changes what it used to touch.
+  for (const r of removed) {
+    const p = r.payload as any;
+    if (
+      r.record_type === "relationship" &&
+      ["qualifies", "challenges", "supports", "contradicts"].includes(
+        p.predicate,
+      )
+    )
+      add(p.object.id, [ref(r)]);
+    if (r.record_type === "relationship" && p.predicate === "depends_on")
+      add(p.subject.id, [ref(r)]);
+    if (r.record_type === "judgment")
+      for (const reference of p.issue_refs) add(reference.id, [ref(r)]);
   }
   let grew = true;
   while (grew) {

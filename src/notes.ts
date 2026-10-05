@@ -315,6 +315,7 @@ export class Notes {
     const items: any[] = [];
     const relationships: any[] = [];
     const problems: string[] = [];
+    const thinHigh: { slug: string; where: string; basis: string }[] = [];
     for (const n of parsed) {
       const where = `Note ${n.index} (${n.slug})`;
       const f = n.front;
@@ -608,15 +609,9 @@ export class Notes {
                   "VALIDATION_FAILED",
                   `${where}: assess.evidence needs a basis naming the kind of support: ${EVIDENCE_BASES.join(", ")}`,
                 );
-                const families = new Set([...sourceRefs.values()].map(familyOf))
-                  .size;
-                ensure(
-                  level !== "high" ||
-                    !THIN_BASES.includes(basis) ||
-                    families >= 2,
-                  "VALIDATION_FAILED",
-                  `${where}: evidence high from a ${basis.replace(/_/g, " ")} needs at least two independent source families, and this note rests on ${families}. Lower the level or cite the other evidence.`,
-                );
+                // Checked once sources from same-batch notes have been propagated.
+                if (level === "high" && THIN_BASES.includes(basis))
+                  thinHigh.push({ slug: n.slug, where, basis });
               }
               return [
                 dimension,
@@ -736,6 +731,41 @@ export class Notes {
           },
         });
       }
+    }
+    // A note that cites or uses another note in this batch inherits that note's sources,
+    // whatever order the notes arrive in, so attribution and source-restricted scopes hold.
+    const bySlug = new Map<string, any>(items.map((i) => [i.local_id, i]));
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const item of items) {
+        const have = new Set((item.source_refs as Ref[]).map(key));
+        for (const input of item.input_refs as Target[]) {
+          const dependency =
+            "local_ref" in input ? bySlug.get(input.local_ref) : undefined;
+          for (const s of (dependency?.source_refs ?? []) as Ref[])
+            if (!have.has(key(s))) {
+              item.source_refs.push(s);
+              have.add(key(s));
+              grew = true;
+            }
+        }
+      }
+    }
+    for (const relationship of relationships) {
+      const subject = bySlug.get(relationship.payload.subject.local_ref);
+      const have = new Set((relationship.source_refs as Ref[]).map(key));
+      for (const s of (subject?.source_refs ?? []) as Ref[])
+        if (!have.has(key(s))) relationship.source_refs.push(s);
+    }
+    for (const { slug, where, basis } of thinHigh) {
+      const families = new Set(
+        (bySlug.get(slug).source_refs as Ref[]).map(familyOf),
+      ).size;
+      ensure(
+        families >= 2,
+        "VALIDATION_FAILED",
+        `${where}: evidence high from a ${basis.replace(/_/g, " ")} needs at least two independent source families, and this note rests on ${families}. Lower the level or cite the other evidence.`,
+      );
     }
     ensure(
       !problems.length,

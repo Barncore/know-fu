@@ -58,7 +58,7 @@ Disagreement is information, not noise. When two sources conflict, both accounts
 
 Every claim can be checked. Records point to exact pages, quotes are verified against the extracted text, and the original file and page images stay available.
 
-Answering should get cheaper as the library grows, not pricier. On the three-paper test library, `kb_recall` sends 6,000-12,000 tokens per answer, where the older route sent 18,000-80,000. In a blind comparison on ten frozen questions, graders rated the answers as good as the older route's: 10 of 10 passed, against 9 of 10. [Validation](docs/VALIDATION.md) has the details and the limits.
+Answering should get cheaper as the library grows, not pricier. On the three-paper test library, `kb_recall` sends about 6,000-11,000 tokens per answer, where the older route sent 18,000-80,000. In a blind comparison on ten frozen questions, graders rated its answers as good as the older route's: 10 of 10 passed, against 9 of 10. (That test ran on slightly larger briefings than today's; an audit fix made the size accounting honest and trimmed them by 5-10%.) [Validation](docs/VALIDATION.md) has the details and the limits.
 
 The canonical records own the meaning. The wiki, the FalkorDB graph and the QMD search index are generated views. Delete one and you lose nothing; rebuild it from the records.
 
@@ -90,7 +90,7 @@ The setup guide separates what the system actually needs from choices one instal
 
 ## Where it's at
 
-It works on the development machine: Windows 11, Ubuntu WSL2, FalkorDB and QMD on the CPU. There are 131 automated tests; 128 pass, and 3 Python conversion tests skip where that runtime isn't installed. The whole pipeline has run end to end on technical papers, including a three-source test where later papers had to revise earlier understanding.
+It works on the development machine: Windows 11, Ubuntu WSL2, FalkorDB and QMD on the CPU. There are 143 automated tests; 140 pass, and 3 Python conversion tests skip where that runtime isn't installed. The whole pipeline has run end to end on technical papers, including a three-source test where later papers had to revise earlier understanding. An independent audit on 5 October 2026 found twelve defects the tests had missed; all are fixed, and each now has a regression test.
 
 What it hasn't done yet: ingest a long book or a full course with the new note format. A different machine needs its own dependency setup and checks, and Docker deployment and local speech transcription are configurable but untested end to end. [Validation](docs/VALIDATION.md) and [performance](docs/PERFORMANCE.md) keep score on what's been shown and what hasn't.
 

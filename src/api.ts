@@ -55,7 +55,7 @@ export const descriptions: Record<string, string> = {
   kb_evaluate:
     "Prepare or run isolated application evaluations through local Codex using the configured account. Input action=prepare|run|report, cases or run_id, model; evaluation cases/rubrics stay outside research views.",
   kb_maintain:
-    "Maintain the bound library. Input action=reindex|verify|export|restore|import|formats|wiki_edit|preview_bulk|execute_bulk|configure|plan_meaning|execute_meaning; action-specific inputs documented in operations reference. No arbitrary graph/backend selection.",
+    "Maintain the bound library. Input action=reindex|verify|export|restore|import|formats|wiki_edit (record_ref, optional view_release)|preview_bulk|execute_bulk|configure|plan_meaning|execute_meaning; action-specific inputs documented in operations reference. No arbitrary graph/backend selection.",
 };
 export class KnowledgeSystem {
   jobs: Jobs;
@@ -254,7 +254,7 @@ export class KnowledgeSystem {
           case "formats":
             return this.maintenance.exportFormats();
           case "wiki_edit":
-            return this.maintenance.wikiEdit(p.record_ref);
+            return this.maintenance.wikiEdit(p.record_ref, p.view_release);
           case "preview_bulk":
             return this.maintenance.previewBulk(p.proposal);
           case "execute_bulk": {

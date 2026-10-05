@@ -16,6 +16,7 @@ import {
   key,
   ref,
   recordRefs,
+  objectPath,
 } from "./core.js";
 import type { Ref, RecordData } from "./core.js";
 async function walk(root: string, prefix = ""): Promise<string[]> {
@@ -95,9 +96,16 @@ export class Maintenance {
         continue;
       if (
         f.startsWith("objects/") &&
-        ledger.blocked_ids.some((id) =>
+        (ledger.blocked_ids.some((id) =>
           f.startsWith("objects/" + id.replace(":", "_") + "/"),
-        )
+        ) ||
+          (ledger.blocked_refs ?? []).some((k) => {
+            const at = k.lastIndexOf("@");
+            return f.startsWith(
+              objectPath({ id: k.slice(0, at), revision: +k.slice(at + 1) }) +
+                "/",
+            );
+          }))
       )
         continue;
       const bytes = await fs.readFile(this.store.p(f));
@@ -172,22 +180,65 @@ export class Maintenance {
       indexes: "Rebuild with kb_maintain reindex",
     };
   }
-  async wikiEdit(record: Ref) {
+  /**
+   * Returns the edited wiki page for a record as proposed prose. The edit may sit in the
+   * current view or in an older view kept by reindexing because it held this unimported edit.
+   */
+  async wikiEdit(record: Ref, viewRelease?: string) {
     const { record: r } = await this.store.read(record);
     const release = await this.store.current();
     ensure(release, "VALIDATION_FAILED", "No release");
-    const wiki = this.store.p(
-        `views/${release}/wiki/${hash(r.id).slice(0, 24)}.md`,
-      ),
+    const page = (view: string) =>
+      `views/${view}/wiki/${hash(r.id).slice(0, 24)}.md`;
+    const edited = async (view: string) => {
+      const files = await readJson<Record<string, string>>(
+        this.store.p(`views/${view}/file-hashes.json`),
+      ).catch(() => ({}) as Record<string, string>);
+      const relative = page(view);
+      return (
+        files[relative] !== undefined &&
+        (await exists(this.store.p(relative))) &&
+        hash(await fs.readFile(this.store.p(relative))) !== files[relative]
+      );
+    };
+    let view = release;
+    if (viewRelease) {
+      ensure(
+        /^release-[a-zA-Z0-9-]+$/.test(viewRelease) &&
+          (await exists(this.store.p(page(viewRelease)))),
+        "VALIDATION_FAILED",
+        "No generated page for this record in that view",
+      );
+      view = viewRelease;
+    } else if (!(await edited(release))) {
+      // Newest retained view first, following release ancestry.
+      for (const ancestor of await this.store.committedReleases())
+        if (
+          ancestor.release_id !== release &&
+          (await edited(ancestor.release_id))
+        ) {
+          view = ancestor.release_id;
+          break;
+        }
+    }
+    const wiki = this.store.p(page(view)),
       content = await fs.readFile(wiki, "utf8");
+    const editedAgainst =
+      view === release
+        ? ref(r)
+        : ((await this.store.records(view)).get(r.id) ?? null);
     return {
       record_ref: record,
       generated_file: wiki,
+      view_release: view,
+      edited_against: editedAgainst ? ref(editedAgainst) : null,
       proposed_markdown: content
         .replace(/^---[\s\S]*?---\s*/, "")
         .split("\n## Provenance\n")[0],
       instruction:
-        "Review meaning and cite changes, then submit kb_propose with existing_ref. This has not changed canonical prose.",
+        view === release
+          ? "Review meaning and cite changes, then submit kb_propose with existing_ref. This has not changed canonical prose."
+          : `This edit was made on the page for ${view}, against ${editedAgainst ? key(editedAgainst) : "an earlier revision"}. If the record changed since, merge the edit into the current prose by hand, then submit kb_propose with existing_ref set to the current revision. This has not changed canonical prose.`,
     };
   }
   async previewBulk(proposal: any) {

@@ -297,6 +297,46 @@ export function recordRefs(r: RecordData) {
     ...refs(r.extensions),
   ]);
 }
+/**
+ * Ids whose current revision cannot be relied on: withdrawn, or resting (through
+ * the current revisions of its dependencies) on something withdrawn or missing.
+ * Computed as a fixed point, so the answer never depends on the order records are
+ * visited in, and dependency cycles created by later revisions are handled.
+ */
+export function blockedIds(live: Map<string, RecordData>) {
+  const blocked = new Set<string>();
+  for (const record of live.values())
+    if (record.lifecycle === "withdrawn") blocked.add(record.id);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const record of live.values())
+      if (
+        !blocked.has(record.id) &&
+        record.depends_on.some((d) => !live.has(d.id) || blocked.has(d.id))
+      ) {
+        blocked.add(record.id);
+        changed = true;
+      }
+  }
+  return blocked;
+}
+
+/** Whether an exact revision (current or historical) is blocked from reliance. */
+export function relianceBlocked(
+  record: RecordData,
+  live: Map<string, RecordData>,
+  blocked: Set<string>,
+) {
+  const latest = live.get(record.id);
+  return (
+    !latest ||
+    latest.lifecycle === "withdrawn" ||
+    record.lifecycle === "withdrawn" ||
+    record.depends_on.some((d) => !live.has(d.id) || blocked.has(d.id))
+  );
+}
+
 export function emptyAssessment() {
   return {
     level: "not_assessed" as const,

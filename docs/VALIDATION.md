@@ -4,6 +4,16 @@ The local development installation is Windows with Ubuntu WSL2, regular FalkorDB
 
 Entries run newest first. Each one says what was shown and what wasn't. Older entries are kept as written.
 
+## 2026-10-06: independent audit and repairs
+
+An independent reviewer audited commit `754329d` (engine 1.2.0 with `kb_connect` and assessments). They built it from the lockfile, ran the full suite (131 tests, 128 passed, 3 skipped, plus the three conversion tests separately with an existing Python runtime), and wrote twelve isolated reproductions on fictional, disposable libraries. Each reproduction exposed a real defect while every existing test passed. That's the useful lesson: the suite covered the paths it was written for, and these sat just beside them.
+
+Every reproduction ran again on this branch before any fix and showed the reported behavior. After the fixes, each reproduction became a regression test in `test/audit-fixes.test.ts`. All twelve tests fail when run against the old source and pass against the new. The full suite is now 143 tests: 140 pass, and the same 3 Python conversion tests skip on this machine.
+
+What changed for recall in practice: on the copy of the three-source acceptance library, the ten frozen cases now produce briefings of 5,984-10,695 estimated tokens, at 89-100% of their budgets, with 3-8 guards packed and up to 3 caveats listed per briefing. The briefings blind-tested on 5 October measured 6,177-11,963 for the same nominal budgets, because the old packing estimate undercounted each account by its labels and links. So each briefing now drops two to five of its lowest-ranked accounts compared with the tested version. That blind comparison was not rerun, so its result describes the earlier packing. A rerun belongs with roadmap task 5, which already concerns the synthesis budget.
+
+Not shown: that the guard pass helps answer quality (it's a correctness rule, carried over from progressive reading); behavior on a real library built with notes; or the reachability of the `braces` advisory beyond the audit's inspection, which found only generated paths reach it.
+
 ## 2026-10-05: `kb_connect` and assessments
 
 Engineering checks: 131 automated tests, 128 passing and 3 Python conversion tests skipped on this machine. Four tests cover `kb_connect`: a chain between two ideas with each hop's label and reason, words resolved to records and the `max_hops` limit, no path through withdrawn knowledge, and outward results only at two or more hops. Scope filtering comes from the index `kb_recall` uses, where a source-restricted scope is tested; no `kb_connect` test checks scope or the split between other topics and the same topic directly. New recall and notes tests show that assessment levels appear on the identity line with their basis and reason; that a conflict's two sides appear once, side by side, with each side's independent-source count; that the ranking is identical with and without levels; that `kb_brief` shows the same pair under live disagreements; and that `kb_write` refuses a level without a reason, an evidence level without a basis, and `high` from a worked case resting on one source family.

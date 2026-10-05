@@ -1,5 +1,14 @@
 import { Store } from "./store.js";
-import { condition, ensure, json, key, readJson, ref } from "./core.js";
+import {
+  blockedIds,
+  condition,
+  ensure,
+  json,
+  key,
+  readJson,
+  ref,
+  relianceBlocked,
+} from "./core.js";
 import type { RecordData, Ref, Scope } from "./core.js";
 import { navigationEntry } from "./navigation.js";
 
@@ -16,6 +25,7 @@ export class ResearchView {
   private permitted = new Set<string>();
   private pending = new Set<string>();
   private dimensions: any = {};
+  private blockedLive?: Set<string>;
   private constructor(
     readonly store: Store,
     readonly scope: Scope,
@@ -83,20 +93,9 @@ export class ResearchView {
     return view;
   }
 
-  blocked(record: RecordData, trail = new Set<string>()): boolean {
-    if (trail.has(key(record))) return false;
-    trail.add(key(record));
-    const latest = this.live.get(record.id);
-    if (
-      !latest ||
-      latest.lifecycle === "withdrawn" ||
-      record.lifecycle === "withdrawn"
-    )
-      return true;
-    return record.depends_on.some((d) => {
-      const dependency = this.live.get(d.id);
-      return !dependency || this.blocked(dependency, new Set(trail));
-    });
+  blocked(record: RecordData): boolean {
+    this.blockedLive ??= blockedIds(this.live);
+    return relianceBlocked(record, this.live, this.blockedLive);
   }
 
   usable(record: RecordData) {

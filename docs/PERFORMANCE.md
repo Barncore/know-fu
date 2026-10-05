@@ -16,7 +16,7 @@ Measured on a copy of the three-source acceptance library (182 records, release 
 | Repeated `kb_connect` with a target, three different pairs | 1-4 ms | 2,779-3,352 characters |
 | Repeated `kb_connect` without a target (outward), including `max_hops: 6` | 3-9 ms | about 5,950 characters |
 
-So the new routes are fast, and much smaller. A few caveats on reading that table. Estimated tokens are characters divided by four. The slowest recall call includes the index build. The `kb_connect` path search gives up after 60,000 expansions, so a dense library can't make it run away, but nobody has measured a large library yet. The index's memory use wasn't measured either. For the quality side of the recall comparison, see [VALIDATION.md](VALIDATION.md).
+So the new routes are fast, and much smaller. One update since: the 6 October audit repairs made recall cost each account by its rendered block, report the whole briefing, and add a guard pass. On the same ten cases, briefings now measure 5,984-10,695 estimated tokens, at 89-100% of their budgets, still in tens of milliseconds per call after the first. A few caveats on reading that table. Estimated tokens are characters divided by four. The slowest recall call includes the index build. The `kb_connect` path search gives up after 60,000 expansions, so a dense library can't make it run away, but nobody has measured a large library yet. The index's memory use wasn't measured either. For the quality side of the recall comparison, see [VALIDATION.md](VALIDATION.md).
 
 One more win from the same release: a job response through MCP shrank from 117,069 to 3,633 characters for a 121-unit job. MCP now renders a compact summary and only returns the raw JSON on `detail:"full"`.
 

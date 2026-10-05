@@ -24,7 +24,7 @@ These three do different jobs. Archive and unarchive change navigation. Withdraw
 
 Plan first with `kb_lifecycle {mode:"plan", action, targets, reason}`, using exact targets. Look at the dependents it reports. Then execute the returned `plan_id` with the user's real authorization `{action, targets, user_instruction}`.
 
-Purge needs explicit deletion authorization. It removes the previewed content and its derivatives, including affected managed backups. It can't reach external backups or copies held by a provider. If it fails partway, access to the affected content stays blocked; fix the cause and retry the same plan.
+Purge needs explicit deletion authorization. It removes the previewed content and its derivatives, including affected managed backups. The plan's `affected_refs` lists accounts removed as a whole; `affected_history` lists earlier revisions removed one by one because they rest on the purged material while the account's current revision doesn't. Show both to the user before executing. It can't reach external backups or copies held by a provider. If it fails partway, access to the affected content stays blocked; fix the cause and retry the same plan.
 
 The independent deletion ledger lives under the configured state folder's `ledgers/` (`KB_STATE_DIR`; the legacy default is the engine's `.runtime/ledgers`). Back it up separately. A missing or stale ledger blocks a restored service, which is deliberate: it stops a restore from resurrecting purged material.
 
@@ -38,7 +38,7 @@ Plan with `kb_maintain {action:"plan_meaning", kind:"supersede"|"merge_concepts"
 
 ## Formats, wiki edits and bulk work
 
-`formats` writes JSONL, a citation CSV and Mermaid. Edits to the generated wiki get detected: `wiki_edit` with `record_ref` returns the proposed prose for review and normal publication. `preview_bulk` and `execute_bulk` stage an exact reviewed proposal. Never bulk-accept doubtful meaning just to clear a queue.
+`formats` writes JSONL, a citation CSV and Mermaid. Edits to the generated wiki get detected: `wiki_edit` with `record_ref` returns the proposed prose for review and normal publication. If the edit was made before a later publication, it comes from the older view that kept it (or pass `view_release`), with `edited_against` naming the revision it was written for; merge it into the current prose by hand if the record has changed since. `preview_bulk` and `execute_bulk` stage an exact reviewed proposal. Never bulk-accept doubtful meaning just to clear a queue.
 
 ## Evaluations
 

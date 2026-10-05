@@ -10,7 +10,9 @@
 - sources with page labels, verified quotes, and how many independent sources stand behind each account;
 - flags: `contested`, `pending reassessment` (newer evidence changed something it rests on), `filed answer` (a cited synthesis from an earlier session, ranked below its sources), and `applicability unknown` when a structured condition can't be checked;
 - assessment levels such as `evidence moderate` or `fidelity high`, when someone assessed the account, with an `Assessed:` line giving the basis and reason for each. No level means nobody assessed it, not that it's weak;
-- what didn't fit: caveats not loaded, related accounts not loaded, nearby open questions.
+- what didn't fit: caveats not loaded, related accounts not loaded, nearby open questions. "Caveats not loaded" also names premises underneath what was loaded that carry their own condition or boundary, and, on a pinned release, qualifications published after it. Read those as seriously as the ⚠ lines.
+
+The header's token figure is the whole briefing. If it's over budget, the briefing says why: the best match is always whole, and caveats are listed even when they don't fit.
 
 Pick the purpose that matches the task, because it shifts both ranking and the default budget:
 

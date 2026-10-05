@@ -12,7 +12,7 @@ Version 1.2.0 changes how knowledge gets used and written, not how it's stored:
 
 | Area | 1.1.0 | 1.2.0 |
 |---|---|---|
-| Answering | `kb_retrieve` packet: every connected body, no budget | `kb_recall`: a ranked, budgeted briefing with caveats carried beside what they qualify. 6,000-12,000 tokens on the test cases, blind-graded as good as the packet (10 of 10 passed against 9 of 10) |
+| Answering | `kb_retrieve` packet: every connected body, no budget | `kb_recall`: a ranked, budgeted briefing with caveats carried beside what they qualify. about 6,000-11,000 tokens on the test cases, blind-graded as good as the packet (10 of 10 passed against 9 of 10, on the slightly larger briefings before the audit fixes) |
 | Session start | Nothing loaded | `kb_brief`: primers, central ideas, disagreements, next questions, what recent sources added |
 | Connecting ideas | No explicit chains | `kb_connect`: the strongest chains of links between two ideas, each hop with its reason, or the bridges an idea reaches in other topics |
 | Weighing support | Assessment fields existed, all `not_assessed`, read by nothing | Levels with reasons and a named basis on each account in recall, side by side in conflicts with each side's independent-source count, never used to rank |
@@ -48,7 +48,7 @@ This is the big one: so far the new tools have only met test libraries. Ingest o
 
 #### 5. Broad synthesis under a budget
 
-The blind comparison (VALIDATION, 2026-10-05) found recall as good as the packet at an eighth of the material, with one soft spot. On the synthesis case, two relevant accounts didn't fit the 12,000-token budget, and the answer left their branch implicit. Try a larger synthesis default, or one-line summaries of every unloaded account in the same topic. Judge the change on new paraphrased synthesis questions, never on the exposed cases. Done when synthesis answers cover their branches without the budget creeping above about a quarter of the packet's size.
+The blind comparison (VALIDATION, 2026-10-05) found recall as good as the packet at an eighth of the material, with one soft spot. On the synthesis case, two relevant accounts didn't fit the 12,000-token budget, and the answer left their branch implicit. Try a larger synthesis default, or one-line summaries of every unloaded account in the same topic. Judge the change on new paraphrased synthesis questions, never on the exposed cases. Since the 6 October audit fixes, briefings carry 5-10% less material at the same nominal budget (the old size accounting undercounted), so rerun the blind comparison here too. Done when synthesis answers cover their branches without the budget creeping above about a quarter of the packet's size.
 
 #### 6. Load the brief at session start
 
@@ -125,6 +125,7 @@ Operational or project memory, knowledge promotion tiers, several agents writing
 | A `kb_connect` chain gets read as a causal argument | An agent strings hops into a claim without opening the accounts | The briefing says a chain isn't evidence that one idea causes the other, and the retrieval guide says to open each hop and check its condition |
 | Assessment levels get read as verdicts, or filled in by guesswork | An agent picks the higher level in a conflict, or sets levels just to fill the field | Levels never touch ranking; conflicts show both sides with a note to weigh the reasons; `kb_write` refuses a level without a reason or basis, and `high` from thin support in one source family; task 2 checks real notes |
 | Two MCP processes on one library | Codex and Claude, or two sessions at once | Publication locks, control-signature cache keys and the short-lived search worker already handle it, but test it before relying on it |
+| The `braces` stack-exhaustion advisory (GHSA-vfj7-8cjw-p6xm), reached through QMD's micromatch and fast-glob | Only if untrusted, deeply nested glob patterns ever reach QMD | Know Fu passes generated collection paths today. Don't add configurable patterns without reviewing this, and don't apply npm's forced QMD downgrade; update when QMD ships a fixed dependency |
 
 ## What stays true whatever changes
 

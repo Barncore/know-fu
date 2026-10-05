@@ -95,23 +95,48 @@ export class Lifecycle {
       );
       await this.store.requireWritable(r, scope);
     }
+    // Historical revisions matter for purge: an account revised to independent material
+    // keeps its earlier, source-derived revisions in history unless they are deleted too.
+    const history = new Map<string, RecordData>();
+    if (action === "purge") {
+      const currentKeys = new Set([...records.values()].map(key));
+      for (const release of await this.store.committedReleases())
+        for (const entry of release.records) {
+          const k = key(entry.record_ref);
+          if (currentKeys.has(k) || history.has(k)) continue;
+          const r = await this.store.exact(entry.record_ref).catch(() => null);
+          if (r) history.set(k, r);
+        }
+    }
     const affected = new Set(targets.map((x) => x.id));
+    const historical = new Set<string>();
+    const touches = (r: RecordData) =>
+      recordRefs(r).some((d) => affected.has(d.id) || historical.has(key(d)));
     let changed = true;
     while (changed) {
       changed = false;
       for (const r of records.values())
-        if (
-          !affected.has(r.id) &&
-          recordRefs(r).some((d) => affected.has(d.id))
-        ) {
+        if (!affected.has(r.id) && touches(r)) {
           affected.add(r.id);
           changed = true;
         }
+      for (const [k, r] of history)
+        if (!historical.has(k) && !affected.has(r.id) && touches(r)) {
+          historical.add(k);
+          changed = true;
+        }
     }
+    // Revisions of an id purged as a whole need no separate entry.
+    const affectedHistory = [...historical]
+      .map((k) => history.get(k)!)
+      .filter((r) => !affected.has(r.id));
     if (action === "purge")
-      for (const id of affected)
+      for (const r of [
+        ...[...affected].map((id) => records.get(id)!),
+        ...affectedHistory,
+      ])
         ensure(
-          scope.write_modules.includes(records.get(id)!.maintenance_module),
+          scope.write_modules.includes(r.maintenance_module),
           "SCOPE_DENIED",
           "Purge affects another maintenance module; authorize its scope before deletion",
         );
@@ -124,6 +149,9 @@ export class Lifecycle {
       targets,
       reason,
       affected_refs: [...affected].map((id) => ref(records.get(id)!)),
+      ...(affectedHistory.length
+        ? { affected_history: affectedHistory.map(ref) }
+        : {}),
       components:
         action === "purge"
           ? [
@@ -270,6 +298,11 @@ export class Lifecycle {
               ),
             );
           const ids = new Set(p.affected_refs.map((r) => r.id)),
+            history = (p.affected_history ?? []) as Ref[],
+            historyKeys = new Set(history.map(key)),
+            // Purged material: a whole id, or one exact historical revision of an id that stays.
+            hit = (list: Ref[] = []) =>
+              list.some((d) => ids.has(d.id) || historyKeys.has(key(d))),
             inventoryPath = this.store.p(
               `lifecycle/purge-work/${p.plan_id}.json`,
             );
@@ -309,6 +342,10 @@ export class Lifecycle {
           if (!ledger.operations.some((o: any) => o.plan_id === p.plan_id)) {
             ledger.generation++;
             ledger.blocked_ids = [...new Set([...ledger.blocked_ids, ...ids])];
+            if (historyKeys.size)
+              ledger.blocked_refs = [
+                ...new Set([...(ledger.blocked_refs ?? []), ...historyKeys]),
+              ];
             ledger.purged_hashes = [
               ...new Set([
                 ...ledger.purged_hashes,
@@ -351,6 +388,7 @@ export class Lifecycle {
             }
           };
           for (const id of ids) await remove("objects/" + id.replace(":", "_"));
+          for (const reference of history) await remove(objectPath(reference));
           for (const s of sources) {
             const original = s.original_path,
               folder = path.posix.dirname(original);
@@ -369,8 +407,7 @@ export class Lifecycle {
             if (
               job?.source_refs.some((r: Ref) => ids.has(r.id)) ||
               staged?.records.some(
-                (r: RecordData) =>
-                  ids.has(r.id) || recordRefs(r).some((d) => ids.has(d.id)),
+                (r: RecordData) => ids.has(r.id) || hit(recordRefs(r)),
               )
             )
               await remove("jobs/" + name);
@@ -397,7 +434,15 @@ export class Lifecycle {
             const index = await readJson(
               this.store.p(`exports/${name}/bundle.json`),
             ).catch(() => null);
-            if (!index || index.record_ids.some((id: string) => ids.has(id)))
+            if (
+              !index ||
+              index.record_ids.some((id: string) => ids.has(id)) ||
+              history.some((reference) =>
+                Object.keys(index.files ?? {}).some((f) =>
+                  f.startsWith(objectPath(reference) + "/"),
+                ),
+              )
+            )
               await remove("exports/" + name);
           }
           for (const name of await fs
@@ -406,22 +451,19 @@ export class Lifecycle {
             const r = await readJson(
               this.store.p("retrieval-receipts/" + name),
             );
-            if (refs(r).some((d) => ids.has(d.id)))
-              await remove("retrieval-receipts/" + name);
+            if (hit(refs(r))) await remove("retrieval-receipts/" + name);
           }
           for (const name of await fs
             .readdir(this.store.p("lifecycle/bulk"))
             .catch(() => [])) {
             const r = await readJson(this.store.p("lifecycle/bulk/" + name));
-            if (refs(r).some((d) => ids.has(d.id)))
-              await remove("lifecycle/bulk/" + name);
+            if (hit(refs(r))) await remove("lifecycle/bulk/" + name);
           }
           for (const name of await fs
             .readdir(this.store.p("lifecycle/meaning"))
             .catch(() => [])) {
             const r = await readJson(this.store.p("lifecycle/meaning/" + name));
-            if (refs(r).some((d) => ids.has(d.id)))
-              await remove("lifecycle/meaning/" + name);
+            if (hit(refs(r))) await remove("lifecycle/meaning/" + name);
           }
           try {
             const { db, graph } = await this.projections.graph();
@@ -447,11 +489,7 @@ export class Lifecycle {
             .catch(() => [])) {
             const f = this.store.p("audit/events/" + name),
               e = await readJson(f);
-            if (
-              (e.record_refs ?? e.affected_refs)?.some((r: Ref) =>
-                ids.has(r.id),
-              )
-            ) {
+            if (hit(e.record_refs ?? e.affected_refs)) {
               e.description = "Content redacted by explicit purge";
               e.reason = e.description;
               await atomic(f, json(e));
@@ -463,7 +501,7 @@ export class Lifecycle {
             if (!/^release-[a-z0-9-]+\.json$/.test(name)) continue;
             const f = this.store.p("releases/" + name),
               r = await readJson(f);
-            if (r.records.some((e: any) => ids.has(e.record_ref.id))) {
+            if (hit(r.records.map((e: any) => e.record_ref))) {
               r.change_reason =
                 "Historical description redacted by explicit purge";
               await atomic(f, json(r));
@@ -474,7 +512,7 @@ export class Lifecycle {
             .catch(() => [])) {
             const f = this.store.p("lifecycle/plans/" + name),
               r = await readJson(f);
-            if (refs(r).some((d) => ids.has(d.id))) {
+            if (hit(refs(r))) {
               r.reason = "Description redacted by explicit purge";
               await atomic(f, json(r));
             }
@@ -484,7 +522,7 @@ export class Lifecycle {
             .catch(() => [])) {
             const f = this.store.p("lifecycle/authorizations/" + name),
               r = await readJson(f);
-            if (refs(r).some((d) => ids.has(d.id))) {
+            if (hit(refs(r))) {
               r.user_instruction = "Redacted after authorized purge";
               await atomic(f, json(r));
             }

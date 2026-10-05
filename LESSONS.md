@@ -2,6 +2,18 @@
 
 Things this project learned the hard way, newest first. Each one says what happened and what to do differently.
 
+## 2026-10-06 - A required guard can't ride on an optional feature
+
+An independent audit found that recall carried a filed answer's inherited conditions only when optional graph expansion happened to pull in the procedure underneath. Switch the graph off and the condition vanished, while progressive reading, which resolves guards from exact premises, still found it. The two read paths had drifted apart because each had its own guard logic. Mandatory rules (what must travel with an account, what blocks reliance) belong in one shared resolver that every read path calls. Ranking, expansion and budgets decide what else to show, never whether a guard appears.
+
+## 2026-10-06 - Test the paths beside the ones you wrote
+
+All 131 tests passed while twelve real defects sat next to them: a purge that missed older revisions, a cycle created by a later revision, a check receipt that didn't bind to what it checked. Each test exercised the case its author had in mind. The reviewer found the defects by asking what an ordinary, supported workflow does one step further: revise, then purge; publish, crash, then correct. Write the regression first from the reproduction, confirm it fails on the old code, and only then fix.
+
+## 2026-10-06 - Memoize only finished answers
+
+The recall index cached "not blocked" for a record while a cycle-breaking walk was still part-way through, so the order records were visited in decided whether withdrawn support was noticed. A cache of a partial result is a wrong answer that looks authoritative. Compute properties like reliance as a fixed point over the whole graph, or cache only after the computation is complete.
+
 ## 2026-10-05 - A field nothing reads stays empty
 
 Every record carried fidelity, evidence and applicability assessments from day one. In the three-paper test library, all 235 record revisions had all three set to `not_assessed`. Not one was filled in. The guide told agents not to manufacture confidence scores, never said when an assessment *was* worth making, and nothing anywhere showed the levels to anyone. So agents did the sensible thing and skipped them. The review of eight other tools found the same pattern everywhere: counters nobody writes, scores nobody reads.

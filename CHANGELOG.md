@@ -4,6 +4,25 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-06 - Repairs from an independent implementation audit
+
+Why: an independent review of commit `754329d` found twelve defects, each with a reproduction script, while all 131 existing tests passed. Every finding reproduced on this branch, so all twelve are fixed, and each reproduction is now a regression test that fails on the old code and passes on the new.
+
+- F01, purge: a purge now also deletes earlier revisions that rest on the purged material, even when the account's current revision is independent and survives. The plan lists them in a new optional `affected_history` field, the deletion ledger blocks them by exact revision (`blocked_refs`), and reads, restores and new exports refuse them.
+- F02, reliance: whether an account can be relied on is now a fixed-point calculation shared by recall and progressive reading, so a dependency cycle created by a later revision can no longer hide withdrawn support.
+- F03 and F07, guards: recall now takes its guards from the same resolver as progressive reading. The premises of what it loads, their conditions, qualifications and current judgments, are packed or listed whatever the rank, graph setting or budget. That includes qualifications published after a pinned release. Premises that only repeat a boundary the loaded accounts already show stay out.
+- F04, checking: a check receipt now records a digest of what was staged. Publication refuses if staging changed since (`CHECK_STALE`), and a proposal after the check sends the job back to the check stage.
+- F05, impact: retargeting or removing a relationship or judgment now flags the account it used to point at, not just the new one.
+- F06, notes: a note that cites or uses another note in the same batch inherits its sources, in any order, so source-restricted recall finds it. The "high from thin support" check counts those inherited families too.
+- F08, brief: a primer is called "current" only when it's within its validity dates, has no structured condition and isn't pending reassessment, and its boundary is shown.
+- F09, recovery: after an interrupted publication, a corrected revision with the same number now publishes. Leftover files are removed only after proving no committed release includes that revision.
+- F10, evaluation: grading refuses an original whose bytes no longer match the source record's hash.
+- F11, budget: `budget.used` is now the whole delivered briefing (the packing figure moves to `budget.packed`). Packing costs each account by its rendered block, optional lists are trimmed to fit, and a briefing over budget says so. The packing reserve dropped from 12% to 5%, so briefings land at 89-100% of budget.
+- F12, wiki edits: `wiki_edit` finds an edit kept in an older view, or takes `view_release`, and reports which revision the edit was made against.
+- Not changed: the `braces` advisory reached through QMD's file-matching dependencies. Know Fu passes only generated paths, and npm's suggested forced QMD downgrade would break the current API. It's tracked in the roadmap.
+- Effect on recall size: on the ten frozen cases, briefings now carry roughly 5-10% less material than the ones blind-tested on 5 October, because the earlier figures undercounted. The blind result was not rerun. See [VALIDATION.md](docs/VALIDATION.md).
+- Verification: 143 tests (140 passed, 3 Python conversion tests skipped on this machine), build, formatting and package check with 14 schema copies. The lifecycle-plan schema gains an optional field; record schema stays 1.1.0. An older engine ignores `blocked_refs` in the ledger, so reading a revision purged this way gives it a missing-file error instead of a clear "purged" refusal; roll engine and plugin forward together.
+
 ### 2026-10-05 - Docs in a conversational voice
 
 Why: the owner read the plain rewrite below and found it a little dull and robotic next to the audit report and the chat explanations it was based on. The docs were rewritten again in that voice: conversational, specific, with a view where a choice was made and a little personality.

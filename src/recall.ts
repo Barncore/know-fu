@@ -228,7 +228,7 @@ export function supportTally(index: LibraryIndex, r: RecordData) {
   };
 }
 
-function scopeText(r: RecordData) {
+export function scopeText(r: RecordData) {
   if (!r.scope.conditions.length && !r.scope.exclusions.length) return "";
   return `Holds when: ${r.scope.conditions.join("; ") || "unstated"}${r.scope.exclusions.length ? ` · Not for: ${r.scope.exclusions.join("; ")}` : ""}`;
 }
@@ -445,9 +445,20 @@ export class Recall {
     };
     const packed = new Map<string, Packed>();
     let used = 0;
-    const reserve = Math.round(budget * 0.12);
-    const cost = (r: RecordData) =>
-      estimateTokens(index.text(r)) + estimateTokens(r.title) + 60;
+    const reserve = Math.max(Math.round(budget * 0.05), 60);
+    // Caveats may use the budget beyond the reserve, but leave room for the header and the mandatory lines.
+    const caveatLimit = budget - Math.min(150, Math.round(budget * 0.3));
+    // Cost an account by the block it will actually render as: prose, sources, links and flags.
+    const cost = (r: RecordData, role: Packed["role"]) =>
+      estimateTokens(
+        this.block(
+          index,
+          { record: r, role, tokens: 0, channels: [], reason: "" },
+          packed,
+          new Map(),
+          input.context,
+        ),
+      ) + 2;
     const tryPack = (
       r: RecordData,
       role: Packed["role"],
@@ -456,7 +467,7 @@ export class Recall {
       limit: number,
     ) => {
       if (packed.has(r.id) || seen.has(r.id)) return true;
-      const tokens = cost(r);
+      const tokens = cost(r, role);
       if (used + tokens > limit) return false;
       packed.set(r.id, { record: r, role, tokens, channels: via, reason });
       used += tokens;
@@ -496,7 +507,7 @@ export class Recall {
             "caveat",
             `${link.predicate} ${c.record.title}`,
             ["context"],
-            budget,
+            caveatLimit,
           );
       }
       for (const judgment of judgments)
@@ -505,7 +516,7 @@ export class Recall {
           "caveat",
           `judgment on ${c.record.title}`,
           ["context"],
-          budget,
+          caveatLimit,
         );
       if (purpose === "teach" || purpose === "explain")
         for (const link of index.outgoing.get(c.record.id) ?? [])
@@ -533,6 +544,120 @@ export class Recall {
             budget - reserve,
           );
       }
+
+    // Guards come from the resolver progressive reading uses: the exact premises of what was
+    // loaded, their boundaries, qualifications and current judgments, including ones published
+    // after a pinned release. They are independent of rank, graph expansion and budget: each is
+    // packed when it fits and named under "Caveats not loaded" when it does not.
+    const seeds = [...packed.values()]
+      .filter((p) => p.reason === "match")
+      .map((p) => p.record);
+    const guardLines = new Map<string, string>();
+    if (seeds.length) {
+      const view = await index.guards();
+      const context = await view.materialContext(seeds);
+      // A premise matters here when it adds a boundary the loaded accounts don't already
+      // show: a structured condition, a validity limit, pending reassessment, or a
+      // condition or exclusion none of them states.
+      const shown = new Set(
+        [...packed.values()].flatMap((p) => [
+          ...p.record.scope.conditions,
+          ...p.record.scope.exclusions,
+        ]),
+      );
+      const addsBoundary = (r: RecordData) =>
+        !!r.scope.condition_expression ||
+        !!r.scope.valid_from ||
+        !!r.scope.valid_until ||
+        index.pending.has(r.id) ||
+        [...r.scope.conditions, ...r.scope.exclusions].some(
+          (b) => !shown.has(b),
+        );
+      for (const w of context.warnings)
+        if (
+          !w.startsWith("Some material is inaccessible") &&
+          !warnings.includes(w)
+        )
+          warnings.push(w);
+      const boundaryOf = (record: RecordData) =>
+        [
+          scopeText(record),
+          record.scope.condition_expression &&
+          index.applicability(record, input.context) !== "true"
+            ? `applicability ${index.applicability(record, input.context)} here`
+            : null,
+          index.pending.has(record.id) ? "pending reassessment" : null,
+        ]
+          .filter(Boolean)
+          .join("; ");
+      // Substantive guards first: qualifications, challenges, judgments, prerequisites, and
+      // premises with a structured condition, validity limit or pending reassessment. These
+      // are packed when they fit. A premise that only adds a plain boundary costs one line.
+      const plainBoundaries = new Map<string, RecordData[]>();
+      const substantive = context.required.filter(({ record, reason }) => {
+        if (seen.has(record.id) || packed.has(record.id)) return false;
+        if (record.record_type === "source") return false;
+        if (!reason.startsWith("Supporting premise")) return true;
+        if (!addsBoundary(record)) return false;
+        if (
+          record.scope.condition_expression ||
+          record.scope.valid_from ||
+          record.scope.valid_until ||
+          index.pending.has(record.id)
+        )
+          return true;
+        const boundary = boundaryOf(record);
+        plainBoundaries.set(boundary, [
+          ...(plainBoundaries.get(boundary) ?? []),
+          record,
+        ]);
+        return false;
+      });
+      for (const { record, reason } of substantive) {
+        const premise = reason.startsWith("Supporting premise");
+        const pinned = index.visible.get(record.id);
+        const packable =
+          index.usableIds.has(record.id) &&
+          pinned?.revision === record.revision;
+        if (
+          packable &&
+          tryPack(
+            record,
+            "caveat",
+            premise ? "premise with its own boundary" : clip(reason, 140),
+            ["guard"],
+            caveatLimit,
+          )
+        )
+          continue;
+        const later = !pinned
+          ? ` (published after release ${index.release})`
+          : "";
+        guardLines.set(
+          record.id,
+          premise
+            ? `${record.title} (${key(record)})${later} is a premise of what was loaded, with its own boundary: ${boundaryOf(record) || "inspect it before relying on the account"}`
+            : `${record.title} (${key(record)})${later}: ${clip(reason, 220)}`,
+        );
+      }
+      // Recheck against everything now loaded: a packed guard may already show the boundary.
+      for (const p of packed.values())
+        for (const b of [
+          ...p.record.scope.conditions,
+          ...p.record.scope.exclusions,
+        ])
+          shown.add(b);
+      for (const [boundary, records] of plainBoundaries) {
+        const names = records
+          .filter((r) => !packed.has(r.id) && addsBoundary(r))
+          .map((r) => `${r.title} (${key(r)})`);
+        if (names.length)
+          guardLines.set(
+            records[0].id,
+            `${names.join(", ")} ${names.length > 1 ? "are premises" : "is a premise"} of what was loaded, with a boundary the loaded accounts don't show: ${boundary}`,
+          );
+      }
+    }
 
     // Render: shared scope lines printed once, then each account, then what was left out.
     const loaded = [...packed.values()];
@@ -579,6 +704,12 @@ export class Recall {
             `${p.record.title} (${key(p.record)}) has a ${(j.payload as any).outcome} judgment: ${j.title} (${key(j)})`,
           );
     }
+    for (const [id, line] of guardLines)
+      if (
+        !packed.has(id) &&
+        !unresolvedCaveats.some((c) => c.includes(`(${id}`))
+      )
+        unresolvedCaveats.push(line);
     if (marks.sideBySide) warnings.push(SIDE_BY_SIDE_NOTE);
     const pending = loaded.filter((p) => index.pending.has(p.record.id)).length;
     if (pending)
@@ -596,7 +727,7 @@ export class Recall {
 
     const header = [
       `# Recall: ${input.query}`,
-      `Purpose ${purpose} · release ${index.release}${index.release !== index.current ? ` (current is ${index.current})` : ""} · loaded ${loaded.length} of ${candidates.length} matches · ~${used} of ${budget} tokens`,
+      `Purpose ${purpose} · release ${index.release}${index.release !== index.current ? ` (current is ${index.current})` : ""} · loaded ${loaded.length} (${candidates.length} matched) · ~TOKENS of ${budget} tokens`,
       `Channels: ${Object.entries(channels)
         .map(([name, status]) => `${name} ${status}`)
         .join(" · ")}`,
@@ -620,40 +751,63 @@ export class Recall {
             `Scope ${label}: ${text.replace(/^Holds when: /, "holds when ")}`,
         ),
       );
-    const footer: string[] = [];
-    if (unresolvedCaveats.length)
-      footer.push(
-        "## Caveats not loaded (open these before relying on the account)",
-        ...unresolvedCaveats.slice(0, 12).map((c) => `- ${c}`),
-      );
-    if (notLoaded.length)
-      footer.push(
-        "## Also relevant, not loaded",
-        ...notLoaded.map(
-          (c) =>
-            `- ${key(c.record)} · ${c.record.title}${summary(c.record) ? ": " + clip(summary(c.record)!, 150) : ""}`,
-        ),
-      );
-    if (questions.size)
-      footer.push(
-        "## Open questions nearby",
-        ...[...questions.values()]
-          .slice(0, 5)
-          .map((q) => `- ${key(q)} · ${q.title}`),
-      );
-    if (seen.size)
-      footer.push(
-        `${seen.size} account(s) you already hold were not sent again.`,
-      );
-    footer.push(
+    // Caveats are mandatory; the related-account and question lists are optional and are
+    // trimmed to what the budget has left. The reported size is the whole briefing.
+    const caveatSection = unresolvedCaveats.length
+      ? [
+          "## Caveats not loaded (open these before relying on the account)",
+          ...unresolvedCaveats.slice(0, 12).map((c) => `- ${c}`),
+          ...(unresolvedCaveats.length > 12
+            ? [`- …and ${unresolvedCaveats.length - 12} more`]
+            : []),
+        ]
+      : [];
+    const closing = [
+      ...(seen.size
+        ? [`${seen.size} account(s) you already hold were not sent again.`]
+        : []),
       'Open more with kb_read {kind:"accounts", record_refs:[{id,revision}]}, or call kb_recall again with seen=[ids you hold] and a narrower query. Cited pages open as passages.',
-    );
-    const briefing = [
-      header.join("\n"),
-      ...(warnings.length ? ["> " + warnings.join("\n> ")] : []),
-      ...blocks,
-      footer.join("\n"),
-    ].join("\n\n");
+    ];
+    const assemble = (optional: string[], tokens: number) =>
+      [
+        header.join("\n").replace("~TOKENS", `~${tokens}`),
+        ...(warnings.length ? ["> " + warnings.join("\n> ")] : []),
+        ...blocks,
+        [...caveatSection, ...optional, ...closing].join("\n"),
+      ].join("\n\n");
+    let room = budget - estimateTokens(assemble([], budget));
+    const optional: string[] = [];
+    const offer = (line: string, always = false) => {
+      const tokens = estimateTokens(line) + 1;
+      if (!always && tokens > room) return false;
+      optional.push(line);
+      room -= tokens;
+      return true;
+    };
+    if (notLoaded.length) {
+      offer("## Also relevant, not loaded", true);
+      notLoaded.forEach((c, position) => {
+        const short = `- ${key(c.record)} · ${c.record.title}`;
+        const text = summary(c.record);
+        if (!(text && offer(`${short}: ${clip(text, 150)}`)))
+          offer(short, position < 3);
+      });
+    }
+    const openQuestions = [...questions.values()].slice(0, 5);
+    if (openQuestions.length && room > 20) {
+      offer("## Open questions nearby", true);
+      for (const q of openQuestions) offer(`- ${key(q)} · ${q.title}`);
+    }
+    let briefing = assemble(optional, budget);
+    let delivered = estimateTokens(briefing);
+    if (delivered > budget) {
+      warnings.push(
+        `This briefing is over the ${budget}-token budget: the best match is always delivered whole, and caveats that didn't fit are still listed.`,
+      );
+      briefing = assemble(optional, budget);
+      delivered = estimateTokens(briefing);
+    }
+    briefing = assemble(optional, delivered);
 
     const result = {
       interface_version: "recall-1",
@@ -663,7 +817,12 @@ export class Recall {
       purpose,
       query: input.query,
       channels,
-      budget: { requested: budget, used, estimated: true },
+      budget: {
+        requested: budget,
+        used: delivered,
+        packed: used,
+        estimated: true,
+      },
       items: loaded.map((p) => ({
         record_ref: ref(p.record),
         role: p.role,
