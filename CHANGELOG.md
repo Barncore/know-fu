@@ -4,6 +4,15 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-06 - Narrower skill trigger, and cost-benefit notes on every decision
+
+Why: the owner approved D1 and D2 from the roadmap's decision list, and asked for every decision to say what it costs the user against what it gains, so decisions can be weighed that way.
+
+- D2: the skill's description now fires only when the project is bound to a Know Fu library and the task is ingesting into it or answering, teaching, applying, comparing or inventing from it, and says it isn't for general explanations. Before, it matched almost any "explain" or "teach" request.
+- D1: deleted the fully merged `claude/know-fu-2` and `claude/know-fu-invention` branches.
+- Every entry in the roadmap's "Waiting on the owner" list ends with a cost-benefit line, and the list's introduction says what those lines weigh. Fixed D6c's pointer to the two-agent test (D23).
+- No engine, schema or library change.
+
 ### 2026-10-06 - Branch workflow, no `analogous_to`, and the decision list
 
 Why: the invention work went to `main`, and the owner asked for one standing branch where work lands first. They also ruled out `analogous_to` after an outside review by Fable 5.1, and asked for a ranked list of what's left to decide before installing.

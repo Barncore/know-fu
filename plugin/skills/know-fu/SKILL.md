@@ -1,6 +1,6 @@
 ---
 name: know-fu
-description: Knowledge library. Use when ingesting a book, paper, video or course, or when explaining, teaching, applying, comparing or inventing from what the library has learned.
+description: Use when the project is bound to a Know Fu library, to ingest a source into it or to answer, teach, apply, compare or invent from what it holds. Not for general explanations.
 ---
 
 # Know Fu
