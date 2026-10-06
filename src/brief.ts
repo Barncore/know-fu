@@ -5,6 +5,7 @@ import { ensure, key, readJson } from "./core.js";
 import type { RecordData, Scope } from "./core.js";
 import { summary } from "./navigation.js";
 import { hasCoreFacets } from "./notes.js";
+import { gapLine, gapSignals } from "./gaps.js";
 import { facetsOnlyRevision } from "./store.js";
 import {
   assessed,
@@ -244,17 +245,46 @@ export class Brief {
             a.title.localeCompare(b.title)
           );
         });
-      if (questions.length)
+      // Recorded questions lead; gaps the library's shape suggests follow, marked as unrecorded.
+      const suggested = gapSignals(index, members, centrality).slice(0, 3);
+      if (questions.length || suggested.length)
         add(
           "### Questions worth answering next\n" +
-            questions
-              .slice(0, 4)
-              .map(
-                (q) =>
-                  `- ${q.title} (impact ${(q.payload as any).priority?.impact}, effort ${(q.payload as any).priority?.effort}; ${q.id})`,
-              )
-              .join("\n"),
+            [
+              ...questions
+                .slice(0, 4)
+                .map(
+                  (q) =>
+                    `- ${q.title} (impact ${(q.payload as any).priority?.impact}, effort ${(q.payload as any).priority?.effort}; ${q.id})`,
+                ),
+              ...(suggested.length
+                ? [
+                    "Suggested by gaps in the library, not yet recorded:",
+                    ...suggested.map(gapLine),
+                  ]
+                : []),
+            ].join("\n"),
         );
+    }
+
+    // Ideas sit outside the knowledge the brief describes; one line says they exist.
+    if (index.ideas.size) {
+      const counts = new Map<string, number>();
+      for (const idea of index.ideas.values()) {
+        const status = (idea.payload as any).status as string;
+        counts.set(status, (counts.get(status) ?? 0) + 1);
+      }
+      const flagged = [...index.ideas.values()].filter(
+        (r) => index.ideaFlags(r).length,
+      ).length;
+      add(
+        `\nIdeas on file: ${[...counts]
+          .map(([s, n]) => `${n} ${s.replace("_", " ")}`)
+          .join(
+            " · ",
+          )}${flagged ? ` · ${flagged} with a changed or lost premise` : ""}. They aren't knowledge: recall shows them only for purpose invent, and kb_idea lists them.`,
+        true,
+      );
     }
 
     if (learned.length)

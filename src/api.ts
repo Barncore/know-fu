@@ -7,6 +7,7 @@ import { Reading } from "./reading.js";
 import { Recall } from "./recall.js";
 import { Brief } from "./brief.js";
 import { Filing } from "./filing.js";
+import { Ideas } from "./ideas.js";
 import { Notes } from "./notes.js";
 import { Connect } from "./connect.js";
 import { Projections } from "./projections.js";
@@ -41,11 +42,13 @@ export const descriptions: Record<string, string> = {
   kb_brief:
     "Load what the library knows at the start of research work: per domain, the current primer (with a staleness flag), the most connected core ideas, live disagreements, the questions worth answering next and what recent ingests added. Input: optional domains[], budget_tokens (800-30000, default 3500), scope, release_id.",
   kb_recall:
-    "Answer from the library in one call. Returns a Markdown briefing packed to a token budget: the best-matching explanations in full, the caveats and judgments that must travel with them, sources with page labels, and a list of relevant accounts not loaded. Input: query; optional purpose=explain|teach|apply|compare|invent|synthesize|investigate, budget_tokens (500-60000), depth=brief|standard|deep, domains[], seen[] (ids you already hold), context, scope, release_id, semantic, graph.",
+    "Answer from the library in one call. Returns a Markdown briefing packed to a token budget: the best-matching explanations in full, the caveats and judgments that must travel with them, sources with page labels, and a list of relevant accounts not loaded. Input: query; optional purpose=explain|teach|apply|compare|invent|synthesize|investigate, budget_tokens (500-60000), depth=brief|standard|deep, domains[], seen[] (ids you already hold), context, scope, release_id, semantic, graph, cross_domain (invent only: show bridges into other topics; with domains set and this off, invent stays inside them).",
   kb_connect:
     "Connect the dots. With from and to: the strongest chains of recorded links between two ideas, each hop read in its direction with the reason written for it. With from only: ideas two or more hops away, split into other topics (possible bridges) and the same topic. from/to take a record id, id@revision, or a few words to search for. Optional max_hops (1-6, default 4), paths (1-8, default 3), limit, scope, release_id.",
   kb_file:
     "File a worked answer back into the library so later sessions start from it. Publishes a cited synthesis (or lesson/application) that pins the exact revisions it relied on and is flagged for review when they change. Input: title, answer_markdown, cites[] (id@revision or {id,revision}), authorization (the user request), optional question, summary, form, epistemic, domains[], module, conditions[], exclusions[], dry_run.",
+  kb_idea:
+    'Keep candidate inventions apart from knowledge. An idea rests on library premises, is never evidence for anything, and changes status only when a result from the owner\'s own tools is recorded against a pass rule declared before the run. action=propose (statement, kill_test, premises[], optional parents[] (tested ideas only), pass_rule, origin, originality/feasibility {level, why}, title, detail, domains, module; or ideas[] of those) | plan (idea, pass_rule) | result (idea, tool, version, outcome=pass|fail|inconclusive, trials, optional data_window, metrics, note; a fail needs failure {kind: idea|execution, reason}) | park (idea, reason) | unpark | revise (idea, reason, optional statement, kill_test, premises before any result; origin, ratings any time) | list (status, query, domains, min_feasibility) | show (idea) | export (same filters; writes JSON for outside tools). Writes need authorization (the owner\'s request). Guide: kb_read {kind:"guide",name:"ideas"}.',
   kb_retrieve:
     "Discover or retrieve scoped research. mode=progressive returns authored summaries, exact next reads, material qualifications and provenance without loading every source body; supports purpose=explain|teach|apply|compare|invent|synthesize|investigate. mode=packet preserves the legacy evidence packet. Input query; optional domains, scope, semantic, rerank, graph, graph_required, limit, release_id, context. Progressive pagination uses offset; packet expansion uses hops. Open chosen accounts with kb_read.",
   kb_read:
@@ -139,6 +142,8 @@ export class KnowledgeSystem {
         return new Connect(this.store).connect(p);
       case "kb_file":
         return new Filing(this.store).file(p);
+      case "kb_idea":
+        return new Ideas(this.store).call(p);
       case "kb_retrieve":
         ensure(
           p.mode === undefined || ["progressive", "packet"].includes(p.mode),
@@ -172,6 +177,7 @@ export class KnowledgeSystem {
               "books",
               "video",
               "notes",
+              "ideas",
             ].includes(p.name),
             "VALIDATION_FAILED",
             "Unknown guide",

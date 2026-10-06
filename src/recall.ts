@@ -1,6 +1,8 @@
 import { Store } from "./store.js";
 import { Projections } from "./projections.js";
-import { LibraryIndex } from "./library-index.js";
+import { LibraryIndex, functionText } from "./library-index.js";
+import { ideaBlock } from "./ideas.js";
+import { gapLine, gapSignals } from "./gaps.js";
 import {
   ensure,
   key,
@@ -37,6 +39,8 @@ export type RecallRequest = {
   graph?: boolean;
   seen?: (Ref | string)[];
   context?: Record<string, { value: unknown; unit?: string | null }>;
+  /** Invent only: show accounts from other topics. Off by default; with domains set and this off, invent stays inside them. */
+  cross_domain?: boolean;
 };
 
 /** Default reading budgets: enough for a real answer, far below loading every connected body. */
@@ -187,6 +191,82 @@ function compactPages(labels: string[]) {
     i = j + 1;
   }
   return [...new Set([...ranges, ...other])].join(", ");
+}
+
+/** The invent slate as briefing lines; headers and the first entries are always shown. */
+function slateLines(
+  index: LibraryIndex,
+  slate: {
+    ideas: RecordData[];
+    bridges: string[];
+    hidden: number;
+    looseEnds: RecordData[];
+  },
+) {
+  const lines: { line: string; always: boolean }[] = [];
+  if (slate.ideas.length) {
+    lines.push({
+      line: "## Ideas on file (candidates, not evidence; failed ones say why)",
+      always: true,
+    });
+    slate.ideas.forEach((idea, position) =>
+      lines.push({ line: ideaBlock(index, idea, true), always: position < 2 }),
+    );
+  }
+  if (slate.bridges.length) {
+    lines.push({
+      line: "## From other topics: possible bridges",
+      always: true,
+    });
+    slate.bridges.forEach((line, position) =>
+      lines.push({ line, always: position < 2 }),
+    );
+  } else if (slate.hidden)
+    lines.push({
+      line: `${slate.hidden} account(s) in other topics connect to these by links or by what they do. Call again with cross_domain:true to see them.`,
+      always: true,
+    });
+  if (slate.looseEnds.length) {
+    lines.push({
+      line: "## Loose ends: matched but barely connected",
+      always: true,
+    });
+    for (const r of slate.looseEnds)
+      lines.push({
+        line: `- ${key(r)} · ${r.title}${summary(r) ? `: ${clip(summary(r)!, 140)}` : ""}`,
+        always: false,
+      });
+  }
+  return lines;
+}
+
+/**
+ * A procedure's decision points as a small tree: when each choice comes up, what is
+ * decided, each branch, how to check the result, and whether the source states it.
+ */
+export function decisionTree(index: LibraryIndex, points: any[]) {
+  const lines = ["Decision points (where this procedure branches):"];
+  points.forEach((point, i) => {
+    lines.push(`${i + 1}. ${point.cue} → ${point.decision}`);
+    point.options.forEach((option: any, j: number) =>
+      lines.push(
+        `   ${j === point.options.length - 1 ? "└" : "├"} ${option.when} → ${option.then}`,
+      ),
+    );
+    const pages = point.evidence_refs
+      .map((e: Ref) => index.visible.get(e.id))
+      .filter(Boolean)
+      .map((passage: RecordData) => pageLabel(passage));
+    const tail = [
+      point.check ? `check: ${point.check}` : null,
+      pages.length ? compactPages(pages) : null,
+      point.basis === "inferred"
+        ? "inferred: the source doesn't state this choice"
+        : null,
+    ].filter(Boolean);
+    if (tail.length) lines.push(`   ${tail.join(" · ")}`);
+  });
+  return lines.join("\n");
 }
 
 export function clip(text: string, n: number) {
@@ -392,9 +472,16 @@ export class Recall {
 
     // Priors: prefer explanations to raw evidence, and forms that serve the purpose.
     const domainBoost = new Set(input.domains ?? []);
+    // Inventing inside named topics keeps other fields out unless cross_domain asks for them.
+    const restrict =
+      input.purpose === "invent" &&
+      domainBoost.size > 0 &&
+      input.cross_domain !== true;
     const candidates: Candidate[] = [];
     for (const [id, entry] of fused) {
       const r = index.visible.get(id)!;
+      if (restrict && !r.scope.domains.some((d) => domainBoost.has(d)))
+        continue;
       let score = entry.score;
       if (r.record_type === "passage") score *= depth === "deep" ? 0.8 : 0.45;
       if (PURPOSE_FORMS[input.purpose].includes(form(r))) score *= 1.25;
@@ -446,6 +533,8 @@ export class Recall {
     const packed = new Map<string, Packed>();
     let used = 0;
     const reserve = Math.max(Math.round(budget * 0.05), 60);
+    // Invent makes room for its slate (ideas on file, bridges, loose ends) up to a fifth of the budget.
+    let slate = 0;
     // Caveats may use the budget beyond the reserve, but leave room for the header and the mandatory lines.
     const caveatLimit = budget - Math.min(150, Math.round(budget * 0.3));
     // Cost an account by the block it will actually render as: prose, sources, links and flags.
@@ -457,6 +546,8 @@ export class Recall {
           packed,
           new Map(),
           input.context,
+          undefined,
+          purpose,
         ),
       ) + 2;
     const tryPack = (
@@ -488,50 +579,71 @@ export class Recall {
       (c) => c.record.record_type === "passage",
     );
     const primary = accounts.length ? accounts : evidence;
-    primary.forEach((c, position) => {
-      if (used >= budget - reserve) return;
-      // The best match is always delivered whole, even when it alone exceeds the budget.
-      const limit = position === 0 ? Number.MAX_SAFE_INTEGER : budget - reserve;
-      const role = c.record.record_type === "passage" ? "evidence" : "account";
-      if (!tryPack(c.record, role, "match", c.channels, limit)) return;
-      const { links, judgments } = caveatsOf(c.record);
-      for (const link of links) {
-        const subject = index.visible.get(link.subject);
-        // A qualifying passage is the qualification itself; carry it like an account.
-        if (
-          subject &&
-          (index.isAccount(subject) || subject.record_type === "passage")
-        )
+    const packMatches = () =>
+      primary.forEach((c, position) => {
+        if (used >= budget - reserve - slate) return;
+        // The best match is always delivered whole, even when it alone exceeds the budget.
+        const limit =
+          position === 0 ? Number.MAX_SAFE_INTEGER : budget - reserve - slate;
+        const role =
+          c.record.record_type === "passage" ? "evidence" : "account";
+        if (!tryPack(c.record, role, "match", c.channels, limit)) return;
+        const { links, judgments } = caveatsOf(c.record);
+        for (const link of links) {
+          const subject = index.visible.get(link.subject);
+          // A qualifying passage is the qualification itself; carry it like an account.
+          if (
+            subject &&
+            (index.isAccount(subject) || subject.record_type === "passage")
+          )
+            tryPack(
+              subject,
+              "caveat",
+              `${link.predicate} ${c.record.title}`,
+              ["context"],
+              caveatLimit,
+            );
+        }
+        for (const judgment of judgments)
           tryPack(
-            subject,
+            judgment,
             "caveat",
-            `${link.predicate} ${c.record.title}`,
+            `judgment on ${c.record.title}`,
             ["context"],
             caveatLimit,
           );
+        if (purpose === "teach" || purpose === "explain")
+          for (const link of index.outgoing.get(c.record.id) ?? [])
+            if (link.predicate === "depends_on") {
+              const prerequisite = index.visible.get(link.object);
+              if (prerequisite && index.isAccount(prerequisite))
+                tryPack(
+                  prerequisite,
+                  "prerequisite",
+                  `prerequisite of ${c.record.title}`,
+                  ["context"],
+                  budget - reserve,
+                );
+            }
+      });
+    packMatches();
+    // The slate depends on what was packed, so measure it, then repack once leaving it room.
+    if (purpose === "invent") {
+      const draft = slateLines(
+        index,
+        this.inventSlate(index, input, packed, candidates, seen),
+      );
+      const need = Math.min(
+        Math.round(budget * 0.2),
+        draft.reduce((sum, l) => sum + estimateTokens(l.line) + 1, 0),
+      );
+      if (need && used > budget - reserve - need) {
+        packed.clear();
+        used = 0;
+        slate = need;
+        packMatches();
       }
-      for (const judgment of judgments)
-        tryPack(
-          judgment,
-          "caveat",
-          `judgment on ${c.record.title}`,
-          ["context"],
-          caveatLimit,
-        );
-      if (purpose === "teach" || purpose === "explain")
-        for (const link of index.outgoing.get(c.record.id) ?? [])
-          if (link.predicate === "depends_on") {
-            const prerequisite = index.visible.get(link.object);
-            if (prerequisite && index.isAccount(prerequisite))
-              tryPack(
-                prerequisite,
-                "prerequisite",
-                `prerequisite of ${c.record.title}`,
-                ["context"],
-                budget - reserve,
-              );
-          }
-    });
+    }
     if (depth === "deep" && accounts.length)
       for (const c of evidence) {
         if (used >= budget - reserve) break;
@@ -671,7 +783,7 @@ export class Recall {
       if (count > 1) sharedScopes.set(text, `S${sharedScopes.size + 1}`);
     const marks = { sideBySide: false };
     const blocks = loaded.map((p) =>
-      this.block(index, p, packed, sharedScopes, input.context, marks),
+      this.block(index, p, packed, sharedScopes, input.context, marks, purpose),
     );
 
     const notLoaded = accounts
@@ -711,6 +823,17 @@ export class Recall {
       )
         unresolvedCaveats.push(line);
     if (marks.sideBySide) warnings.push(SIDE_BY_SIDE_NOTE);
+    const inventing =
+      purpose === "invent"
+        ? this.inventSlate(index, input, packed, candidates, seen)
+        : null;
+    const gaps =
+      purpose === "investigate"
+        ? gapSignals(
+            index,
+            loaded.map((p) => p.record),
+          ).slice(0, 3)
+        : [];
     const pending = loaded.filter((p) => index.pending.has(p.record.id)).length;
     if (pending)
       warnings.push(
@@ -732,6 +855,10 @@ export class Recall {
         .map(([name, status]) => `${name} ${status}`)
         .join(" · ")}`,
     ];
+    if (purpose === "invent")
+      header.push(
+        `Invent: the matches, then ideas on file, ${input.cross_domain === true ? "bridges into other topics" : "no other topics (cross_domain off)"} and loose ends. Nothing here judges a new idea; its kill test does.`,
+      );
     if (purpose === "teach" || purpose === "explain") {
       const top = loaded.find((p) => p.role === "account");
       if (top) {
@@ -784,6 +911,9 @@ export class Recall {
       room -= tokens;
       return true;
     };
+    if (inventing)
+      for (const { line, always } of slateLines(index, inventing))
+        offer(line, always);
     if (notLoaded.length) {
       offer("## Also relevant, not loaded", true);
       notLoaded.forEach((c, position) => {
@@ -797,6 +927,13 @@ export class Recall {
     if (openQuestions.length && room > 20) {
       offer("## Open questions nearby", true);
       for (const q of openQuestions) offer(`- ${key(q)} · ${q.title}`);
+    }
+    if (gaps.length) {
+      offer(
+        "## Gaps around these accounts, not yet recorded as questions",
+        true,
+      );
+      gaps.forEach((g, position) => offer(gapLine(g), position === 0));
     }
     let briefing = assemble(optional, budget);
     let delivered = estimateTokens(briefing);
@@ -836,6 +973,16 @@ export class Recall {
         title: c.record.title,
       })),
       unresolved_caveats: unresolvedCaveats,
+      ...(inventing
+        ? {
+            slate: {
+              ideas: inventing.ideas.map(ref),
+              bridges: inventing.bridgeRefs,
+              loose_ends: inventing.looseEnds.map(ref),
+            },
+          }
+        : {}),
+      ...(gaps.length ? { gaps } : {}),
       warnings,
       briefing,
       timings_ms: { total: Math.round(performance.now() - started) },
@@ -857,6 +1004,129 @@ export class Recall {
     return result;
   }
 
+  /**
+   * What invent adds around the matches: ideas already on file (failures included, so
+   * they aren't proposed again), accounts in other topics reached by links or matched by
+   * what they do, and matched accounts the library has barely connected yet.
+   */
+  private inventSlate(
+    index: LibraryIndex,
+    input: RecallRequest,
+    packed: Map<string, Packed>,
+    candidates: Candidate[],
+    held: { has: (id: string) => boolean },
+  ) {
+    const matches = [...packed.values()]
+      .filter((p) => p.reason === "match" && p.record.record_type !== "passage")
+      .map((p) => p.record);
+    const topic = new Set(
+      input.domains?.length
+        ? input.domains
+        : matches.flatMap((r) => r.scope.domains),
+    );
+    const inTopic = (r: RecordData) =>
+      !topic.size || r.scope.domains.some((d) => topic.has(d));
+    const restrict = !!input.domains?.length && input.cross_domain !== true;
+
+    // Ideas: words in common with the question, plus premises among the matches.
+    const ideaScore = new Map<string, number>();
+    index.ideaLexical
+      .search(input.query, 20)
+      .forEach((hit, rank) => ideaScore.set(hit.id, 1 / (1 + rank)));
+    for (const idea of index.ideas.values()) {
+      const shared = idea.provenance.input_refs.filter((x) =>
+        packed.has(x.id),
+      ).length;
+      if (shared)
+        ideaScore.set(idea.id, (ideaScore.get(idea.id) ?? 0) + 0.5 * shared);
+    }
+    const ideas = [...ideaScore]
+      .map(([id, score]) => ({ idea: index.ideas.get(id)!, score }))
+      .filter((x) => x.idea && (!restrict || inTopic(x.idea)))
+      .sort((a, b) => b.score - a.score || a.idea.id.localeCompare(b.idea.id))
+      .slice(0, 6)
+      .map((x) => x.idea);
+
+    // Bridges: accounts in other topics within four links of the matches, strongest first.
+    const prev = new Map<string, { from: string; label: string }>();
+    const depth = new Map(matches.map((r) => [r.id, 0]));
+    const queue = matches.map((r) => r.id);
+    while (queue.length) {
+      const id = queue.shift()!;
+      if (depth.get(id)! >= 4) continue;
+      for (const [next, edge] of index.edges.get(id) ?? new Map()) {
+        if (depth.has(next)) continue;
+        const record = index.visible.get(next);
+        if (!record || record.record_type === "source") continue;
+        depth.set(next, depth.get(id)! + 1);
+        prev.set(next, { from: id, label: edge.label });
+        queue.push(next);
+      }
+    }
+    const activation = index.spread(new Map(matches.map((r) => [r.id, 1])));
+    const chain = (id: string) => {
+      const steps: string[] = [index.visible.get(id)!.title];
+      for (let at = id; prev.has(at); at = prev.get(at)!.from)
+        steps.unshift(
+          index.visible.get(prev.get(at)!.from)!.title,
+          prev.get(at)!.label,
+        );
+      return steps.join(" → ");
+    };
+    const outside = (r: RecordData) =>
+      index.isAccount(r) && !packed.has(r.id) && !held.has(r.id) && !inTopic(r);
+    const linked = [...depth.keys()]
+      .map((id) => index.visible.get(id)!)
+      .filter(outside)
+      .sort(
+        (a, b) =>
+          (activation.get(b.id) ?? 0) - (activation.get(a.id) ?? 0) ||
+          a.id.localeCompare(b.id),
+      )
+      .slice(0, 4);
+    // Function matches: other fields' accounts whose abstract wording matches what the matches do.
+    const doing = [input.query, ...matches.map(functionText)].join(" ");
+    const byFunction = index.functional
+      .search(doing, 12, (id) => {
+        const r = index.visible.get(id);
+        return !!r && outside(r) && !linked.some((l) => l.id === id);
+      })
+      .slice(0, 3)
+      .map((hit) => index.visible.get(hit.id)!);
+    const bridges = [
+      ...linked.map(
+        (r) =>
+          `- ${key(r)} · ${r.title}${functionText(r) ? `: does ${clip(functionText(r), 120)}` : ""}\n  linked: ${clip(chain(r.id), 260)}`,
+      ),
+      ...byFunction.map(
+        (r) =>
+          `- ${key(r)} · ${r.title}\n  matched by what it does: ${clip(functionText(r), 160)}`,
+      ),
+    ];
+
+    // Loose ends: matched accounts in the topic with at most one link, not yet combined with anything.
+    const looseEnds = candidates
+      .map((c) => c.record)
+      .filter(
+        (r) =>
+          index.isAccount(r) &&
+          r.record_type !== "question" &&
+          !packed.has(r.id) &&
+          !held.has(r.id) &&
+          inTopic(r) &&
+          (index.adjacency.get(r.id)?.size ?? 0) <= 1,
+      )
+      .slice(0, 4);
+    return {
+      ideas,
+      bridges: input.cross_domain === true ? bridges : [],
+      hidden: input.cross_domain === true ? 0 : bridges.length,
+      bridgeRefs:
+        input.cross_domain === true ? [...linked, ...byFunction].map(ref) : [],
+      looseEnds,
+    };
+  }
+
   /** One account as compact Markdown: identity line, scope, prose, sources and the links that change its use. */
   block(
     index: LibraryIndex,
@@ -865,6 +1135,7 @@ export class Recall {
     sharedScopes: Map<string, string>,
     context?: RecallRequest["context"],
     marks = { sideBySide: false },
+    purpose: RecallPurpose = "explain",
   ) {
     const r = p.record;
     const payload = r.payload as any;
@@ -931,6 +1202,26 @@ export class Recall {
       }
     }
     lines.push(index.text(r).trim());
+    // Inventing works from what an account does, in words other fields can match. Only the
+    // first two domain-free wordings per slot: preconditions and failure modes are in the prose.
+    const facets = (r.extensions as any)?.functional_facets;
+    if (purpose === "invent" && facets) {
+      const abstract = (slot: string) =>
+        (facets[slot] ?? [])
+          .slice(0, 2)
+          .map((e: any) => e.abstract ?? e.text)
+          .filter(Boolean)
+          .join("; ");
+      const parts = [
+        abstract("purpose") && `Does: ${abstract("purpose")}`,
+        abstract("mechanism") && `By: ${abstract("mechanism")}`,
+      ].filter(Boolean);
+      if (parts.length) lines.push(parts.join(" · "));
+    }
+    // Teaching and applying a procedure need its branches, not just its steps.
+    const decisions = (r.extensions as any)?.decision_points ?? [];
+    if (decisions.length && (purpose === "teach" || purpose === "apply"))
+      lines.push(decisionTree(index, decisions));
     if (support.sources.length)
       lines.push(`Sources: ${support.sources.join("; ")}`);
     for (const citation of ((r.extensions as any)?.citations ?? []).slice(

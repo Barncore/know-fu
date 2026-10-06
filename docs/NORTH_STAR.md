@@ -66,7 +66,16 @@ Later that day, after reading the audit report, three more:
 
 The owner sharpened the priority: "Ultimately, I want it to be an invention engine." Inventing new strategies, products, processes and ideas from what the library holds now ranks first. Explaining and teaching rank a close second, and they matter partly because they make invention better. The owner's own examples: new trading strategies or software that invents strategies, a mastering workflow or app from audio books and videos, explainer videos for nuanced skills, inventions from science books, products that combine fields nobody would put together, and the library naming its own gaps.
 
-A research round on how people and machines invent followed (summarized in the [design lineage](../plugin/docs/lineage.md)). It found the knowledge layer described above already fits invention, and that the layer for running invention was half-built. The owner approved one change straight away: restore functional facets in `kb_write`, after measuring their token cost, so every new mechanism and procedure says what it does in words another field could match. The rest of that research's proposals (idea records, an invent workflow, test results, computed gaps, analogy storage, source lineage) are under discussion, and [ROADMAP.md](ROADMAP.md) will carry whichever the owner chooses.
+A research round on how people and machines invent followed (summarized in the [design lineage](../plugin/docs/lineage.md)). It found the knowledge layer described above already fits invention, and that the layer for running invention was half-built. The owner approved one change straight away: restore functional facets in `kb_write`, after measuring their token cost, so every new mechanism and procedure says what it does in words another field could match. Later the same day the owner decided most of the rest, and all of it was built on the `claude/know-fu-invention` branch:
+
+- Ideas get their own lane, with walls. An idea never reaches explain, teach or apply recall, can never be evidence for knowledge, can't parent another idea until it's been tested, and changes status only with a real test result. A changed premise flags it. Ideas export, so the owner's own tools can hold the project.
+- `invent` becomes a real preset, and all seven presets stay. Borrowing from other fields is opt-in per call, because some inventions want it and some don't.
+- Test results come from the owner's own tools. Know Fu records them (tool, version, data window, a pass rule declared before the run, outcome, trial count) and never runs backtests or keeps a registry of evaluators.
+- Gap-finding stays a ranked list of open questions. Recorded questions lead, and a few cheap signals computed from the library's shape suggest more. Sources' own open problems become question notes. The catalog comparison was dropped.
+- The guides gain counter-framing, generating past the obvious, separate originality and feasibility ratings, and teaching by comparison.
+- Procedures carry decision points, shown as a tree. The owner's reason: "I need to see the decision tree."
+
+The owner also settled what "lineage" means for them: which concept leads to which, so books read in the wrong order still end up in the right order. That's the job `depends_on` links, "Foundations first" and reweaving already do, and the ingestion guide now says what to record when an advanced book arrives before its foundations. How to store an accepted analogy is still open.
 
 ## One knowledge system, several ways in
 

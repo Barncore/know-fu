@@ -182,7 +182,7 @@ export class Projections {
           p = r.payload as any;
         const summary =
           authoredSummary(r) ?? "Navigation summary not authored.";
-        const content = `---\nid: ${JSON.stringify(r.id)}\nrevision: ${r.revision}\ntitle: ${JSON.stringify(r.title)}\nsummary: ${JSON.stringify(summary)}\ndomains: ${JSON.stringify(r.scope.domains)}\ncreated_at: ${r.created_at}\nepistemic: ${r.epistemic}\nlifecycle: ${r.lifecycle}\narchived: ${r.archived}\n---\n\n# ${r.title}\n\n${body || p.text || p.definition || p.rationale || p.unknown || summary}\n\n## Provenance\n\n${r.provenance.source_refs.map((x) => `- ${key(x)}`).join("\n") || "Source registration / no independent source supplied."}\n\n## Qualification\n\n${[...r.scope.conditions, ...r.scope.exclusions].join("\n") || "Applicability has not been formalized."}\n\nAssessment: ${JSON.stringify(r.assessments)}\n`;
+        const content = `---\nid: ${JSON.stringify(r.id)}\nrevision: ${r.revision}\ntitle: ${JSON.stringify(r.title)}\nsummary: ${JSON.stringify(summary)}\ndomains: ${JSON.stringify(r.scope.domains)}\ncreated_at: ${r.created_at}\nepistemic: ${r.epistemic}\nlifecycle: ${r.lifecycle}\narchived: ${r.archived}\n---\n\n# ${r.title}\n\n${body || p.text || p.definition || p.rationale || p.unknown || p.statement || summary}\n\n## Provenance\n\n${r.provenance.source_refs.map((x) => `- ${key(x)}`).join("\n") || "Source registration / no independent source supplied."}\n\n## Qualification\n\n${[...r.scope.conditions, ...r.scope.exclusions].join("\n") || "Applicability has not been formalized."}\n\nAssessment: ${JSON.stringify(r.assessments)}\n`;
         const name = hash(r.id).slice(0, 24) + ".md",
           wiki = `views/${release.release_id}/wiki/${name}`;
         await atomic(this.store.p(wiki), content);
@@ -191,6 +191,8 @@ export class Projections {
           pages.push(
             `- [${r.title}](${name}) — ${r.record_type} (${r.epistemic})`,
           );
+          // Ideas get a wiki page but stay out of search, so no search route can serve one as an account.
+          if (r.record_type === "idea") continue;
           const module = "m" + hash(r.maintenance_module).slice(0, 16);
           const searchPath = `views/${release.release_id}/search/${module}/${name}`;
           await atomic(this.store.p(searchPath), content);

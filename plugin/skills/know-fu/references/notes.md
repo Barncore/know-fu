@@ -58,6 +58,7 @@ The same batch can hold the `family-wise-error` concept and the `post-hoc-compar
 | `revises` | A published record id. The note becomes its next revision and inherits every field you leave out. Needs `change` or `reaffirm`. |
 | `change`, `reaffirm` | Why this revision exists. `reaffirm` alone, with no body, keeps the record as it is and records that new evidence was considered. |
 | `facets` | What the note does, so other fields can find it by function. Required on new `mechanism` and `procedure` notes: at least one `purpose` and one `mechanism`, each `{text, abstract}`. Optional slots: `preconditions`, `failure_modes`, `evaluation_method`. See "Saying what a note does" below. |
+| `decisions` | Optional, on `procedure` notes: the choices the procedure turns on, each `{at, decide, options: [{if, then}], check, cite, stated}`. See "Writing down the decisions" below. |
 | `assess` | Optional: `{evidence: {level, basis, why}}`, and `{level, why}` for `fidelity` and `applicability`. Levels are `low`, `moderate`, `high` and `unknown`. Each level needs a one-line `why`. See "Assessing a note" below. |
 
 Family fields: a concept may set `definition`, `meaning_scope` and `aliases`. A learning note lists what it teaches under `uses` and may set `objectives`. A judgment sets `issues` (the accounts it weighs), `outcome` (`different_scope`, `compatible`, `qualified`, `provisional_preference`, `superseded_interpretation`, `unresolved`), optional `alternatives` and `preferred`, and `what_would_change`. A question sets `related`, `known`, `unknown`, `impact`, `next_action` and `priority: {impact, effort, why}`.
@@ -82,6 +83,35 @@ facets:
 ```
 
 One to four entries per slot, and one each is usually right; add a second only for a genuinely separate job or step. For a decision rule, the purpose is the decision it supports and the mechanism is the test it applies. `preconditions`, `failure_modes` and `evaluation_method` are optional plain phrases with no abstract wording; add them only when the source states them. Each entry's `basis` defaults to `source_stated` for a source's own account and `inferred` otherwise; set `basis: proposed` for a function you're suggesting rather than reporting. Write facets while the page is open, because that's when they're cheap. A revision keeps the facets it inherits unless you give new ones, and a reaffirmation doesn't need them; `kb_brief` counts the accounts still missing them.
+
+## Writing down the decisions
+
+A procedure's steps are the easy part to copy from a book. What an expert actually carries around is where the steps branch: the moment a choice comes up, what they're deciding, what they do in each case, and how they check they chose right. `decisions` records that, and `kb_recall` shows it as a small tree for `teach` and `apply`.
+
+```yaml
+decisions:
+  - at: After the first full listen on small speakers
+    decide: Is the low end masking the kick?
+    options:
+      - if: The kick disappears under the bass
+        then: Duck the bass under the kick with a sidechain
+      - if: Both stay clear
+        then: Leave the low end and move on to stereo width
+    check: A/B at low volume on the small speakers
+    cite: source:…:unit-12
+  - at: Before limiting
+    decide: How much gain reduction is acceptable?
+    options:
+      - if: The genre expects dense masters
+        then: Up to about 3 dB on peaks
+      - if: Otherwise
+        then: Keep it under 1 dB
+    stated: false
+```
+
+`at` is the cue, 20 words or fewer. `decide` is the question being settled, 25 or fewer. Each decision has two to five options, and "Otherwise" is a fine `if`. Keep each `if` and `then` to 30 words or fewer, and `check` to 25. `cite` takes a unit or passage, which becomes a page label in the tree and is added to the note's evidence if it isn't there already.
+
+Books often skip decisions an expert makes without thinking. When you can see a choice the source never states, still record it, with `stated: false`. The tree marks it "inferred: the source doesn't state this choice", so the reader knows it's yours. On a source's own account, decisions default to stated, so mark every one the source skips. Up to 12 per note. A revision keeps the decisions it inherits unless you give new ones, and `decisions: []` removes them. Adding them counts as a real change to the procedure, so lessons built on it go pending until someone looks.
 
 ## Assessing a note
 

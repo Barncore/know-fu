@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { VerifiedCache, mapLimit } from "./verified-cache.js";
 import { knowledgeImpact } from "./knowledge-impact.js";
 import { closestSpan, quoteFound } from "./quote.js";
+import { checkIdea } from "./idea-rules.js";
 import path from "node:path";
 import {
   APP,
@@ -1007,6 +1008,33 @@ export class Store {
             (await resolve(target)).record_type === "knowledge",
             "VALIDATION_FAILED",
             "Knowledge reference has wrong family",
+          );
+      }
+      // Ideas are their own lane: nothing else may rest on one, and an idea's status
+      // moves only with a recorded result.
+      if (r.record_type === "idea") await checkIdea(r, old, resolve);
+      else
+        for (const target of recordRefs(r))
+          ensure(
+            (await resolve(target)).record_type !== "idea",
+            "VALIDATION_FAILED",
+            "An idea can't be evidence or an input for anything else. Test it with kb_idea; knowledge comes from sources.",
+            { record: ref(r), idea: target },
+          );
+      // Decision points sit on procedures, and a page they cite is one the account itself cites.
+      for (const point of (r.extensions as any).decision_points ?? []) {
+        ensure(
+          r.record_type === "knowledge" && p.form === "procedure",
+          "VALIDATION_FAILED",
+          "Decision points belong to procedure accounts",
+        );
+        for (const evidence of point.evidence_refs)
+          ensure(
+            r.provenance.input_refs.some((x) => key(x) === key(evidence)) &&
+              (await resolve(evidence)).record_type === "passage",
+            "VALIDATION_FAILED",
+            "A decision point cites a passage the account itself cites",
+            { ref: evidence },
           );
       }
       if (r.epistemic === "inference" || r.epistemic === "hypothesis")

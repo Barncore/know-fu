@@ -35,6 +35,7 @@ Everything in the library is a record. The [record schema](../contracts/schemas/
 | `judgment` | A reasoned assessment of competing or overlapping accounts |
 | `learning` | A primer, lesson, worked example, near miss, application or teaching sequence |
 | `question` | A gap in the library, what it's grounded in, and whether it's resolved |
+| `idea` | A candidate invention: its statement, premises, kill test, pass rule, status and the results reported by outside tools. Kept apart from knowledge (see [Ideas](#ideas)) |
 
 The shared fields are `id`, `revision`, `corpus_id`, `maintenance_module`, `scope`, `provenance`, `epistemic`, `assessments`, `depends_on`, `supersedes`, `lifecycle`, `archived`, optional `extensions`, and an optional `body` path and hash. The full explanation lives in `body.md`. Metadata never stands in for the prose.
 
@@ -54,7 +55,9 @@ Recall puts the levels to work. It shows them on each account's identity line wi
 
 Three optional extensions carry extra structure. `extensions.navigation` holds an authored one-line summary where the record's own fields don't give one. `extensions.citations` holds verbatim quotes from the record's cited passages, and each quote is checked against the passage text when the record is staged and again at publication.
 
-`extensions.functional_facets` says what an account does, so a record from another field can be matched by function rather than topic. Its slots are `purpose`, `mechanism`, `preconditions`, `failure_modes` and `evaluation_method`; each entry has `text` in the source's terms, an optional `abstract` wording in domain-free words, a `basis` and evidence refs. `kb_write` requires a purpose and a mechanism, both with abstract wordings, on every new `mechanism` and `procedure` note, and checks that each wording is short and that the abstract doesn't just repeat the text. A revision that only adds or edits facets isn't a change of meaning: it doesn't reopen dependents, clear pending flags or make a primer stale. `kb_brief` counts mechanism and procedure accounts that still lack facets. Nothing searches the facets yet; they're there so far-analogy retrieval can be built on them.
+`extensions.functional_facets` says what an account does, so a record from another field can be matched by function rather than topic. Its slots are `purpose`, `mechanism`, `preconditions`, `failure_modes` and `evaluation_method`; each entry has `text` in the source's terms, an optional `abstract` wording in domain-free words, a `basis` and evidence refs. `kb_write` requires a purpose and a mechanism, both with abstract wordings, on every new `mechanism` and `procedure` note, and checks that each wording is short and that the abstract doesn't just repeat the text. A revision that only adds or edits facets isn't a change of meaning: it doesn't reopen dependents, clear pending flags or make a primer stale. `kb_brief` counts mechanism and procedure accounts that still lack facets. The abstract purpose and mechanism wordings are indexed on their own (`LibraryIndex.functional`), and invent recall uses that index to find accounts in other topics that do the same job, and shows each loaded account's wordings on a `Does: … · By: …` line.
+
+`extensions.decision_points` belongs to `procedure` accounts. Each point has a `cue` (when the choice comes up), the `decision`, two to five `options` (`when` and `then`), an optional `check`, a `basis` (`source_stated`, or `inferred` when the source skips the choice) and evidence refs, which must be passages the account itself cites. Recall renders them as a tree for `teach` and `apply`. Adding them is a real revision of the procedure, so dependents go pending.
 
 ### Rules that keep history trustworthy
 
@@ -91,6 +94,7 @@ audit/journal-state.json            Tells the journal when it must be rebuilt
 log.md                              Derived readable activity log
 lifecycle/ledger-generation.json    Which generation of the deletion ledger matches this library
 retrieval-receipts/                 One receipt per recall, read or retrieval call
+exports/ideas/                      Idea exports for outside tools
 views/
   receipt.json                      Which views are ready for which release
   <release-id>/
@@ -124,7 +128,9 @@ Recall ranks with three channels and fuses them by reciprocal rank (k = 60):
 - The QMD semantic index, but only when keyword coverage of the query looks weak, or when the caller forces it.
 - Personalized PageRank seeded from the best text matches. It spreads along links for many steps, fading as it goes, which is how an account three links away can surface with no words in common with the question.
 
-Purpose, domain, pending reassessment and filed-answer priors nudge the score. Packing then follows rank order inside the budget, costing each account by the block it will actually render as, and the best match always arrives whole. Each packed account brings its baggage with it: the accounts or passages that qualify or challenge it, and its current judgments. Explain and teach also bring conceptual prerequisites and a foundations-first reading order.
+Purpose, domain, pending reassessment and filed-answer priors nudge the score. Packing then follows rank order inside the budget, costing each account by the block it will actually render as, and the best match always arrives whole. Each packed account brings its baggage with it: the accounts or passages that qualify or challenge it, and its current judgments. Explain and teach also bring conceptual prerequisites and a foundations-first reading order, and teach and apply render procedures' decision points as trees.
+
+Invent adds a slate after the matches: ideas on file (ranked by words shared with the query plus premises among the loaded accounts), bridges into other topics (accounts within four links of the matches, ordered by PageRank from them, plus accounts whose abstract facets match what the matches do), and loose ends (matched accounts in the topic with at most one link). Bridges only show with `cross_domain:true`; otherwise the briefing gives a count. With `domains` set and `cross_domain` off, candidates outside those topics are dropped before packing. The slate's size is measured after a first packing pass, and only if it doesn't fit are the matches packed again leaving room for it, up to a fifth of the budget. Investigate adds up to three gap suggestions for the loaded accounts, from `gaps.ts`.
 
 Then comes the guard pass, and it's the part that must never be skipped. Recall hands the loaded matches to the same resolver progressive reading uses, `ResearchView.materialContext`. That resolver follows each account's exact premises and returns what has to travel with it: premises with their own conditions, validity limits or pending reassessment, plus qualifications, challenges and current judgments on any of them, including ones published after a pinned release. Each guard is packed if it fits, or named under "Caveats not loaded" if it doesn't, whatever the rank, graph setting or budget. Premises that only repeat a boundary the loaded accounts already show are left out.
 
@@ -134,6 +140,8 @@ Anything that doesn't fit gets listed rather than silently dropped. The optional
 
 The brief uses the same snapshot to sketch each domain: its newest primer, and whether any account in the domain was published or revised in a later release (in which case the primer may be stale); the most central accounts by global PageRank; unresolved judgments; open questions ranked by impact and effort; and what recent in-scope ingestion reports say they added.
 
+Under each topic's recorded questions, the brief lists up to three it computes from the library's shape (`gapSignals` in `gaps.ts`), marked as not yet recorded: a `challenges` link with no current judgment on either side, an account that two or more others build on (`depends_on`) resting on one source family without a moderate or high evidence level, and a mechanism or procedure with at least two links and no conditions, exclusions, preconditions, failure modes or qualifying links. An open question whose `related` accounts cover the same records suppresses the suggestion. When ideas exist, one line counts them by status and names how many have a changed or lost premise.
+
 ### kb_connect
 
 Connect searches the same link map. Give it two endpoints and it runs a best-first search over simple paths up to `max_hops` (default 4). Each hop costs according to its link weight, plus a small penalty for passing through a highly connected hub, so chains through specific accounts beat chains through some catch-all idea. It returns the strongest distinct chains, with each hop's direction and rationale. Give it one endpoint and it lists accounts two or more hops out, split into other topics and the same topic, each with its strongest chain. Endpoints can be ids or a few words, which resolve to the best keyword match.
@@ -141,6 +149,17 @@ Connect searches the same link map. Give it two endpoints and it runs a best-fir
 ### kb_file
 
 A filed answer goes through the normal proposal compiler and publishes without an ingestion job. Its provenance method is `filed_answer`, its inputs are the exact revisions it cites, and its sources are theirs, so it can never count as an extra source. When any cited revision changes, knowledge impact marks it pending like any other dependent account.
+
+## Ideas
+
+`kb_idea` writes `idea` records without an ingestion job, through the same compiler and publish checks as everything else (provenance method `idea`). The point of the family is the walls around it, and each one lives in the engine rather than in the guides:
+
+- Publish (`store.ts`) refuses any non-idea record whose references reach an idea, so nothing can cite, link, judge or build on one. Job proposals can't contain ideas at all.
+- `LibraryIndex` and `ResearchView` never count an idea as usable. Ideas sit in their own map (`LibraryIndex.ideas`) with their own BM25 index, so recall's normal channels, the link map, `kb_connect`, `kb_file` citations and progressive reading never see them. Packet retrieval skips them, and the search projection leaves them out (they keep a wiki page). Only invent recall reads the idea map.
+- `checkIdea` in `idea-rules.ts` runs at publish. Premises are accounts or passages, and an idea input must be a listed parent with a decisive result. Results are append-only, at most one per revision, and each must be judged by the pass rule the previous revision declared. Once any result exists, the statement, kill test, pass rule and premise ids are fixed. The stored status must equal the one the results imply (`ideaStatus`), except `dormant`.
+- Premises are ordinary `input_refs`, so knowledge impact marks an idea pending when one changes, like any dependent. The reweave plan leaves ideas out, so ingestion never has to reassess them, and any later revision of the idea moves its premises to their current revisions and says which moved.
+
+Export writes `exports/ideas/ideas-<timestamp>.json` in the `know-fu-ideas-1` format: each idea with its premises (titles, summaries, source titles and whether they're still current), lineage, ratings, results and total trials.
 
 ## Progressive reading
 

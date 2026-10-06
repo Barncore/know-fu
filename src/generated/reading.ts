@@ -274,6 +274,33 @@ export interface ReadingData {
         interface_version: "1.0.0";
         summary: string;
       };
+      /**
+       * The choices an expert makes while following a procedure: when each comes up, what is decided, the options and how to check the result.
+       *
+       * @minItems 1
+       * @maxItems 12
+       */
+      decision_points?: {
+        cue: string;
+        decision: string;
+        /**
+         * @minItems 2
+         * @maxItems 5
+         */
+        options: {
+          when: string;
+          then: string;
+        }[];
+        check: string | null;
+        basis: "source_stated" | "inferred";
+        /**
+         * @minItems 0
+         */
+        evidence_refs: {
+          id: string;
+          revision: number;
+        }[];
+      }[];
     };
     assessments: {
       fidelity: {
@@ -478,6 +505,33 @@ export interface ReadingData {
         interface_version: "1.0.0";
         summary: string;
       };
+      /**
+       * The choices an expert makes while following a procedure: when each comes up, what is decided, the options and how to check the result.
+       *
+       * @minItems 1
+       * @maxItems 12
+       */
+      decision_points?: {
+        cue: string;
+        decision: string;
+        /**
+         * @minItems 2
+         * @maxItems 5
+         */
+        options: {
+          when: string;
+          then: string;
+        }[];
+        check: string | null;
+        basis: "source_stated" | "inferred";
+        /**
+         * @minItems 0
+         */
+        evidence_refs: {
+          id: string;
+          revision: number;
+        }[];
+      }[];
     };
     assessments: {
       fidelity: {

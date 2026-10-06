@@ -531,3 +531,115 @@ test("adding facets to an existing account reopens nothing and doesn't make the 
     }),
   );
 });
+
+test("decision points show a procedure's branches as a tree when teaching or applying it", async () => {
+  const f = await converted("notes-decisions");
+  const procedure = (decisions: string, form = "procedure") => `---
+id: humid-move
+type: knowledge
+form: ${form}
+title: Moving a lantern in a humid workshop
+cites: [${f.unit}]
+facets:
+  purpose:
+    - text: Move an amber-badged lantern in humid air
+      abstract: Make a transfer safe under a risky ambient condition
+  mechanism:
+    - text: Run the vent for ten minutes first
+      abstract: Clear the hazard for a fixed time before acting
+${decisions}---
+Run the vent ten minutes, then move the lantern if the badge is amber.`;
+  const two = `decisions:
+  - at: Before touching the lantern
+    decide: Has the vent run long enough?
+    options:
+      - if: The vent has run ten minutes
+        then: Move the lantern
+      - if: Less than ten minutes
+        then: Wait and keep the vent running
+    check: Time the vent from switch-on
+    cite: ${f.unit}
+  - at: The valve looks open
+    decide: Does the notice allow a move?
+    options:
+      - if: Otherwise
+        then: Close the valve first; the notice is silent on open valves
+      - if: The valve is already closed
+        then: Carry on
+    stated: false
+`;
+  await assert.rejects(
+    f.notes.write({
+      job_id: f.id,
+      notes: [procedure(two, "explanation")],
+      dry_run: true,
+    }),
+    /decisions belong on procedure notes/,
+  );
+  await assert.rejects(
+    f.notes.write({
+      job_id: f.id,
+      notes: [
+        procedure(
+          "decisions:\n  - at: Before moving\n    decide: Is it safe?\n    options:\n      - if: Yes\n        then: Move\n",
+        ),
+      ],
+      dry_run: true,
+    }),
+    /two to five options/,
+  );
+  await f.notes.write({ job_id: f.id, notes: [procedure(two)] });
+  const job = await f.jobs.load(f.id);
+  job.stage = "reweave";
+  for (const unit of job.coverage)
+    Object.assign(unit, {
+      read: "complete",
+      integrated: "complete",
+      checked: "complete",
+    });
+  await f.jobs.save(job);
+  const plan = await f.jobs.reweavePlan(f.id);
+  await f.jobs.submit(f.id, {
+    step_id: "reweave",
+    stage: "reweave",
+    summary:
+      "A standalone humid-room procedure; nothing older needs reweaving.",
+    resolutions: plan.targets.map((t: any) => ({
+      record_ref: t.record_ref,
+      decision: "pending",
+      rationale: "Deferred in this fixture.",
+    })),
+  });
+  await f.jobs.submit(f.id, {
+    step_id: "compile",
+    stage: "compile",
+    summary: "No primer change is warranted for this small notice.",
+  });
+  await f.jobs.submit(f.id, {
+    step_id: "check",
+    stage: "check",
+    summary: "Decision points staged and rendered.",
+    capability: "not_assessed",
+    understanding_change: {
+      added: ["The humid-room procedure's two decision points."],
+      revised_refs: [],
+      unresolved: [],
+      checks: [],
+    },
+  });
+  await f.jobs.publish(f.id);
+  const recall = new Recall(f.store, noIndex);
+  const teach: any = await recall.recall({
+    query: "moving a lantern in a humid workshop vent",
+    purpose: "teach",
+  });
+  assert.match(
+    teach.briefing,
+    /Decision points \(where this procedure branches\):\n1\. Before touching the lantern → Has the vent run long enough\?\n   ├ The vent has run ten minutes → Move the lantern\n   └ Less than ten minutes → Wait and keep the vent running\n   check: Time the vent from switch-on · lines \d+-\d+\n2\. The valve looks open → Does the notice allow a move\?\n   ├ Otherwise → Close the valve first; the notice is silent on open valves\n   └ The valve is already closed → Carry on\n   inferred: the source doesn't state this choice/,
+  );
+  const explain: any = await recall.recall({
+    query: "moving a lantern in a humid workshop vent",
+    purpose: "explain",
+  });
+  assert.doesNotMatch(explain.briefing, /Decision points/);
+});

@@ -30,10 +30,12 @@ The first commit summarized earlier local development rather than inventing a fa
 | `core.ts` | Hashing, atomic and immutable writes, safe paths, locks, schema validation, condition evaluation |
 | `store.ts` | Releases, exact reads, scope checks, compiling and validating proposals, publication, the audit journal |
 | `jobs.ts`, `source-workflow.ts`, `media.ts`, `visuals.ts` | Ingestion jobs, conversion, source review, frames, crops and paid media transcription |
-| `notes.ts`, `quote.ts` | `kb_write` note compilation, functional facets, assessment checks and quote matching |
+| `notes.ts`, `quote.ts` | `kb_write` note compilation, functional facets, decision points, assessment checks and quote matching |
 | `knowledge-impact.ts` | Which accounts a change affects |
-| `library-index.ts`, `text-index.ts` | The recall index: visibility and reliance rules, BM25, the link map with labels, spreading activation |
-| `recall.ts`, `brief.ts`, `connect.ts`, `filing.ts` | `kb_recall`, `kb_brief`, `kb_connect`, `kb_file` |
+| `library-index.ts`, `text-index.ts` | The recall index: visibility and reliance rules, BM25, the link map with labels, spreading activation, the separate idea map and the function index over abstract facets |
+| `recall.ts`, `brief.ts`, `connect.ts`, `filing.ts` | `kb_recall` (including the invent slate and decision trees), `kb_brief`, `kb_connect`, `kb_file` |
+| `ideas.ts`, `idea-rules.ts` | `kb_idea`, and the publish rules that keep ideas in their own lane |
+| `gaps.ts` | Gap suggestions for the brief and `investigate` |
 | `navigation.ts`, `research-view.ts`, `reading.ts`, `reading-render.ts` | Progressive reading and its MCP presentation |
 | `retrieval.ts` | The older packet route |
 | `projections.ts`, `graph-projection.ts`, `qmd-search.ts`, `qmd-worker.ts` | Wiki, FalkorDB and QMD views, and view cleanup |
@@ -43,7 +45,7 @@ The first commit summarized earlier local development rather than inventing a fa
 
 ## Changing recall, brief or connect
 
-These are where most future work will land, so they come with rules. Don't write a second copy of a guard rule. Reliance comes from `blockedIds` in `core.ts`, which every read path uses. What must travel with an account comes from `ResearchView.materialContext`, which recall and progressive reading both call. Any new read path has to apply exactly what the recall index applies: scope and source restrictions before anything is revealed, withdrawal anywhere in a record's exact inputs, archive state, pinned releases, and pending-reassessment flags. Caveats travel with what they qualify, regardless of rank or the graph. A summary or a filed answer never counts as an extra source. Assessment levels never touch ranking. Keep `test/recall.test.ts`, `test/connect.test.ts` and `test/audit-fixes.test.ts` passing, and add a case for every new rule. A good regression starts as a reproduction and fails on the old code before the fix goes in.
+These are where most future work will land, so they come with rules. Don't write a second copy of a guard rule. Reliance comes from `blockedIds` in `core.ts`, which every read path uses. What must travel with an account comes from `ResearchView.materialContext`, which recall and progressive reading both call. Any new read path has to apply exactly what the recall index applies: scope and source restrictions before anything is revealed, withdrawal anywhere in a record's exact inputs, archive state, pinned releases, and pending-reassessment flags. Caveats travel with what they qualify, regardless of rank or the graph. A summary or a filed answer never counts as an extra source. Assessment levels never touch ranking. An idea is never usable as an account: a new read path that iterates records directly, rather than through `usable()` or `usableIds`, has to skip `record_type` `idea` itself. Keep `test/recall.test.ts`, `test/connect.test.ts`, `test/ideas.test.ts`, `test/invent.test.ts` and `test/audit-fixes.test.ts` passing, and add a case for every new rule. A good regression starts as a reproduction and fails on the old code before the fix goes in.
 
 Judge a retrieval change on two things together: answer quality and tokens sent. Use the blind A/B method recorded in `docs/VALIDATION.md` on 5 October 2026. Never tune on the cases you report; write fresh ones. Local benchmark copies of real libraries go in the ignored `.bench/` folder.
 

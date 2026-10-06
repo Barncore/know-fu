@@ -101,6 +101,7 @@ export class ResearchView {
   usable(record: RecordData) {
     const latest = this.live.get(record.id);
     return (
+      record.record_type !== "idea" &&
       record.lifecycle === "active" &&
       !record.archived &&
       latest?.lifecycle === "active" &&
@@ -123,6 +124,11 @@ export class ResearchView {
       "The record revision is not in the selected release or its ancestry",
     );
     const record = await this.store.exact(reference);
+    ensure(
+      record.record_type !== "idea",
+      "VALIDATION_FAILED",
+      "Ideas aren't library accounts; read them with kb_idea",
+    );
     ensure(
       await this.store.allowed(record, this.scope),
       "SCOPE_DENIED",

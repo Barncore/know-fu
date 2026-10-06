@@ -271,9 +271,70 @@ export interface ProposalData {
         };
         [k: string]: unknown;
       }
+    | {
+        record_type?: "idea";
+        /**
+         * A candidate invention kept apart from knowledge. Its premises are provenance input_refs; it is never evidence for anything else.
+         */
+        payload?: {
+          statement: string;
+          /**
+           * The result that would show the idea is wrong.
+           */
+          kill_test: string;
+          /**
+           * The exact rule a result is judged by, declared in an earlier revision than any result.
+           */
+          pass_rule: string | null;
+          status: "proposed" | "under_test" | "supported" | "refuted" | "dormant";
+          /**
+           * @minItems 0
+           */
+          parent_refs: {
+            id: string;
+            revision: number;
+          }[];
+          origin?: string | null;
+          /**
+           * Originality and feasibility, rated separately and never combined.
+           */
+          ratings?: {
+            originality?: {
+              level: "low" | "medium" | "high";
+              reason: string;
+            };
+            feasibility?: {
+              level: "low" | "medium" | "high";
+              reason: string;
+            };
+          };
+          /**
+           * @minItems 0
+           */
+          results: {
+            recorded_at: string;
+            tool: string;
+            version: string;
+            data_window: string | null;
+            pass_rule: string;
+            outcome: "pass" | "fail" | "inconclusive";
+            trials: number;
+            metrics: {
+              [k: string]: number | string;
+            };
+            note: string | null;
+            failure: null | {
+              kind: "idea" | "execution";
+              reason: string;
+            };
+          }[];
+        };
+        [k: string]: unknown;
+      }
   ) & {
     local_id: string;
-    record_type: "source" | "passage" | "concept" | "knowledge" | "relationship" | "judgment" | "learning" | "question";
+    record_type:
+      "source" | "passage" | "concept" | "knowledge" | "relationship" | "judgment" | "learning" | "question" | "idea";
     title: string;
     maintenance_module: string;
     epistemic:
@@ -543,6 +604,38 @@ export interface ProposalData {
               local_ref: string;
             };
         quote: string;
+      }[];
+      /**
+       * The choices an expert makes while following a procedure: when each comes up, what is decided, the options and how to check the result.
+       *
+       * @minItems 1
+       * @maxItems 12
+       */
+      decision_points?: {
+        cue: string;
+        decision: string;
+        /**
+         * @minItems 2
+         * @maxItems 5
+         */
+        options: {
+          when: string;
+          then: string;
+        }[];
+        check: string | null;
+        basis: "source_stated" | "inferred";
+        /**
+         * @minItems 0
+         */
+        evidence_refs: (
+          | {
+              id: string;
+              revision: number;
+            }
+          | {
+              local_ref: string;
+            }
+        )[];
       }[];
     };
   })[];

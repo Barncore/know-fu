@@ -67,8 +67,15 @@ export class Retrieval {
       warnings: string[] = [],
       missing: string[] = [];
     for (const r of all.values())
-      if (await this.store.allowed(r, scope, cache)) allowed.set(r.id, r);
-    if (allowed.size < all.size)
+      if (
+        r.record_type !== "idea" &&
+        (await this.store.allowed(r, scope, cache))
+      )
+        allowed.set(r.id, r);
+    if (
+      allowed.size <
+      [...all.values()].filter((r) => r.record_type !== "idea").length
+    )
       warnings.push(
         "Some corpus material is outside this scope; qualifications involving it cannot be assessed.",
       );

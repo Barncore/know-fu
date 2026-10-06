@@ -63,6 +63,15 @@ export type Link = {
   materiality: string;
 };
 
+/** The abstract purpose and mechanism wording from an account's facets, if it has any. */
+export function functionText(record: RecordData) {
+  const facets = (record.extensions as any)?.functional_facets;
+  return ["purpose", "mechanism"]
+    .flatMap((slot) => (facets?.[slot] ?? []).map((e: any) => e.abstract))
+    .filter(Boolean)
+    .join("; ");
+}
+
 const cache = new WeakMap<Store, Map<string, Promise<LibraryIndex>>>();
 
 /**
@@ -83,6 +92,11 @@ export class LibraryIndex {
   /** How each directed link reads, for explaining a chain: label, weight and the relationship behind it. */
   readonly edges = new Map<string, Map<string, EdgeInfo>>();
   readonly lexical = new Bm25Index();
+  /** Ideas live in their own lane: never usable as accounts, linked or indexed with them. */
+  readonly ideas = new Map<string, RecordData>();
+  readonly ideaLexical = new Bm25Index();
+  /** Accounts indexed by the domain-free wording of what they do and how, for matching across fields. */
+  readonly functional = new Bm25Index();
   dimensions: Record<string, unknown> = {};
   private blockedLive?: Set<string>;
   private guardView?: Promise<ResearchView>;
@@ -153,6 +167,7 @@ export class LibraryIndex {
   usable(record: RecordData) {
     const latest = this.live.get(record.id);
     return (
+      record.record_type !== "idea" &&
       record.lifecycle === "active" &&
       !record.archived &&
       latest?.lifecycle === "active" &&
@@ -225,8 +240,18 @@ export class LibraryIndex {
     for (const record of this.records.values())
       if (await this.store.allowed(record, this.scope, allowedCache))
         this.visible.set(record.id, record);
-    for (const record of this.visible.values())
-      if (this.usable(record)) this.usableIds.add(record.id);
+    for (const record of this.visible.values()) {
+      if (record.record_type === "idea") {
+        const latest = this.live.get(record.id);
+        if (
+          record.lifecycle === "active" &&
+          !record.archived &&
+          latest?.lifecycle === "active" &&
+          !latest.archived
+        )
+          this.ideas.set(record.id, record);
+      } else if (this.usable(record)) this.usableIds.add(record.id);
+    }
     this.dimensions = await readJson(this.store.p("dimensions.json")).catch(
       () => ({}),
     );
@@ -342,6 +367,39 @@ export class LibraryIndex {
       ]);
     }
     this.lexical.finish();
+
+    for (const record of usable) {
+      const abstract = functionText(record);
+      if (abstract)
+        this.functional.add(record.id, [{ text: abstract, weight: 1 }]);
+    }
+    this.functional.finish();
+
+    for (const idea of this.ideas.values()) {
+      const p = idea.payload as any;
+      this.ideaLexical.add(idea.id, [
+        { text: idea.title, weight: 3 },
+        { text: p.statement, weight: 2 },
+        { text: [p.kill_test, p.origin ?? ""].join(" "), weight: 1 },
+        {
+          text: idea.provenance.input_refs
+            .map((x) => this.visible.get(x.id)?.title ?? "")
+            .join(" "),
+          weight: 1,
+        },
+      ]);
+    }
+    this.ideaLexical.finish();
+  }
+
+  /** What has happened under an idea since it was written: changed or lost premises. */
+  ideaFlags(idea: RecordData) {
+    const flags: string[] = [];
+    if (this.pending.has(idea.id))
+      flags.push("a premise changed since it was written");
+    if (this.blocked(idea))
+      flags.push("a premise was withdrawn or lost its support");
+    return flags;
   }
 
   /**

@@ -4,6 +4,32 @@ The local development installation is Windows with Ubuntu WSL2, regular FalkorDB
 
 Entries run newest first. Each one says what was shown and what wasn't. Older entries are kept as written.
 
+## 2026-10-06: ideas, invent, gaps and decision points
+
+Built on the `claude/know-fu-invention` branch. Two questions: do the walls hold, and what does it all cost in tokens?
+
+The walls are engine rules, so they're tested as rules. `test/ideas.test.ts` and `test/invent.test.ts` cover each one, including forged revisions that bypass `kb_idea` and go straight to the store: a knowledge record naming an idea as input is refused, a status the results don't support is refused, a pass rule declared in the same revision as its result is refused, and an edited earlier result is refused. Ideas don't reach explain, teach, apply or compare recall, `kb_connect`, `kb_file` citations or packet retrieval. An untested idea can't be a parent, and a refuted one can. A premise change flags the idea until a revision looks at it again. The full suite is 154 tests: 151 pass, and the same 3 Python conversion tests skip.
+
+Cost was measured on a copy of the frozen three-paper library, the same one the facets entry below used, with semantic search off so runs are repeatable. Every case ran under its own purpose and also under `teach`, `apply`, `invent` and `investigate`, on `main` and on the branch. Tokens are characters divided by four.
+
+| What | `main` | Branch | Notes |
+|---|---:|---:|---|
+| Explain, teach, apply, compare, synthesize and investigate briefings (34 runs) | | identical | Same size, same accounts. This library has nothing the new code adds to them |
+| Invent briefings (10 cases) | 8,195-8,601 | 8,342-8,727 | The `Does: … · By: …` lines cost 79 tokens each, 276 per briefing on average, so invent loads 0-2 fewer accounts (0.8 on average) |
+| `kb_brief` | 2,676 | 2,676 | No gaps or ideas in this library |
+| Each idea in an invent briefing | | 89 | Up to six ideas; the first two always show |
+| A three-point decision tree, in teach and apply only | | 200-225 | About 70 per decision |
+| Ideas line in `kb_brief` | | about 35 | Only when ideas exist |
+| `kb_idea list` with three ideas, `show` for one | | 483 and 339 | |
+| Tool descriptions, sent with every session | 1,321 | 1,594 | +273, mostly `kb_idea` (244) |
+| Guides | | | `SKILL.md` +149, `retrieval.md` +996, `notes.md` +537, `ingestion.md` +390, new `ideas.md` 1,155 (read only when saving ideas) |
+
+The first version of the invent slate reserved a fifth of the budget for itself, and on this library, with no ideas and one topic, the reserve sat empty: invent briefings shrank by 335-1,447 tokens and lost two or three accounts. The slate is now measured after a first packing pass, and room is made only for what it actually needs. The first version also printed every facet entry, including preconditions and failure modes, at 187 tokens a line. It now prints at most two abstract wordings per slot, since the rest is in the account's prose.
+
+To see ideas and decision trees at work, a second bench copy got three ideas (one supported, one refuted, one proposed) and decision points on two procedures, written from those procedures' own text. Invent briefings carried two or three ideas each and stayed inside the 9,000 budget (the largest was 8,973). The refuted idea showed its reason, "Holm over all pairs finds the same zero pairs as Nemenyi". These bench edits were measurement material only; they're not in any real library.
+
+Not shown: whether invent produces better inventions than asking the model directly (roadmap task 26), whether bridges and loose ends turn up useful material in a library with several topics (this one has one), and whether the gap suggestions are worth recording. The fixture tests show each signal fires on the case it's built for, and on the three-paper library none fired at all. A check of that library explains why. It has no challenge links. All 8 procedures state conditions or limits. The one account that two others build on from a single source is already the subject of an open question, which suppresses the suggestion as designed. So silence there is the right answer, but it's not evidence the suggestions are useful.
+
 ## 2026-10-06: what functional facets cost
 
 Before restoring facets in `kb_write`, the owner asked what they'd cost in tokens. The test used the copy of the three-source acceptance library, which has 8 current procedure records (the forms that now require facets) and 40 authored accounts holding 13,881 tokens of prose.

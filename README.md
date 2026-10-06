@@ -29,6 +29,8 @@ flowchart LR
   R --> A
   C --> A
   A -- kb_file: good answers go back in, cited --> L
+  A -- kb_idea: candidate ideas, kept apart --> D[(Ideas and test results)]
+  D -. invent recall only .-> A
   L --> V[Views: wiki, FalkorDB graph, QMD search]
 ```
 
@@ -49,6 +51,12 @@ Most of the time it's three calls:
 - `kb_connect` when the question is how two ideas relate. It shows the chain of links between them, hop by hop, with the reason recorded for each link.
 
 When an answer is worth keeping, `kb_file` publishes it back as a cited synthesis. If anything it relied on changes later, it gets flagged for review.
+
+### Inventing
+
+Invention is what the library is ultimately for. `kb_recall` with `purpose:"invent"` loads the accounts that match, each with a line saying what it does in words another field could recognize. Then it adds a slate: ideas already on file (failed ones say why), accounts in other topics that could bridge across (only when you ask for that), and loose ends nobody has connected yet.
+
+New ideas go through `kb_idea` into their own lane, behind a set of walls. An idea rests on library accounts, but nothing can ever rest on an idea, and it never shows up when you're explaining, teaching or applying. Its status only moves when a result from your own tools comes in (a backtester, a mastering chain, a prototype), judged by a pass rule you declared before the run, with a count of how many variants were tried. Export hands the whole project, premises and results included, to those tools as JSON.
 
 ## Why it's built this way
 
@@ -72,6 +80,7 @@ The canonical records own the meaning. The wiki, the FalkorDB graph and the QMD 
 | `kb_connect` | Chains of links between two ideas, or what one idea reaches a few hops out |
 | `kb_read` | Full accounts, topic catalogues, source units, guides and schemas |
 | `kb_file` | Publish a worked answer as a cited synthesis |
+| `kb_idea` | Keep candidate inventions in their own lane: propose, declare a pass rule, record results, export |
 | `kb_ingest`, `kb_job` | Register a source and move its ingestion job through the stages |
 | `kb_write` | Write knowledge as Markdown notes (the preferred way to stage records) |
 | `kb_propose`, `kb_change` | Stage raw proposals; preview or publish a job |
@@ -90,7 +99,7 @@ The setup guide separates what the system actually needs from choices one instal
 
 ## Where it's at
 
-It works on the development machine: Windows 11, Ubuntu WSL2, FalkorDB and QMD on the CPU. There are 145 automated tests; 142 pass, and 3 Python conversion tests skip where that runtime isn't installed. The whole pipeline has run end to end on technical papers, including a three-source test where later papers had to revise earlier understanding. An independent audit on 5 October 2026 found twelve defects the tests had missed; all are fixed, and each now has a regression test.
+It works on the development machine: Windows 11, Ubuntu WSL2, FalkorDB and QMD on the CPU. There are 154 automated tests; 151 pass, and 3 Python conversion tests skip where that runtime isn't installed. The whole pipeline has run end to end on technical papers, including a three-source test where later papers had to revise earlier understanding. An independent audit on 5 October 2026 found twelve defects the tests had missed; all are fixed, and each now has a regression test.
 
 What it hasn't done yet: ingest a long book or a full course with the new note format. A different machine needs its own dependency setup and checks, and Docker deployment and local speech transcription are configurable but untested end to end. [Validation](docs/VALIDATION.md) and [performance](docs/PERFORMANCE.md) keep score on what's been shown and what hasn't.
 

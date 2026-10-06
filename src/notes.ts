@@ -727,6 +727,84 @@ export class Notes {
       // words, so records from other fields can be matched on function rather than topic.
       if (f.facets !== undefined)
         extensions.functional_facets = facetsFrom(f.facets, where, epistemic);
+      // Decision points: where a procedure branches, as an expert would say it out loud.
+      if (f.decisions !== undefined) {
+        const points = list(f.decisions);
+        ensure(
+          !points.length ||
+            (type === "knowledge" && payload.form === "procedure"),
+          "VALIDATION_FAILED",
+          `${where}: decisions belong on procedure notes`,
+        );
+        ensure(
+          points.length <= 12,
+          "VALIDATION_FAILED",
+          `${where}: keep to the 12 decisions that matter most`,
+        );
+        const decisionPoints = [];
+        for (const [i, raw] of points.entries()) {
+          const at = `${where}: decisions[${i}]`;
+          const short = (value: unknown, field: string, words: number) => {
+            const phrase = text(value);
+            ensure(phrase, "VALIDATION_FAILED", `${at} needs ${field}`);
+            ensure(
+              wordCount(phrase) <= words,
+              "VALIDATION_FAILED",
+              `${at}: keep ${field} to ${words} words or fewer`,
+            );
+            return phrase;
+          };
+          const options = list(raw?.options);
+          ensure(
+            options.length >= 2 && options.length <= 5,
+            "VALIDATION_FAILED",
+            `${at}: a decision has two to five options, each {if, then}; "otherwise" is a fine if`,
+          );
+          const evidence: Target[] = [];
+          if (raw?.cite !== undefined) {
+            const cite = text(raw.cite);
+            if (coverage.has(cite)) {
+              const unit = await loadUnit(cite, at);
+              const target = await passageTarget(unit);
+              inputs.push(target);
+              sourceRefs.set(key(unit.source_ref), unit.source_ref);
+              evidence.push(target);
+            } else {
+              const target = resolve(cite, at);
+              ensure(
+                typeOf(target) === "passage",
+                "VALIDATION_FAILED",
+                `${at}: cite a unit or passage`,
+              );
+              inputs.push(target);
+              evidence.push(target);
+            }
+          }
+          decisionPoints.push({
+            cue: short(raw?.at, "at (when the choice comes up)", 20),
+            decision: short(
+              raw?.decide,
+              "decide (the question being settled)",
+              25,
+            ),
+            options: options.map((o: any, j: number) => ({
+              when: short(o?.if, `options[${j}].if`, 30),
+              then: short(o?.then, `options[${j}].then`, 30),
+            })),
+            check:
+              raw?.check === undefined ? null : short(raw.check, "check", 25),
+            basis:
+              raw?.stated === false
+                ? "inferred"
+                : raw?.stated === true || epistemic === "source_account"
+                  ? "source_stated"
+                  : "inferred",
+            evidence_refs: evidence,
+          });
+        }
+        if (decisionPoints.length) extensions.decision_points = decisionPoints;
+        else delete extensions.decision_points;
+      }
       ensure(
         type !== "knowledge" ||
           !FACET_FORMS.includes(payload.form) ||

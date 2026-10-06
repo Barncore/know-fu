@@ -21,6 +21,10 @@ Answer in your own connected prose, and cite record ids for the claims that carr
 
 When the user asks you to keep an answer, or a substantial answer connects several accounts in a way worth reusing, offer to file it. `kb_file` publishes it as a cited synthesis that later sessions start from. It ranks just below the accounts it cites and gets flagged for review when they change. Pass the user's own words as `authorization`.
 
+## Inventing
+
+For new ideas, strategies or designs, recall with `purpose:"invent"` and follow the steps in [retrieval.md](references/retrieval.md#inventing). Ask the owner up front whether to borrow from other fields (`cross_domain:true`) or stay inside one. Candidates the owner wants to keep go in through `kb_idea`, a separate lane: an idea rests on library accounts, never counts as evidence, and changes status only when a result from the owner's own tools is recorded against a pass rule declared before the run. [ideas.md](references/ideas.md) covers saving, testing and export.
+
 ## Ingesting a source
 
 Read [ingestion.md](references/ingestion.md) before the first call. Books and papers also need [books.md](references/books.md), recorded courses, video and audio need [video.md](references/video.md), and a mixed course uses both. You write knowledge as Markdown notes with `kb_write`; [notes.md](references/notes.md) has the format and a full example.
@@ -37,4 +41,4 @@ Read [operations.md](references/operations.md).
 - Change the library only through the tools. Originals never change; canonical records change by publishing a new revision.
 - Keep each author's account distinct from synthesis, inference and illustration. Real disagreement stays as a judgment or a challenge link. Never pick a winner on age, popularity or confidence.
 - This is a research library. Operational or session memory, promotion tiers, shared writes across agents and `analogous_to` links are all deferred, and a book doesn't become a skill.
-- For sessions without file access, the guides are also served by `kb_read {kind:"guide", name}`, with names `workflow`, `ingestion`, `notes`, `books`, `video`, `retrieval` and `operations`.
+- For sessions without file access, the guides are also served by `kb_read {kind:"guide", name}`, with names `workflow`, `ingestion`, `notes`, `books`, `video`, `retrieval`, `ideas` and `operations`.

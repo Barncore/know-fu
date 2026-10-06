@@ -46,7 +46,7 @@
     {
       "source": "contracts/schemas/proposal.schema.json",
       "bundled": "contracts/schemas/proposal.schema.json",
-      "sha256": "6e0a76ae68691622cb77ceea606ec07927fbe27fb2a626b154331400c5ae556b"
+      "sha256": "42b6602a356382e4b033f34aceb365a91a555d41baaca491967f5a50ade3d5d9"
     },
     {
       "source": "contracts/schemas/reading-request.schema.json",
@@ -56,12 +56,12 @@
     {
       "source": "contracts/schemas/reading.schema.json",
       "bundled": "contracts/schemas/reading.schema.json",
-      "sha256": "31dcdccf4c7c3ace1767eaf7b671ed27546bb43e38d5eac3e8a791d57ac07cbf"
+      "sha256": "7cdfef6d4a1fc838175f5fd7a36ef9cb102b47eedb39123d8c31fa03cfc59095"
     },
     {
       "source": "contracts/schemas/record.schema.json",
       "bundled": "contracts/schemas/record.schema.json",
-      "sha256": "72aae01707f877cf74cfa7a279b56f34c344794cd643d7bfad8208b41967d1c2"
+      "sha256": "c7dfd37062951b20274bbd4d61cd5f9dc6b29a9cd2439718da58dbfc0fb24175"
     },
     {
       "source": "contracts/schemas/release.schema.json",

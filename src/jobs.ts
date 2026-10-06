@@ -519,6 +519,9 @@ export class Jobs {
     let inaccessible = false;
     for (const [recordId, impact] of affected) {
       const record = base.get(recordId)!;
+      // An idea whose premise changed is flagged after publish and reconsidered in an
+      // invent session with kb_idea; ingestion never has to reassess ideas.
+      if (record.record_type === "idea") continue;
       if (!(await this.store.allowed(record, job.scope_policy, allowed))) {
         inaccessible = true;
         continue;
@@ -980,6 +983,11 @@ export class Jobs {
         p.base_release === j.base_release,
         "REVISION_CONFLICT",
         "Proposal base differs from job",
+      );
+      ensure(
+        !(p.items ?? []).some((i: any) => i.record_type === "idea"),
+        "VALIDATION_FAILED",
+        "Ingestion records what sources say. Ideas go through kb_idea; a source's own open problems become question notes.",
       );
       const dir = this.jobPath(j.job_id),
         receiptFile = path.join(

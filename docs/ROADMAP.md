@@ -2,7 +2,7 @@
 
 This is the working to-do list. [NORTH_STAR.md](NORTH_STAR.md) says what Know Fu is for and what the owner has decided, [VALIDATION.md](VALIDATION.md) says what's been shown to work, and this file says what to do next, in order. When a task is done, its result moves into VALIDATION or the change log and the task leaves this list. Task numbers never change, so the change log and the audit report can keep pointing at them.
 
-Updated 5 October 2026, engine 1.2.0 with `kb_connect` and assessments.
+Updated 6 October 2026, engine 1.2.0 with `kb_connect`, assessments, functional facets, and the invention work on the `claude/know-fu-invention` branch.
 
 ## Where 1.2.0 leaves things
 
@@ -38,9 +38,11 @@ All five are written up in [NORTH_STAR.md](NORTH_STAR.md#decisions-on-5-october-
 
 - Invention ranks first, with explaining and teaching a close second. See [NORTH_STAR.md](NORTH_STAR.md#decisions-on-6-october-2026).
 - Restore functional facets in `kb_write` (task 19, built). The measured cost is in [VALIDATION.md](VALIDATION.md).
-- Still under discussion: idea records with lineage and status, an on-demand invent workflow, recording test results from the owner's own tools, computed gaps, how to store an accepted analogy, and a lineage map of sources. Each gets a task number from 20 once the owner decides.
+- Built on the `claude/know-fu-invention` branch: the idea lane with its walls (task 20), results from the owner's own tools (task 21), a real `invent` preset with opt-in bridges (task 22), gap suggestions (task 23), the guide changes for inventing, open problems and teaching by comparison (task 24), and decision points on procedures (task 25). Measurements are in [VALIDATION.md](VALIDATION.md).
+- A lineage map of sources isn't needed: the owner meant conceptual lineage, which `depends_on`, "Foundations first" and reweaving already carry.
+- Still open: how to store an accepted analogy. The recommendation on the table is to keep analogies, show them only in invent, and decide storage when analogy search gets built.
 
-Right now nothing else waits on the owner except the go-ahead for task 1.
+Right now nothing waits on the owner except the go-ahead for task 1 and merging the branch.
 
 ## Task list
 
@@ -57,6 +59,10 @@ This is the big one: so far the new tools have only met test libraries. Ingest o
 #### 5. Broad synthesis under a budget
 
 The blind comparison (VALIDATION, 2026-10-05) found recall as good as the packet at an eighth of the material, with one soft spot. On the synthesis case, two relevant accounts didn't fit the 12,000-token budget, and the answer left their branch implicit. Try a larger synthesis default, or one-line summaries of every unloaded account in the same topic. Judge the change on new paraphrased synthesis questions, never on the exposed cases. Since the 6 October audit fixes, briefings carry 5-10% less material at the same nominal budget (the old size accounting undercounted), so rerun the blind comparison here too. Done when synthesis answers cover their branches without the budget creeping above about a quarter of the packet's size.
+
+#### 26. Find out whether invent actually helps
+
+Invent recall, the idea lane and the guide steps are built and tested for correctness, not for whether they produce better inventions. The research proposed three tracks: replay (does an idea generated from the library before a held-out source arrived match what that source later found, against the same model without the library?), the owner's blind pairwise picks between invent and plain answers, and outcomes from ideas the owner actually tests. Start with the owner's blind picks on ten fresh invention questions in a real library, because it's cheapest. Done when there's a number in VALIDATION, with its limits, saying whether invent beats asking the model directly.
 
 #### 6. Load the brief at session start
 
@@ -104,7 +110,7 @@ Add an optional `counter_search {scope, found}` to the evidence assessment, so "
 
 #### 14. Discovery helpers
 
-Beyond `kb_connect`'s chains and bridges: weakly linked clusters, and the open questions with the most riding on them, for the `invent` and `investigate` purposes. It feeds notes and never publishes on its own.
+Beyond `kb_connect`'s chains and bridges, the invent slate (task 22) and the gap suggestions (task 23): weakly linked clusters, and the open questions with the most riding on them. It feeds notes and never publishes on its own.
 
 #### 15. Claude Code adapter
 
@@ -132,6 +138,8 @@ Operational or project memory, knowledge promotion tiers, several agents writing
 | Skipping semantic search misses a paraphrase | A question uses the library's words with a different meaning | The agent can force `semantic:true`; probe questions (task 8) should include paraphrases |
 | A `kb_connect` chain gets read as a causal argument | An agent strings hops into a claim without opening the accounts | The briefing says a chain isn't evidence that one idea causes the other, and the retrieval guide says to open each hop and check its condition |
 | Assessment levels get read as verdicts, or filled in by guesswork | An agent picks the higher level in a conflict, or sets levels just to fill the field | Levels never touch ranking; conflicts show both sides with a note to weigh the reasons; `kb_write` refuses a level without a reason or basis, and `high` from thin support in one source family; task 2 checks real notes |
+| A test result recorded against an idea is wrong or cherry-picked | The owner's tool had a bug, or only the good runs got reported | The pass rule has to be published a revision before the result and is frozen after it; every result carries a trial count; a failure says whether the idea or the test was at fault. Know Fu can't check that a run happened, so re-running a claimed result stays with the owner's tools |
+| A speculative claim enters as knowledge instead of as an idea | An agent writes a knowledge note marked `epistemic: hypothesis`, which `kb_write` still accepts for older libraries | The ingestion guide sends candidate inventions to the report and `kb_idea`; recall flags `hypothesis` on the account's identity line. Refusing it outright would break revisions of existing records, so that waits for a decision |
 | Two MCP processes on one library | Codex and Claude, or two sessions at once | Publication locks, control-signature cache keys and the short-lived search worker already handle it, but test it before relying on it |
 | The `braces` stack-exhaustion advisory (GHSA-vfj7-8cjw-p6xm), reached through QMD's micromatch and fast-glob | Only if untrusted, deeply nested glob patterns ever reach QMD | Know Fu passes generated collection paths today. Don't add configurable patterns without reviewing this, and don't apply npm's forced QMD downgrade; update when QMD ships a fixed dependency |
 

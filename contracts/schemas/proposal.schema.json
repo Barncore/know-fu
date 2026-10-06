@@ -89,7 +89,8 @@
               "relationship",
               "judgment",
               "learning",
-              "question"
+              "question",
+              "idea"
             ]
           },
           "title": {
@@ -1044,6 +1045,109 @@
                   ]
                 },
                 "minItems": 1
+              },
+              "decision_points": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 12,
+                "description": "The choices an expert makes while following a procedure: when each comes up, what is decided, the options and how to check the result.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "cue": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "decision": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "options": {
+                      "type": "array",
+                      "minItems": 2,
+                      "maxItems": 5,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "when": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "then": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "when",
+                          "then"
+                        ]
+                      }
+                    },
+                    "check": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1
+                    },
+                    "basis": {
+                      "enum": [
+                        "source_stated",
+                        "inferred"
+                      ]
+                    },
+                    "evidence_refs": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+                              },
+                              "revision": {
+                                "type": "integer",
+                                "minimum": 1
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "revision"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "local_ref": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "required": [
+                              "local_ref"
+                            ]
+                          }
+                        ]
+                      },
+                      "minItems": 0
+                    }
+                  },
+                  "required": [
+                    "cue",
+                    "decision",
+                    "options",
+                    "check",
+                    "basis",
+                    "evidence_refs"
+                  ]
+                }
               }
             },
             "required": []
@@ -1853,6 +1957,231 @@
                   "next_action",
                   "resolution_status",
                   "priority"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "record_type": {
+                "const": "idea"
+              },
+              "payload": {
+                "type": "object",
+                "additionalProperties": false,
+                "description": "A candidate invention kept apart from knowledge. Its premises are provenance input_refs; it is never evidence for anything else.",
+                "properties": {
+                  "statement": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "kill_test": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The result that would show the idea is wrong."
+                  },
+                  "pass_rule": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1,
+                    "description": "The exact rule a result is judged by, declared in an earlier revision than any result."
+                  },
+                  "status": {
+                    "enum": [
+                      "proposed",
+                      "under_test",
+                      "supported",
+                      "refuted",
+                      "dormant"
+                    ]
+                  },
+                  "parent_refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9_-]*$"
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "revision"
+                      ]
+                    },
+                    "minItems": 0
+                  },
+                  "origin": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1
+                  },
+                  "ratings": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "description": "Originality and feasibility, rated separately and never combined.",
+                    "properties": {
+                      "originality": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "level": {
+                            "enum": [
+                              "low",
+                              "medium",
+                              "high"
+                            ]
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "level",
+                          "reason"
+                        ]
+                      },
+                      "feasibility": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "level": {
+                            "enum": [
+                              "low",
+                              "medium",
+                              "high"
+                            ]
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "level",
+                          "reason"
+                        ]
+                      }
+                    }
+                  },
+                  "results": {
+                    "type": "array",
+                    "minItems": 0,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "recorded_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "tool": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "version": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "data_window": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "minLength": 1
+                        },
+                        "pass_rule": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "outcome": {
+                          "enum": [
+                            "pass",
+                            "fail",
+                            "inconclusive"
+                          ]
+                        },
+                        "trials": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "metrics": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": [
+                              "number",
+                              "string"
+                            ]
+                          }
+                        },
+                        "note": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "minLength": 1
+                        },
+                        "failure": {
+                          "oneOf": [
+                            {
+                              "type": "null"
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "idea",
+                                    "execution"
+                                  ]
+                                },
+                                "reason": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "reason"
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "recorded_at",
+                        "tool",
+                        "version",
+                        "data_window",
+                        "pass_rule",
+                        "outcome",
+                        "trials",
+                        "metrics",
+                        "note",
+                        "failure"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "statement",
+                  "kill_test",
+                  "pass_rule",
+                  "status",
+                  "parent_refs",
+                  "results"
                 ]
               }
             }
