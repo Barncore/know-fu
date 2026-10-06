@@ -4,6 +4,27 @@ The local development installation is Windows with Ubuntu WSL2, regular FalkorDB
 
 Entries run newest first. Each one says what was shown and what wasn't. Older entries are kept as written.
 
+## 2026-10-07: read receipts, agent provenance, evidence families and the Claude Code adapter
+
+These are guards for the first real ingest, so they were tested as rules on fixtures, plus a live check of what an MCP client sees.
+
+`test/ingest-honesty.test.ts` covers the rules:
+- A blanket "everything read" receipt is refused with the unread units named.
+- Reading only a unit's first characters is refused, and so is skipping its middle; filling the gap is accepted.
+- Exclusions still need only a reason.
+- The ingestion report counts what was read in full.
+- A job from before the change still works and reports that reading wasn't tracked.
+- `KB_ACTOR=claude` puts `claude` in a new source's provenance, a malformed or missing value records `unspecified`, and jobs wait in `waiting_for_agent`.
+- A source registered with a family, independence or derivation keeps them, a bad family name is refused, a published source can't be re-registered under another family, and plain paths keep the old defaults.
+
+Four older tests had marked units read without fetching them. Three now read them first, and the fourth, whose fixture fakes conversion, logs the reads instead. The full suite is 158 tests: 155 pass, and the same 3 Python conversion tests skip.
+
+A real MCP client started the built server the way a plugin launcher does and listed its tools. By default it got 11 tools at about 1,780 tokens, including input schemas. With `KB_ADVANCED_TOOLS=true` it got all 16 at about 2,330. So hiding the five specialist tools saves about 550 tokens a session. The first estimate, from descriptions alone, was 330.
+
+Claude Code's own validator (`claude plugin validate --strict`, version 2.1.288) passes the plugin manifest and the root marketplace file, and `npm run check:package` now checks both manifests against `package.json` and the launcher's settings.
+
+Not run yet: a live Claude Code install and session. That needs the engine built, a library initialized and the plugin added as a marketplace, which is task 1. Until then the Claude Code adapter is validated but unproven, and so is the claim that `${CLAUDE_PROJECT_DIR}` binds each session to its project.
+
 ## 2026-10-06: ideas, invent, gaps and decision points
 
 Built on the `claude/know-fu-invention` branch. Two questions: do the walls hold, and what does it all cost in tokens?

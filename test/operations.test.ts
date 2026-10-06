@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import { published, fixture } from "./helpers.js";
+import { published, fixture, readUnits } from "./helpers.js";
 import { Jobs } from "../src/jobs.js";
 import { Governance } from "../src/governance.js";
 import { Projections } from "../src/projections.js";
@@ -40,6 +40,7 @@ test("a partial reading receipt checkpoints remaining source units and resumes e
   await jobs.convert(id);
   let j = await jobs.load(id);
   assert(j.coverage.length > 1);
+  await readUnits(jobs, id, [j.coverage[0].unit_id]);
   await jobs.submit(id, {
     step_id: "first",
     stage: "reconstruct",
@@ -52,6 +53,7 @@ test("a partial reading receipt checkpoints remaining source units and resumes e
   await jobs.action(id, "cancel");
   await jobs.action(id, "resume");
   assert.equal((await jobs.load(id)).coverage[0].read, "complete");
+  await readUnits(jobs, id);
   await jobs.submit(id, {
     step_id: "rest",
     stage: "reconstruct",

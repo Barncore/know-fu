@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import * as fs from "node:fs/promises";
-import { published, fixture, FIX } from "./helpers.js";
+import { published, fixture, FIX, readUnits } from "./helpers.js";
 import { Recall, estimateTokens } from "../src/recall.js";
 import { Reading } from "../src/reading.js";
 import { Filing } from "../src/filing.js";
@@ -175,6 +175,7 @@ test("F04: content staged after the check reopens it, and publication rejects a 
   });
   const id = started.job.job_id;
   await jobs.convert(id);
+  await readUnits(jobs, id);
   for (const stage of [
     "reconstruct",
     "integrate",

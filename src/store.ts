@@ -10,6 +10,7 @@ import {
   VERSION,
   ENGINE_VERSION,
   KBError,
+  agentName,
   ensure,
   exists,
   readJson,
@@ -784,7 +785,7 @@ export class Store {
         epistemic: i.epistemic,
         scope: i.scope,
         provenance: {
-          actor: "codex",
+          actor: agentName(),
           method: "semantic_proposal",
           source_refs: i.source_refs,
           input_refs: i.input_refs,

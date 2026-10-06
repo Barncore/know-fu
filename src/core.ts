@@ -30,6 +30,14 @@ export const ENGINE_VERSION: string = JSON.parse(
 export const STATE = path.resolve(
   process.env.KB_STATE_DIR ?? path.join(APP, ".runtime"),
 );
+/**
+ * The agent this engine process works for, from `KB_ACTOR` in the plugin's server config
+ * (`codex`, `claude`). Recorded as each record's provenance actor; never guessed.
+ */
+export function agentName() {
+  const name = process.env.KB_ACTOR?.trim().toLowerCase();
+  return name && /^[a-z][a-z0-9_-]{0,31}$/.test(name) ? name : "unspecified";
+}
 export const now = () => new Date().toISOString();
 export const uid = (prefix = "") => prefix + randomUUID();
 export const hash = (data: string | Uint8Array) =>

@@ -79,6 +79,14 @@ The owner also settled what "lineage" means for them: which concept leads to whi
 
 After an outside review by Fable 5.1 the same evening, the owner closed the analogy question: no `analogous_to` link, ever. `cross_domain` already controls cross-field borrowing at the moment of asking. An accepted analogy is an idea: the mapping is its statement, and both accounts are its premises. Once the same pattern has proven itself across two or more cases, it can become a `concept` for the abstract pattern, with `exemplifies` links from each case. Neither needs a new link type. The owner also made `staging` the branch where work lands first, with `main` reserved for the official version.
 
+## Decisions on 7 October 2026
+
+Working through the ranked list in [ROADMAP.md](ROADMAP.md#waiting-on-the-owner), the owner approved the changes that make ingestion honest before the first real ingest. Reading is now checked: a unit counts as read only when the engine has served all of it. Every record says which agent wrote it. And a source's independence is set when it's registered, including the owner's own notes as a family of their own. Know Fu now runs with Claude Code as well as Codex, from one plugin folder with one skill. Five specialist tools stay out of everyday sessions. The code is under the MIT licence.
+
+The pilot will run both agents on the same source, each into its own library, beside a flat-wiki control, so the comparison shows which agent writes the better library and whether the structure is worth its weight.
+
+Two questions stay open for discussion. The owner doesn't want claims expiring on a guessed date: whether a source is out of date is for the agent to judge on the way in, and a "sunset" action (outdated, kept for history) may fit better than validity windows. And reading long books in stages waits on how a stage-by-stage reader keeps the whole book in view.
+
 ## One knowledge system, several ways in
 
 ```mermaid

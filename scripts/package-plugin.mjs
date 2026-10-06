@@ -60,4 +60,17 @@ for (const file of (await walk(plugin)).filter(p => p.endsWith('.md'))) {
     links++;
   }
 }
-console.log(JSON.stringify({ mode: check ? 'checked' : 'packaged', schemas: schemaNames.length, examples_valid: true, relative_links: links }));
+// Both agents load the same plugin folder: Codex through .codex-plugin, Claude Code through .claude-plugin.
+const version = (await read(path.join(app, 'package.json'))).version;
+const codex = await read(path.join(plugin, '.codex-plugin/plugin.json'));
+const claude = await read(path.join(plugin, '.claude-plugin/plugin.json'));
+const market = await read(path.join(app, '.claude-plugin/marketplace.json'));
+for (const [label, manifest] of [['Codex', codex], ['Claude Code', claude]]) {
+  if (manifest.name !== 'know-fu' || manifest.version !== version) throw Error(`${label} manifest name or version is out of step with package.json`);
+}
+await fs.access(path.join(plugin, 'skills/know-fu/SKILL.md'));
+const server = claude.mcpServers?.['know-fu'];
+if (server?.args?.[0] !== '${CLAUDE_PLUGIN_ROOT}/../dist/mcp.js' || server.env?.KB_ACTOR !== 'claude' || server.env?.KB_PROJECT !== '${CLAUDE_PROJECT_DIR}') throw Error('Claude Code server must run the engine beside the plugin, as claude, bound to the session project');
+for (const match of JSON.stringify(server).matchAll(/\$\{user_config\.([a-z_]+)\}/g)) if (!claude.userConfig?.[match[1]]) throw Error(`Undeclared user_config.${match[1]}`);
+if (market.plugins?.[0]?.name !== claude.name || market.plugins[0].source !== './plugin') throw Error('The Claude Code marketplace must list ./plugin');
+console.log(JSON.stringify({ mode: check ? 'checked' : 'packaged', schemas: schemaNames.length, examples_valid: true, relative_links: links, manifests: ['codex', 'claude'] }));

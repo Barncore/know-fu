@@ -44,6 +44,15 @@ All five are written up in [NORTH_STAR.md](NORTH_STAR.md#decisions-on-5-october-
 - `staging` is the branch where work lands first, and `main` is the official version.
 - D1 and D2 approved and done: the two old branches are deleted, and the skill now fires only on work with a bound Know Fu library.
 
+## Decided on 7 October 2026
+
+- Built: read receipts (D3), the agent named in every record's provenance (D4), evidence families set at registration (D5), the Claude Code adapter beside the Codex one in `plugin/` (D6, with D6a-e as recommended, which also completes task 15), and five specialist tools hidden by default (D12). Measurements and what wasn't run are in [VALIDATION.md](VALIDATION.md).
+- The pilot runs with both agents (D7): the same source, ingested by Claude Code and by Codex into two separate isolated libraries, compared, beside the flat-wiki control (D11). Task 2 now describes that design.
+- One module with domain tags (D9) is now the setup guides' recommended layout.
+- The code is under the MIT licence (D13).
+- D10 is deferred for discussion: the owner doesn't want claims expiring on a guessed date, and suggested a sunset action instead. It moved to the second group as D10.
+- D8 waits on the owner's answer to how chapter reading would keep the whole book in view.
+
 ## Waiting on the owner
 
 Fable 5.1 reviewed the whole project on 6 October 2026 ([the audit](#where-these-came-from)), and this is the list of what's left to decide, merged with the owner's own open questions. It's grouped by when the answer is needed, and inside each group the ones I'd approve without hesitation come first and the uncertain or consequential ones last. When the owner decides one, its heading says so and it's added to a "Decided on" list, and if it means building something, it gets a task number. Its D number stays the same.
@@ -64,25 +73,25 @@ The skill's description says to use it when "explaining, teaching, applying, com
 
 Cost-benefit: costs nothing at runtime, and saves the skill's ~1,300 tokens plus a wrong turn every time it would have fired on an unrelated request. The only price is naming the library when you're outside a bound project.
 
-#### D3. Read receipts · approve
+#### D3. Read receipts · approved and done
 
 Today `coverage_all {status:"complete"}` is the agent's word that it read every unit, and nothing checks it. The engine would log which units each job actually served (text units, page images and frames), refuse "complete" for a unit it never served to the end, and put the read ratio in the ingestion report. It doesn't prove the agent understood a page, but it closes the cheapest way to fake reading. About 100-150 lines plus tests. Units marked excluded (covers, blanks, indexes) still just need a reason.
 
 Cost-benefit: no tokens at answer time and milliseconds of bookkeeping at ingest, against making "read" a checked fact under every note. High value, because every answer, reweave and idea built later inherits whatever an ingest skipped.
 
-#### D4. Record which agent wrote each record · approve before any agent other than Codex writes
+#### D4. Record which agent wrote each record · approved and done
 
 Every record's provenance says `actor: "codex"`, because it's hard-coded in three places, and jobs wait in a status called `waiting_for_codex`. If Claude ingests the pilot, every record will claim Codex wrote it, and provenance can't be fixed after the fact without new revisions of everything. Each plugin's server config would name its agent, and the job status becomes `waiting_for_agent`, with the old name still accepted. Small change.
 
 Cost-benefit: one field that's already stored, so nothing per session. It unlocks D6, D7 and D23, and skipping it means a new revision of every record later.
 
-#### D5. Set a source's evidence family when registering it · approve
+#### D5. Set a source's evidence family when registering it · approved and done
 
 The rule that `high` evidence from thin support needs two independent source families only works if families are right. Today every source registers as its own family (`unknown-<hash>`) with independence `unknown`, and no tool can change it. So two copies of one book, or a book and its summary, count as two independent sources. `kb_ingest` would accept `evidence_family`, `independence` and `derived_from` per source, and the ingestion guide would say how to pick them, including `owner` for your own trading journal, session notes and half-finished ideas (which Fable rightly says are good sources nobody suggested). The family is effectively fixed at registration, so this should land before the first real source.
 
 Cost-benefit: a few dozen tokens per source at registration, against honest independent-source counts in every recall and a two-family rule duplicates can't game. Wrong families compound into inflated confidence as the library grows.
 
-#### D6. Claude Code adapter, in this repository · approve
+#### D6. Claude Code adapter, in this repository · approved and done (D6a-e as recommended)
 
 The engine is agent-neutral; only the packaging is Codex-shaped. Fable recommends building the Claude Code adapter before the pilot rather than "once finished", because your harness, research and review loop all live in Claude, and running the pilot in Codex means learning the agent's behaviour twice. Both adapters can live in the same `plugin/` folder: Codex reads `.codex-plugin/plugin.json` and Claude Code reads `.claude-plugin/plugin.json`, and both read the same `skills/` folder. What it needs:
 
@@ -94,49 +103,53 @@ The engine is agent-neutral; only the packaging is Codex-shaped. Fable recommend
 
 Cost-benefit: about half a day of build work once and no extra cost per session (either agent loads the same tool descriptions and skill). It unlocks D7 and D8, which hold the biggest ingest savings on this list.
 
-#### D7. Which agent runs the pilot · Claude Code recommended, your call
+#### D7. Which agent runs the pilot · decided: both, in separate libraries
 
-The library is agent-neutral but the prose isn't: Codex and Claude will write different notes from the same chapter. Run the pilot with the agent you'll use day to day. Claude Code is my pick, because chapter-by-chapter reading in subagents (D8) is the biggest cost saving available and the harness around it is yours. Needs D4 and D6.
+The library is agent-neutral but the prose isn't: Codex and Claude will write different notes from the same chapter. The owner's call: run both. The same source goes into two separate isolated libraries, one written by Claude Code and one by Codex, and the two libraries and their answers get compared. Separate libraries mean neither agent touches the other's notes, so D23 isn't needed for this. D4 makes each record say which agent wrote it.
 
-Cost-benefit: no token difference worth weighing, though choosing Claude Code means the pilot waits for D4 and D6. The gain is learning the agent you'll actually live with, once.
+Cost-benefit: twice the pilot's ingest tokens, against seeing on identical material which agent writes the better library, which settles who does the ingesting from then on.
 
-#### D8. Read chapters in fresh contexts · approve
+#### D8. Read long books in stages, with the whole book in view · waiting on the owner after their questions
 
-A book read in one long conversation resends everything read so far on every tool call, so its total cost climbs much faster than its page count. Slugs already carry across `kb_write` batches in one job, so separate subagents can each read one chapter and write its notes, while the main agent does integrate, reweave and check. This is a guide rule: what each chapter subagent gets (job id, its units, the slug list, the current primer) and what the main agent keeps. It applies wherever the harness has subagents.
+What actually happens in one long conversation: the model keeps no memory between calls, so every tool call sends the whole conversation so far back to it, with the new result on the end. Providers cache that repeated part, so it's billed at a fraction and doesn't slow things much. The real problem is room. A 300-page book is very roughly 150,000-200,000 tokens of text (an estimate), so the conversation fills up partway through and the harness compacts it: the early chapters survive only as a summary. One long conversation already loses chapter 3 by the time it reaches chapter 8. It just loses it silently. (The earlier version of this entry blamed cost; the context limit is the bigger reason.)
 
-Cost-benefit: each chapter subagent reloads the guides and primer (roughly 8,000-10,000 tokens each), against no longer resending every earlier chapter on every call. For a whole book that likely cuts total reading tokens several times over (an estimate, not yet measured), and it's what makes big books affordable at all.
+The owner asked whether reading by chapter loses the whole book's teaching. Read naively, yes, so the design keeps the whole book in view:
 
-#### D9. One wide module, with domain tags · approve
+1. A book map first. One reader goes through the contents, introduction, chapter openings and conclusions, and writes a short map: the argument, the key terms, which chapter builds on which.
+2. Then the chapters in order, each read in full by a fresh subagent that gets the book map plus the notes already written for the earlier chapters. Chapter 8's reader knows what chapter 3 established, through chapter 3's notes. In order, not in parallel, because parallel readers can't see each other's chapters.
+3. The subagents do the real reading and analysis: they read every unit to its end (which the read receipts check) and write that chapter's notes. Extracting the text is already done by conversion before anyone reads.
+4. The main agent never re-reads the pages. It reads the notes and does the cross-chapter work: links between chapters, the comparison with the rest of the library, reweave, the teaching layer and the check.
+5. A book or paper that fits comfortably in one context skips all this and gets one reader.
+
+One reader for the whole book in a subagent would only move the room problem into the subagent. What stays risky: a later chapter's reader sees earlier chapters only through their notes, so something the notes left out is invisible to it. The main agent's cross-chapter pass and the check stage are the guard. This is a guide change, nothing in the engine.
+
+Cost-benefit: the book map costs a few thousand tokens, and each chapter reader reloads the guides, the map and the notes so far, roughly 10,000-20,000 tokens each (estimates), against a main conversation that never compacts the book away. Nothing changes for papers and short books, and the gain grows with book length.
+
+#### D9. One wide module, with domain tags · approved, now in the setup guides
 
 When you set up your real library, put everything in one module and separate topics with domain tags. `cross_domain` bridges can only cross what a project can read, and moving a record to another module later is its own operation. Use a separate module only for material that has to stay apart, such as a client's.
 
 Cost-benefit: costs nothing except the option to hide one topic from another project, and gains bridges that can see the whole library, which is where invention compounds. Changing modules later is a per-record operation.
 
-#### D10. Validity windows for claims that go stale · approve
-
-`valid_from` and `valid_until` already exist and recall flags an account outside its window, but no guide says when to set them. Prices, software versions, regulations and market behaviour go stale. A guide rule in the notes guide, and roadmap task 17's `review_after` remains the fuller version.
-
-Cost-benefit: about 100 more guide tokens per ingest session and a few tokens per volatile note, against stale trading or software advice being flagged in recall instead of trusted. The payoff grows as the library ages.
-
-#### D11. Run the pilot beside a flat-wiki control · approve, but it's your time
+#### D11. Run the pilot beside a flat-wiki control · approved, folded into task 2
 
 The pilot (task 2) proves Know Fu can ingest a chapter. It doesn't prove the structure is worth its weight. Fable's control: the same chapter, by the same agent, written into plain Markdown pages indexed by QMD, with no records, links or reweave. Ask both the same five questions, compare blind, then ingest a second related source into Know Fu and check it revised the first. The control costs maybe a quarter of the Know Fu ingest. If the flat wiki wins, that's worth knowing before you feed it a library.
 
 Cost-benefit: roughly a quarter of the pilot's tokens again plus your time to judge answers blind, once. The result says whether everything else on this list is worth building, so no other decision here unlocks as much.
 
-#### D12. Hide five specialist tools by default · approve
+#### D12. Hide five specialist tools by default · approved and done
 
-The 16 tool descriptions cost about 1,600 tokens in every session. `kb_retrieve` (the two old routes), `kb_propose` and `kb_change` (raw proposals), `kb_lifecycle` (archive, withdraw, purge) and `kb_evaluate` (the Codex evaluation harness) would load only when `KB_ADVANCED_TOOLS` is set, saving about 330 tokens a session. Fable also listed `kb_maintain`, but the publish step calls it to reindex, so it has to stay. Setup, purge and evaluation sessions turn the flag on.
+The 16 tool descriptions cost about 1,600 tokens in every session. `kb_retrieve` (the two old routes), `kb_propose` and `kb_change` (raw proposals), `kb_lifecycle` (archive, withdraw, purge) and `kb_evaluate` (the Codex evaluation harness) would load only when `KB_ADVANCED_TOOLS` is set. Measured with a real MCP client after building it: 16 tools and about 2,330 tokens become 11 tools and about 1,780, so roughly 550 tokens a session, more than the 330 first estimated, because each tool's input schema costs tokens too. Fable also listed `kb_maintain`, but the publish step calls it to reindex, so it has to stay. Setup, purge and evaluation sessions turn the flag on.
 
-Cost-benefit: about 330 fewer tokens in every session for good (a fifth of the tool descriptions) and fewer chances to call the wrong tool, against setting a flag in the occasional setup or purge session. Small per session, large summed over every session.
+Cost-benefit: about 550 fewer tokens in every session for good (a quarter of the tool listing) and fewer chances to call the wrong tool, against setting a flag in the occasional setup or purge session. Small per session, large summed over every session.
 
-#### D13. A licence · your pick
+#### D13. A licence · decided: MIT, done
 
 The repository is public with no licence, which means nobody may legally reuse it. That doesn't block installing it for yourself, but it should be settled before anyone else looks. The choice is between permissive (MIT, Apache-2.0), copyleft (GPL-3.0, AGPL-3.0), or source-available but not open source (PolyForm Noncommercial). Dependencies don't constrain the choice: the npm packages are permissive, and FalkorDB (SSPLv1) is a separate service that isn't bundled.
 
 Cost-benefit: no runtime cost. It only matters once others see or use the code, where it decides what they may do.
 
-### During the pilot, before the second source
+### Between the first source and the second
 
 #### D14. A "missing foundations" gap signal · approve
 
@@ -192,9 +205,17 @@ Releases are immutable, so you can freeze the library from before source B arriv
 
 Cost-benefit: one measuring session of tens of thousands of tokens, against the only hard number on whether ingesting makes the library smarter, which steers every later investment.
 
+#### D10. Knowledge that goes out of date: validity windows or a sunset action · deferred for discussion
+
+The first version of this entry proposed a guide rule for setting `valid_until` on claims that go stale. The owner's objection is fair: nobody can predict when a book's advice expires, and a guessed date would quietly demote knowledge that's still good. Judging whether a source is already out of date belongs to the agent at ingestion. A date still makes sense when the source states one itself (a tax year, a software version), which is the only case `valid_until` should cover.
+
+The owner's alternative is a sunset: an action on a claim, a concept or a whole source that says "outdated, kept for history". The library has two neighbours already. Archive takes a record out of navigation and recall entirely. Withdraw says "don't rely on this", and it blocks everything resting on it. A sunset would sit between them: still recalled, flagged as outdated, ranked lower, with the accounts built on it flagged for review rather than blocked. That's a lifecycle action plus a recall flag, and it needs the owner's view on what a sunset should do to dependents before anyone designs it.
+
+Cost-benefit: a sunset costs one planned lifecycle action when you use it and a short flag in recall, against outdated advice being visibly marked instead of either trusted or hidden. It matters more as the library ages and holds trading and software material.
+
 #### D23. Test two agents on one library · only if both will share a library
 
-Locks and cache keys exist, but nobody has run Codex and Claude on one library at once. Run it on a throwaway copy before both are bound to the real one.
+Locks and cache keys exist, but nobody has run Codex and Claude on one library at once. Run it on a throwaway copy before both are bound to the real one. The pilot doesn't need it, since each agent gets its own library there.
 
 Cost-benefit: one short session on a throwaway copy, against the risk of two agents damaging the real library. Worth nothing if only one agent ever writes.
 
@@ -246,11 +267,13 @@ Fable 5.1's strategic audit of 6 October 2026, kept outside the repository with 
 
 #### 1. Install the current engine
 
-Point the plugin for the agent chosen in D7 at this engine, with a backup of any current plugin and cache first. For Codex, follow the plugin refresh steps in [MAINTENANCE.md](MAINTENANCE.md); for Claude Code, the adapter from D6 comes first. This changes the working setup, so it needs the owner's go-ahead, and it waits on the decisions in the first group above. Done when a fresh Codex session lists `kb_brief`, `kb_recall`, `kb_connect`, `kb_file` and `kb_write` and reads the new guides.
+Install for both agents, since the pilot uses both (D7), with a backup of any current plugin and cache first. For Codex, follow the plugin refresh steps in [MAINTENANCE.md](MAINTENANCE.md); for Claude Code, add this checkout as a local plugin marketplace ([setup](../plugin/docs/setup.md)). Each agent gets its own isolated pilot library. This changes the working setup, so it needs the owner's go-ahead. Done when a fresh session in each agent lists the eleven everyday tools (including `kb_brief`, `kb_recall`, `kb_connect`, `kb_file`, `kb_write` and `kb_idea`), reads the new guides, and `kb_status` reports the right library, and when a test registration records the right agent as its actor.
 
 #### 2. Run a real ingestion pilot with notes
 
-This is the big one: so far the new tools have only met test libraries. Ingest one real book chapter into an isolated library using `kb_write`, `coverage_all` and the compact job responses. Record output tokens per source page against the 1.1.0 paper pilot (whose proposal JSON was 358 KB for 30 pages), any quote failures, and whatever the agent still found awkward. Done when the chapter is published; three application questions pass through `kb_recall`; `kb_connect` returns the chains a careful reader would draw on that library; the notes carry assessments where the agent checked something and none where it would have guessed; and the numbers are in VALIDATION.
+This is the big one: so far the new tools have only met test libraries. Pick one real book chapter you care about, ideally with a table or a figure. Claude Code and Codex each ingest it into their own isolated library (D7), using `kb_write`, read receipts and the compact job responses. Beside them, one agent writes the same chapter into a flat Markdown wiki indexed by QMD, with no records, links or reweave (D11). Ask all three the same five questions and compare the answers blind. Then ingest a second, related source into both Know Fu libraries and check that it revised what the first one taught.
+
+Record, per agent: output tokens per source page against the 1.1.0 paper pilot (whose proposal JSON was 358 KB for 30 pages), the read ratio from the ingestion report, quote failures, and whatever the agent found awkward. Done when both libraries are published; the blind comparison and the per-agent numbers are in VALIDATION; three application questions pass through `kb_recall` in each; `kb_connect` returns the chains a careful reader would draw; the notes carry assessments where the agent checked something and none where it would have guessed; and the second source's reweave visibly changed the first chapter's accounts.
 
 #### 5. Broad synthesis under a budget
 
@@ -307,10 +330,6 @@ Add an optional `counter_search {scope, found}` to the evidence assessment, so "
 #### 14. Discovery helpers
 
 Beyond `kb_connect`'s chains and bridges, the invent slate (task 22) and the gap suggestions (task 23): weakly linked clusters, and the open questions with the most riding on them. It feeds notes and never publishes on its own.
-
-#### 15. Claude Code adapter
-
-This waited until the owner judged the system finished. Fable's review recommends building it before the pilot instead; that's D6, with its sub-decisions, and sharing one library between the agents is D6c and D23.
 
 #### 16. Keep the evaluation harness, stop growing it
 

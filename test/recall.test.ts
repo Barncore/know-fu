@@ -313,7 +313,7 @@ test("job responses render compactly for MCP and stay complete with detail:full"
     job: {
       job_id: "job-a",
       stage: "reconstruct",
-      status: "waiting_for_codex",
+      status: "waiting_for_agent",
       workflow_version: 2,
       coverage,
       remaining_work: [],

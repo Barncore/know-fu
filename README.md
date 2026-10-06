@@ -89,17 +89,23 @@ The canonical records own the meaning. The wiki, the FalkorDB graph and the QMD 
 | `kb_evaluate` | Frozen, isolated capability evaluations through Codex |
 | `kb_retrieve` | The older packet and progressive routes, kept around for comparison |
 
+`kb_propose`, `kb_change`, `kb_lifecycle`, `kb_evaluate` and `kb_retrieve` are specialist tools. An agent only sees them when the launcher sets `KB_ADVANCED_TOOLS`, which keeps everyday sessions about 550 tokens lighter.
+
 ## Getting started
 
 Clone the repository, open it in your coding assistant and say:
 
 > Read AGENTS.md and the AI-assisted setup guide. Help me set up Know Fu for my machine. Explain the supported options, recommend suitable storage locations, and ask about my preferences before initializing the library or installing services.
 
+### Pick your agent
+
+Know Fu runs with Codex or Claude Code, from the same `plugin/` folder and the same skill. Codex installs through a generated local launcher (`scripts/configure-plugin.mjs`); Claude Code installs by adding this checkout as a local plugin marketplace and filling in the library and state folders it asks for. Both need the engine built first, and the [setup guide](plugin/docs/setup.md) has the steps for each. Every record notes which agent wrote it, so you can compare their work, and two agents can share one library as long as only one writes at a time.
+
 The setup guide separates what the system actually needs from choices one installation happened to make: where the library and runtime state live, how FalkorDB runs (managed WSL or a server you run yourself), native or WSL media tools, and API or local transcription. The [decision matrix](plugin/docs/setup-choices.md) lays out the options.
 
 ## Where it's at
 
-It works on the development machine: Windows 11, Ubuntu WSL2, FalkorDB and QMD on the CPU. There are 154 automated tests; 151 pass, and 3 Python conversion tests skip where that runtime isn't installed. The whole pipeline has run end to end on technical papers, including a three-source test where later papers had to revise earlier understanding. An independent audit on 5 October 2026 found twelve defects the tests had missed; all are fixed, and each now has a regression test.
+It works on the development machine: Windows 11, Ubuntu WSL2, FalkorDB and QMD on the CPU. There are 158 automated tests; 155 pass, and 3 Python conversion tests skip where that runtime isn't installed. The whole pipeline has run end to end on technical papers, including a three-source test where later papers had to revise earlier understanding. An independent audit on 5 October 2026 found twelve defects the tests had missed; all are fixed, and each now has a regression test.
 
 What it hasn't done yet: ingest a long book or a full course with the new note format. A different machine needs its own dependency setup and checks, and Docker deployment and local speech transcription are configurable but untested end to end. [Validation](docs/VALIDATION.md) and [performance](docs/PERFORMANCE.md) keep score on what's been shown and what hasn't.
 
@@ -145,4 +151,4 @@ The ideas come from Karpathy's LLM Wiki, Ars Contexta's Reweave, rohitg00's LLM 
 
 Ingestion isn't fine-tuning, and passing an evaluation isn't general expertise. A link between two records is a recorded connection, not proof. Research memory and operational or project memory stay separate. Promotion tiers and several agents writing to one library are decisions for later. There's no `analogous_to` link, by choice: an analogy worth keeping is stored as an idea.
 
-This is a public repository without an open-source license yet. Dependencies keep their own licenses. The README animation is third-party film imagery with its own [provenance note](assets/README.md). Private research, transcripts and credentials aren't part of the code.
+The code is released under the [MIT licence](LICENSE). Dependencies keep their own licences, and FalkorDB (SSPLv1) is a separate service, not bundled. The README animation is third-party film imagery that the licence doesn't cover; see its [provenance note](assets/README.md). Private research, transcripts and credentials aren't part of the code.

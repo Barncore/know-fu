@@ -5,6 +5,7 @@ import {
   VERSION,
   ENGINE_VERSION,
   APP,
+  agentName,
   ensure,
   uid,
   hash,
@@ -44,6 +45,52 @@ type UnderstandingChange = {
   checks: string[];
   no_new_supported_understanding?: string;
 };
+/** A source to register, with how independent it is of the library's other sources. */
+export type SourceSpec = {
+  path: string;
+  evidence_family?: string;
+  independence?: "independent" | "derived" | "unknown";
+  derived_from?: string[];
+};
+const INDEPENDENCE = ["independent", "derived", "unknown"];
+
+/**
+ * Normalizes a `kb_ingest` path entry. Two copies or formats of one work share an evidence
+ * family, so they count once; `derived_from` names registered sources this one restates.
+ */
+function sourceSpec(
+  supplied: string | SourceSpec,
+  known: Map<string, RecordData>,
+): Omit<SourceSpec, "derived_from"> & { derived_from: Ref[] } {
+  const spec = typeof supplied === "string" ? { path: supplied } : supplied;
+  ensure(
+    spec && typeof spec.path === "string" && spec.path.trim(),
+    "VALIDATION_FAILED",
+    "Each source is a path, or {path, evidence_family, independence, derived_from}",
+  );
+  ensure(
+    spec.evidence_family === undefined ||
+      /^[a-z0-9][a-z0-9._-]{0,63}$/.test(spec.evidence_family),
+    "VALIDATION_FAILED",
+    "evidence_family is a short lowercase name, such as demsar-2006 or owner",
+  );
+  ensure(
+    spec.independence === undefined || INDEPENDENCE.includes(spec.independence),
+    "VALIDATION_FAILED",
+    `independence is one of ${INDEPENDENCE.join(", ")}`,
+  );
+  const derived = (spec.derived_from ?? []).map((value) => {
+    const id = String(value).trim().split("@")[0];
+    const record = known.get(id);
+    ensure(
+      record?.record_type === "source",
+      "VALIDATION_FAILED",
+      `derived_from names registered sources by id; ${value} isn't one`,
+    );
+    return ref(record);
+  });
+  return { ...spec, derived_from: derived };
+}
 const STAGES = [
   "register",
   "convert",
@@ -57,7 +104,7 @@ const STAGES = [
 ] as const;
 const guidance: Record<string, string> = {
   reconstruct:
-    "Read source units independently, including visual assets. Submit a meaningful reading receipt per unit. Reconstruct the whole argument after section work; extraction does not count as reading.",
+    "Read source units independently, including visual assets, each to its end through kb_read: the engine only accepts a unit as read once it has served all of it. Submit a meaningful reading receipt per unit. Reconstruct the whole argument after section work; extraction does not count as reading.",
   integrate:
     "Compare the source account with permitted existing knowledge. Preserve definitions, evidence families and disagreements. Author coherent explanations and qualified links through kb_propose.",
   discover:
@@ -158,7 +205,7 @@ export class Jobs {
     });
   }
   async ingest(input: {
-    paths: string[];
+    paths: (string | SourceSpec)[];
     module: string;
     domains: string[];
     idempotency_key: string;
@@ -208,7 +255,8 @@ export class Jobs {
         coverage: any[] = [],
         known = await this.store.records();
       for (const supplied of input.paths) {
-        const absolute = path.resolve(supplied);
+        const spec = sourceSpec(supplied, known);
+        const absolute = path.resolve(spec.path);
         ensure(
           !(await fs.lstat(absolute)).isSymbolicLink(),
           "SOURCE_UNREADABLE",
@@ -224,6 +272,15 @@ export class Jobs {
             await this.store.allowed(duplicate, scope),
             "SCOPE_DENIED",
             "Duplicate source is outside this scope",
+          );
+          const existing = duplicate.payload as any;
+          ensure(
+            (spec.evidence_family === undefined ||
+              spec.evidence_family === existing.evidence_family) &&
+              (spec.independence === undefined ||
+                spec.independence === existing.independence),
+            "VALIDATION_FAILED",
+            `${path.basename(absolute)} is already registered with evidence family ${existing.evidence_family} and independence ${existing.independence}. A source's family is set when it's first registered.`,
           );
           if (!sourceRecords.some((r) => r.id === duplicate.id))
             sourceRecords.push(duplicate);
@@ -251,7 +308,7 @@ export class Jobs {
           epistemic: "administrative",
           scope: emptyScope(input.domains),
           provenance: {
-            actor: "codex",
+            actor: agentName(),
             method: "source_registration",
             source_refs: [],
             input_refs: [],
@@ -282,9 +339,13 @@ export class Jobs {
                       : extension.replace(".", "media/"),
             edition: "supplied-" + digest.slice(0, 12),
             origin_id: digest,
-            evidence_family: "unknown-" + digest.slice(0, 12),
-            independence: "unknown",
-            derived_from_sources: [],
+            // Sources sharing a family count once toward independent support.
+            evidence_family:
+              spec.evidence_family ?? "unknown-" + digest.slice(0, 12),
+            independence:
+              spec.independence ??
+              (spec.derived_from.length ? "derived" : "unknown"),
+            derived_from_sources: spec.derived_from,
           },
         } as RecordData;
         const registrationPath = this.store.p(
@@ -340,6 +401,7 @@ export class Jobs {
       const job: JobData = {
         schema_version: VERSION,
         workflow_version: 2,
+        read_receipts: true,
         job_id: id,
         corpus_id: (await this.store.config()).corpus_id,
         base_release: await this.store.current(),
@@ -637,6 +699,18 @@ export class Jobs {
         data: (await fs.readFile(asset)).toString("base64"),
       };
     }
+    // Every serve is logged, so "read" can mean the engine saw the whole unit go out.
+    if (j.read_receipts)
+      await fs.appendFile(
+        path.join(this.jobPath(id), "reads.jsonl"),
+        JSON.stringify({
+          unit_id: unitId,
+          start: offset,
+          end: Math.min(offset + limit, text.length),
+          total: text.length,
+          at: now(),
+        }) + "\n",
+      );
     return {
       unit_id: unitId,
       source_ref: coverage.source_ref,
@@ -950,7 +1024,7 @@ export class Jobs {
       j.coverage = units;
       j.stage = "reconstruct";
       j.status =
-        current.status === "cancelled" ? "cancelled" : "waiting_for_codex";
+        current.status === "cancelled" ? "cancelled" : "waiting_for_agent";
       j.remaining_work = units.map((u) => u.unit_id);
       await this.save(j);
       await atomic(
@@ -961,7 +1035,7 @@ export class Jobs {
           units: units.length,
           model_tokens: null,
           model_tokens_status:
-            "Conversion does not expose Codex usage; do not infer from bytes.",
+            "Conversion does not expose agent usage; do not infer it from bytes.",
           peak_rss: null,
           peak_rss_status:
             "Per-operation peak unavailable; see measured acceptance benchmarks.",
@@ -1230,6 +1304,22 @@ export class Jobs {
             )
               updates.push({ unit_id: unit.unit_id, ...input.coverage_all });
         }
+        // A unit is read when kb_read has served all of it, not when a receipt says so.
+        if (field === "read" && j.read_receipts) {
+          const read = await this.unitsRead(id);
+          const unread = updates
+            .filter((u) => u.status === "complete" && !read.has(u.unit_id))
+            .map((u) => u.unit_id);
+          ensure(
+            !unread.length,
+            "VALIDATION_FAILED",
+            `kb_read hasn't served all of ${unread.length} unit(s) you marked read. Read each one to its end (follow next_offset), or exclude it with a reason.`,
+            {
+              unread: unread.slice(0, 20),
+              more: Math.max(0, unread.length - 20),
+            },
+          );
+        }
         for (const update of updates) {
           const unit = j.coverage.find((u) => u.unit_id === update.unit_id);
           ensure(unit, "VALIDATION_FAILED", "Unknown coverage unit");
@@ -1260,7 +1350,7 @@ export class Jobs {
               ? { staged_digest: await this.stagedDigest(id) }
               : {}),
             timestamp: now(),
-            actor: "codex",
+            actor: agentName(),
           }),
         );
       ensure(
@@ -1280,7 +1370,7 @@ export class Jobs {
         input.capability !== "unresolved_failures"
       )
         j.stage = STAGES[STAGES.indexOf(j.stage) + 1] ?? "publish";
-      j.status = "waiting_for_codex";
+      j.status = "waiting_for_agent";
       j.remaining_work = unresolvedReweave.length
         ? unresolvedReweave.map((r) => "Reassess " + r)
         : pending.length
@@ -1289,6 +1379,32 @@ export class Jobs {
       await this.save(j);
       return this.next(id);
     });
+  }
+  /** Units kb_read has served from start to end in this job, however many calls it took. */
+  async unitsRead(id: string) {
+    const lines = await fs
+      .readFile(path.join(this.jobPath(id), "reads.jsonl"), "utf8")
+      .catch(() => "");
+    const spans = new Map<string, { total: number; ranges: number[][] }>();
+    for (const line of lines.split("\n")) {
+      if (!line.trim()) continue;
+      const read = JSON.parse(line);
+      const entry = spans.get(read.unit_id) ?? {
+        total: read.total as number,
+        ranges: [] as number[][],
+      };
+      entry.total = read.total;
+      entry.ranges.push([read.start, read.end]);
+      spans.set(read.unit_id, entry);
+    }
+    const complete = new Set<string>();
+    for (const [unitId, { total, ranges }] of spans) {
+      let covered = 0;
+      for (const [start, end] of ranges.sort((a, b) => a[0] - b[0]))
+        if (start <= covered) covered = Math.max(covered, end);
+      if (covered >= total) complete.add(unitId);
+    }
+    return complete;
   }
   /** A digest of the staged records and bodies, so a check can be tied to what it checked. */
   private async stagedDigest(id: string) {
@@ -1388,11 +1504,28 @@ export class Jobs {
     const impacts = await readJson(
       this.store.p(`releases/${releaseId}.impacts.json`),
     );
+    const read = job.read_receipts ? await this.unitsRead(job.job_id) : null;
+    const excluded = job.coverage.filter((u) => u.read === "excluded").length;
     const report = {
       release_id: releaseId,
       understanding_change: check?.understanding_change ?? null,
       pending_reassessments: impacts,
       capability: check?.capability ?? "not_assessed",
+      // What the engine saw served, beside what the receipts claimed.
+      reading: read
+        ? {
+            units: job.coverage.length,
+            excluded,
+            read_in_full: job.coverage.filter((u) => read.has(u.unit_id))
+              .length,
+            ratio: Number(
+              (
+                job.coverage.filter((u) => read.has(u.unit_id)).length /
+                Math.max(1, job.coverage.length - excluded)
+              ).toFixed(3),
+            ),
+          }
+        : { tracked: false },
     };
     await atomic(
       path.join(this.jobPath(job.job_id), "ingestion-report.json"),
@@ -1410,7 +1543,7 @@ export class Jobs {
           "VALIDATION_FAILED",
           "Job is already complete",
         );
-        j.status = "waiting_for_codex";
+        j.status = "waiting_for_agent";
       } else if (action === "rebase") {
         ensure(
           j.status !== "complete",
@@ -1435,7 +1568,7 @@ export class Jobs {
         // conversion, reading or integration obligations in an earlier-stage job.
         if (STAGES.indexOf(j.stage) > STAGES.indexOf("reweave"))
           j.stage = "reweave";
-        j.status = "waiting_for_codex";
+        j.status = "waiting_for_agent";
         await atomic(path.join(this.jobPath(id), "staged.json"), json(staged));
       } else throw new Error("Unknown job action");
       await this.save(j);

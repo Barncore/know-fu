@@ -3,7 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import path from "node:path";
 import { Store } from "./store.js";
-import { KnowledgeSystem, descriptions } from "./api.js";
+import { KnowledgeSystem, descriptions, exposedTools } from "./api.js";
 import { APP, ENGINE_VERSION } from "./core.js";
 import { presentResult } from "./present.js";
 const system = new KnowledgeSystem(
@@ -13,11 +13,11 @@ const system = new KnowledgeSystem(
   ),
 );
 const server = new McpServer({ name: "know-fu", version: ENGINE_VERSION });
-for (const [name, description] of Object.entries(descriptions))
+for (const name of exposedTools())
   server.registerTool(
     name,
     {
-      description,
+      description: descriptions[name],
       inputSchema: { request: z.record(z.string(), z.unknown()).default({}) },
       annotations: {
         readOnlyHint: [

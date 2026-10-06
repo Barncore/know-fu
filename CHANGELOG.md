@@ -4,6 +4,19 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-07 - Honest ingestion, a Claude Code adapter and the MIT licence
+
+Why: before the first real ingest, the owner approved the guards from the roadmap's decision list (D3-D6, D9, D12, D13). The engine took an agent's word that it had read every page, stamped every record as written by Codex, and counted every source as its own independent family. And Know Fu only installed into Codex.
+
+- Read receipts (D3): new jobs carry `read_receipts: true`. `kb_read` logs every unit it serves to `jobs/<job>/reads.jsonl`, and a reconstruct receipt that marks a unit complete is refused unless the served ranges cover the whole unit. The refusal names the unread units. The ingestion report gains `reading` (units, excluded, read in full, ratio). Older jobs aren't affected and report `reading: {tracked: false}`.
+- Agent provenance (D4): records name the agent from `KB_ACTOR` (`codex`, `claude`, or `unspecified`) instead of a hard-coded `codex`, and jobs wait in `waiting_for_agent`. The job schema still accepts `waiting_for_codex`.
+- Evidence families at registration (D5): `kb_ingest` paths can be `{path, evidence_family, independence, derived_from}`. Re-registering a published source under a different family is refused. The ingestion guide explains how to choose, including `owner` for the owner's own material.
+- Claude Code adapter (D6): `plugin/.claude-plugin/plugin.json` beside the Codex manifest, sharing the skill, and a root `.claude-plugin/marketplace.json`. Claude Code asks for the library and state folders, media tools and the specialist-tools switch, and passes the session's project folder as `KB_PROJECT`. The corpus schema's `integration` field now accepts `mcp`, `codex` or `claude`, and the example uses `mcp`. `configure-plugin.mjs` writes `KB_ACTOR=codex` and gains `--advanced-tools`. `check:package` checks both manifests.
+- Specialist tools (D12): MCP lists `kb_lifecycle`, `kb_evaluate`, `kb_propose`, `kb_change` and `kb_retrieve` only when `KB_ADVANCED_TOOLS` is set, saving about 550 tokens a session. The CLI keeps all of them.
+- Licence (D13): MIT, in `LICENSE`, with `package.json` and the Claude Code manifest saying so. Third-party assets keep their own terms.
+- Docs: setup, setup-ai and setup-choices cover both agents and recommend one module with domain tags (D9); the plugin README, README, architecture, operations, ingestion guide, maintenance, lineage, VALIDATION, NORTH_STAR and the roadmap are updated. The roadmap records D7 (pilot with both agents in separate libraries) and D11 (flat-wiki control) in task 2, moves D10 to discussion with the owner's sunset idea, and rewrites D8 with corrected facts and a design that keeps the whole book in view.
+- Verification: 158 tests (155 passed, 3 Python conversion tests skipped), build, formatting, the package check, and Claude Code's strict plugin validator. Record schema stays 1.1.0; the job and corpus schemas gain values and an optional field. An older engine rejects a job created by this one, so roll engine and plugin forward together. Existing Codex installs should regenerate their launcher to get `KB_ACTOR=codex`; until then their new records say `unspecified`.
+
 ### 2026-10-06 - Narrower skill trigger, and cost-benefit notes on every decision
 
 Why: the owner approved D1 and D2 from the roadmap's decision list, and asked for every decision to say what it costs the user against what it gains, so decisions can be weighed that way.

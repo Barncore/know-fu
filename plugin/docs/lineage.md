@@ -84,6 +84,18 @@ On 6 October 2026 a research round looked at how people and machines invent, thr
 | Teach by comparison (same branch) | Comparing cases beat ordinary instruction at d = 0.50 across 57 experiments. Focusing on what cases share helped more than contrasting them, and stating the principle after the comparison helped most ([Alfieri, Nokes-Malach and Schunn 2013](https://www.lrdc.pitt.edu/Schunn/papers/ContrastingCasesMeta-AlfieriEtAl2013.pdf)) | The compile stage builds lessons around two worked examples of one principle, states the principle afterwards, and adds a near miss last |
 | Decision points on procedures (same branch) | Experts describing a complex task leave out many of the decisions they make ([Yates, Feldon and Clark](https://digitalcommons.usu.edu/itls_facpub/454)). The often-quoted figure of about 70% has no study behind it in that abstract, so Know Fu doesn't rely on it | `decisions` on procedure notes record cue, decision, options and check, and mark each choice the source skips. Recall shows them as a tree for `teach` and `apply` |
 
+## Ingest honesty and a second agent: what the 6 October 2026 review fed in
+
+Fable 5.1 reviewed the whole project on 6 October 2026, at the owner's request. The review is kept outside this repository with the other research. These changes came from it, or from checking its points against the code.
+
+| Change | Where it came from | How Know Fu uses it |
+|---|---|---|
+| Read receipts (7 October 2026) | The review's "receipts without reads" gotcha: a coverage receipt is the agent's word, and nothing checked it against what the engine served | The engine logs every unit it serves and refuses "read" for a unit not served from start to end. It proves the text went out, not that it was understood |
+| The agent named in provenance (7 October 2026) | Checking the review's case for a Claude Code adapter against the code, which stamped every record `codex` | `KB_ACTOR` in each launcher; `unspecified` when a launcher doesn't say |
+| Evidence families set at registration (7 October 2026) | The review's point that family and independence are locked at registration, plus finding in the code that no tool could set them | `kb_ingest` takes them per source, including `owner` for the owner's own material, which the review flagged as a good source nobody had suggested |
+| A Claude Code adapter beside the Codex one (7 October 2026) | The review's argument to build it before the pilot rather than once finished | One plugin folder, two manifests, one skill |
+| Five specialist tools hidden by default (7 October 2026) | The review's tool-surface trim, minus `kb_maintain`, which the publish step needs | `KB_ADVANCED_TOOLS` lists them; about 550 tokens saved per session, measured |
+
 ## Research it compared itself against
 
 These shaped questions and trade-offs. Their algorithms and performance claims aren't claims about Know Fu.

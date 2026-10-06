@@ -34,7 +34,7 @@ Before starting work, bring `staging` up to date with `main` (`git fetch`, then 
 
 ## What never goes in the repository
 
-The library, credentials, the machine-local `plugin/.mcp.json`, runtime and model caches, private acceptance outputs, benchmark copies of real libraries, and conversation exports. The root `.gitignore` only lets release-owned areas through; keep local benchmark material in the ignored `.bench/` folder. Look at the actual staged paths and contents before pushing. The repository has been public since 30 September 2026. That covers the reusable code, not private research, transcripts or writing samples, and it doesn't grant an open-source license.
+The library, credentials, the machine-local `plugin/.mcp.json`, runtime and model caches, private acceptance outputs, benchmark copies of real libraries, and conversation exports. The root `.gitignore` only lets release-owned areas through; keep local benchmark material in the ignored `.bench/` folder. Look at the actual staged paths and contents before pushing. The repository has been public since 30 September 2026. That covers the reusable code, not private research, transcripts or writing samples. Since 7 October 2026 the code is under the MIT licence in `LICENSE`; third-party assets such as the README animation keep their own terms.
 
 ## Influences aren't dependencies
 

@@ -4,7 +4,10 @@ export interface CorpusData {
   schema_version: "1.1.0";
   corpus_id: string;
   title: string;
-  integration: "codex";
+  /**
+   * The agent adapter a library was set up for: mcp when any MCP agent may use it. Informational; project bindings decide access.
+   */
+  integration: "mcp" | "codex" | "claude";
   /**
    * @minItems 1
    */

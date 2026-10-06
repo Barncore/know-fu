@@ -302,7 +302,7 @@ export class SourceWorkflow {
           }
         if (added) {
           latest.stage = "reconstruct";
-          latest.status = "waiting_for_codex";
+          latest.status = "waiting_for_agent";
           latest.remaining_work = units.map((u) => u.unit_id);
           await this.jobs.save(latest);
         }

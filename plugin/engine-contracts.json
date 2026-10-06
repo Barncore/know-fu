@@ -11,7 +11,7 @@
     {
       "source": "contracts/schemas/corpus.schema.json",
       "bundled": "contracts/schemas/corpus.schema.json",
-      "sha256": "9ad343e4dc890360b8384d1e3915f87016bb1a270c152dacfe9f4e0dfe015a41"
+      "sha256": "bffa0b5a2732ac0de4368db95d7267f998797fbdca5c71e65ab24e820ae21231"
     },
     {
       "source": "contracts/schemas/evaluation-case.schema.json",
@@ -36,7 +36,7 @@
     {
       "source": "contracts/schemas/job.schema.json",
       "bundled": "contracts/schemas/job.schema.json",
-      "sha256": "397f6b57a8cf9a59965c82f9e72ce7c11058bb2a4844cc3fa11c63c43d6e826a"
+      "sha256": "cb05d31e3273d4a731c28b88490c6369b8692148faf276e9020264e15a63e50b"
     },
     {
       "source": "contracts/schemas/lifecycle-plan.schema.json",

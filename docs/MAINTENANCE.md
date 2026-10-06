@@ -15,7 +15,7 @@ Docs drift fast in a project like this, so here's the map of what to touch when:
 | Retrieval or indexing performance | `docs/PERFORMANCE.md`, the architecture notes, and regression tests for the affected route |
 | A lesson worth keeping | `LESSONS.md`, with the reason and what to do differently |
 
-Regenerate the plugin's contract copies after changing an engine schema or the transcription example. `npm run check:package` checks the copies, the corpus example and local links. `npm run check:release -- --staged` checks the staged files for excluded material, private machine paths, common credential patterns and broken links, and makes sure a change log entry came along. These checks catch slips. They can't prove the meaning is right, or that no secret got through.
+Regenerate the plugin's contract copies after changing an engine schema or the transcription example. `npm run check:package` checks the copies, the corpus example, local links, and that the Codex and Claude Code manifests and the root marketplace file agree with `package.json` and launch the engine correctly. `npm run check:release -- --staged` checks the staged files for excluded material, private machine paths, common credential patterns and broken links, and makes sure a change log entry came along. These checks catch slips. They can't prove the meaning is right, or that no secret got through.
 
 Every finished change gets a dated change log entry. A code-only fix with nothing for users to read can say "Documentation impact: none" with a reason, and reviewers should actually judge that reason rather than wave it through.
 
@@ -29,7 +29,7 @@ The first commit summarized earlier local development rather than inventing a fa
 |---|---|
 | `core.ts` | Hashing, atomic and immutable writes, safe paths, locks, schema validation, condition evaluation |
 | `store.ts` | Releases, exact reads, scope checks, compiling and validating proposals, publication, the audit journal |
-| `jobs.ts`, `source-workflow.ts`, `media.ts`, `visuals.ts` | Ingestion jobs, conversion, source review, frames, crops and paid media transcription |
+| `jobs.ts`, `source-workflow.ts`, `media.ts`, `visuals.ts` | Ingestion jobs, source registration with evidence families, read receipts, conversion, source review, frames, crops and paid media transcription |
 | `notes.ts`, `quote.ts` | `kb_write` note compilation, functional facets, decision points, assessment checks and quote matching |
 | `knowledge-impact.ts` | Which accounts a change affects |
 | `library-index.ts`, `text-index.ts` | The recall index: visibility and reliance rules, BM25, the link map with labels, spreading activation, the separate idea map and the function index over abstract facets |
@@ -39,7 +39,7 @@ The first commit summarized earlier local development rather than inventing a fa
 | `navigation.ts`, `research-view.ts`, `reading.ts`, `reading-render.ts` | Progressive reading and its MCP presentation |
 | `retrieval.ts` | The older packet route |
 | `projections.ts`, `graph-projection.ts`, `qmd-search.ts`, `qmd-worker.ts` | Wiki, FalkorDB and QMD views, and view cleanup |
-| `present.ts`, `job-render.ts`, `mcp.ts`, `api.ts`, `cli.ts` | Tool descriptions, dispatch, and what MCP clients receive |
+| `present.ts`, `job-render.ts`, `mcp.ts`, `api.ts`, `cli.ts` | Tool descriptions, which tools MCP lists (`exposedTools`), dispatch, and what MCP clients receive |
 | `lifecycle.ts`, `governance.ts`, `maintenance.ts` | Archive, withdrawal, purge, configuration, meaning changes, export and restore |
 | `evaluation*.ts` | Frozen evaluations through Codex |
 
@@ -65,6 +65,6 @@ When another publication makes a job's base stale, use the job's `rebase` action
 
 ## Refreshing an installed plugin
 
-Before refreshing, check the current plugin's file hashes and keep a local backup. Copy the package with the install script, refresh it through the agent's supported plugin command, then check tool discovery, the guides and the existing library binding in a fresh process. Machine-local configuration stays out of Git.
+Before refreshing, check the current plugin's file hashes and keep a local backup. For Codex, copy the package with the install script, refresh it through Codex's supported plugin command, then check tool discovery, the guides and the existing library binding in a fresh process. For Claude Code, the plugin loads in place from this checkout, so pull, rebuild, and run `/reload-plugins` or start a new session; the same discovery and binding checks apply. Machine-local configuration stays out of Git.
 
 One trap: a plugin backup doesn't roll back the engine it points at. A real rollback has to line up the engine's Git revision, its rebuilt output and the plugin version. Keep library and ledger backups together, and check that the target engine can read any jobs or records created since the backup. The current engine reads earlier jobs and records, but an older engine rejects records that carry quote citations or an evidence `basis`.

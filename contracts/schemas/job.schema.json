@@ -95,6 +95,7 @@
       "enum": [
         "pending",
         "running",
+        "waiting_for_agent",
         "waiting_for_codex",
         "blocked",
         "cancelled",
@@ -365,6 +366,10 @@
     "workflow_version": {
       "const": 2,
       "description": "New jobs require explicit reweave decisions and an understanding-change report. Absent on preserved legacy jobs."
+    },
+    "read_receipts": {
+      "type": "boolean",
+      "description": "Set on jobs created since read receipts began: a unit counts as read only when the engine served all of it."
     }
   },
   "required": [

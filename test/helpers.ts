@@ -53,3 +53,27 @@ export async function published(label = "test") {
   );
   return { ...f, publication };
 }
+
+/** Reads job units to their end through kb_read, the way an agent must before marking them read. */
+export async function readUnits(
+  jobs: {
+    load(id: string): Promise<{ coverage: { unit_id: string }[] }>;
+    readUnit(
+      id: string,
+      unitId: string,
+      offset?: number,
+      limit?: number,
+    ): Promise<{ next_offset: number | null }>;
+  },
+  jobId: string,
+  unitIds?: string[],
+) {
+  const job = await jobs.load(jobId);
+  for (const unit of job.coverage) {
+    if (unitIds && !unitIds.includes(unit.unit_id)) continue;
+    let offset: number | null = 0;
+    while (offset !== null)
+      offset = (await jobs.readUnit(jobId, unit.unit_id, offset, 32000))
+        .next_offset;
+  }
+}

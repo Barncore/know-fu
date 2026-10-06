@@ -16,7 +16,12 @@
       "minLength": 1
     },
     "integration": {
-      "const": "codex"
+      "enum": [
+        "mcp",
+        "codex",
+        "claude"
+      ],
+      "description": "The agent adapter a library was set up for: mcp when any MCP agent may use it. Informational; project bindings decide access."
     },
     "modules": {
       "type": "array",

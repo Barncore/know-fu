@@ -30,7 +30,7 @@ export const descriptions: Record<string, string> = {
   kb_status:
     "Read library health, current release, job progress and configured scope. Input: optional job_id.",
   kb_ingest:
-    "Register supplied local paths as a resumable research ingestion. Input: paths[], module, domains[], idempotency_key, authorization (user request); optional scope. Does not perform the reasoning itself.",
+    "Register supplied local paths as a resumable research ingestion. Input: paths[] (each a path, or {path, evidence_family, independence=independent|derived|unknown, derived_from[] source ids}: copies of one work share a family), module, domains[], idempotency_key, authorization (user request); optional scope. Does not perform the reasoning itself.",
   kb_job:
     "Advance ingestion: job_id, action=next|convert|submit|resume|cancel|rebase|publish. Conversion: optional pdf_profile=technical|prose|ocr (technical default). Source work: media_plan (no spending), frames (source_id,seconds[]), pages (source_id,pages[],scale), crop (source_id,unit_id,rectangle[x,y,width,height]), reading_copy (source_id,spans[],rationale), source_review (source_id,review_id,review). Read books/video guides for contracts.",
   kb_write:
@@ -52,7 +52,7 @@ export const descriptions: Record<string, string> = {
   kb_retrieve:
     "Discover or retrieve scoped research. mode=progressive returns authored summaries, exact next reads, material qualifications and provenance without loading every source body; supports purpose=explain|teach|apply|compare|invent|synthesize|investigate. mode=packet preserves the legacy evidence packet. Input query; optional domains, scope, semantic, rerank, graph, graph_required, limit, release_id, context. Progressive pagination uses offset; packet expansion uses hops. Open chosen accounts with kb_read.",
   kb_read:
-    "Read scoped research without shell access. kind=catalogue lists topics; topic requires topic; account requires record_ref and optionally section_id; accounts reads 1–12 chosen record_refs together; sections lists hash-bound headings; context requires record_refs and optionally context_offset. Optional release_id, scope, purpose, context, limit, offset. Full-account reads carry material context and exact support. Legacy {record_ref} returns the raw full record. kind=unit with job_id,unit_id,offset,limit reads source text/image (max 32000 chars). Guides: workflow|ingestion|notes|retrieval|operations|books|video. Schemas: proposal|record|job|corpus|reading|reading-request. Reading does not attest ingestion coverage.",
+    "Read scoped research without shell access. kind=catalogue lists topics; topic requires topic; account requires record_ref and optionally section_id; accounts reads 1–12 chosen record_refs together; sections lists hash-bound headings; context requires record_refs and optionally context_offset. Optional release_id, scope, purpose, context, limit, offset. Full-account reads carry material context and exact support. Legacy {record_ref} returns the raw full record. kind=unit with job_id,unit_id,offset,limit reads source text/image (max 32000 chars); a unit counts as read once all of it has been served. Guides: workflow|ingestion|notes|retrieval|operations|books|video. Schemas: proposal|record|job|corpus|reading|reading-request. Reading does not attest ingestion coverage.",
   kb_lifecycle:
     "Plan/execute archive, unarchive, withdraw, reinstate or purge. Planning: mode=plan, action, targets[], reason. Execution: mode=execute, plan_id, authorization={action,targets,user_instruction}; reinstatement also assessments. Authorization must reflect an actual user request.",
   kb_evaluate:
@@ -60,6 +60,26 @@ export const descriptions: Record<string, string> = {
   kb_maintain:
     "Maintain the bound library. Input action=reindex|verify|export|restore|import|formats|wiki_edit (record_ref, optional view_release)|preview_bulk|execute_bulk|configure|plan_meaning|execute_meaning; action-specific inputs documented in operations reference. No arbitrary graph/backend selection.",
 };
+/**
+ * Specialist tools an everyday session doesn't need: the older retrieval routes, raw
+ * proposals, lifecycle changes and the Codex evaluation bench. MCP lists them only when
+ * `KB_ADVANCED_TOOLS` is set; the CLI and API always accept them.
+ */
+export const ADVANCED_TOOLS = [
+  "kb_retrieve",
+  "kb_propose",
+  "kb_change",
+  "kb_lifecycle",
+  "kb_evaluate",
+];
+export function exposedTools(env: NodeJS.ProcessEnv = process.env) {
+  const advanced = ["1", "true", "yes"].includes(
+    String(env.KB_ADVANCED_TOOLS ?? "").toLowerCase(),
+  );
+  return Object.keys(descriptions).filter(
+    (name) => advanced || !ADVANCED_TOOLS.includes(name),
+  );
+}
 export class KnowledgeSystem {
   jobs: Jobs;
   projections: Projections;

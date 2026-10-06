@@ -110,6 +110,15 @@ test("rebasing preserves unfinished source work and reopens later reassessment",
   assert.equal(rebased.job.base_release, newer.release_id);
   assert.equal(rebased.job.stage, "reconstruct");
   assert.equal(rebased.job.coverage[0].read, "pending");
+  // This fixture fakes conversion, so log the reads the engine would have recorded.
+  await fs.appendFile(
+    path.join(f.jobs.jobPath(f.id), "reads.jsonl"),
+    original.coverage
+      .map((u) =>
+        JSON.stringify({ unit_id: u.unit_id, start: 0, end: 0, total: 0 }),
+      )
+      .join("\n") + "\n",
+  );
   await f.jobs.submit(f.id, {
     step_id: "read-after-rebase",
     stage: "reconstruct",

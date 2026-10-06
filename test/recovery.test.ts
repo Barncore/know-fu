@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import { Jobs } from "../src/jobs.js";
-import { fixture, published, FIX } from "./helpers.js";
+import { fixture, published, FIX, readUnits } from "./helpers.js";
 import {
   readJson,
   ref,
@@ -158,16 +158,17 @@ test("proposal and step retries reconcile a crash between staging and receipt ch
     new Set(staged.records.map((r: any) => r.id)).size,
     staged.records.length,
   );
-  const converted = await jobs.convert(j.job.job_id),
-    receipt = {
-      step_id: "reading",
-      stage: "reconstruct",
-      summary: "Read every source unit and reconstructed its full argument.",
-      coverage: converted.job.coverage.map((u) => ({
-        unit_id: u.unit_id,
-        status: "complete" as const,
-      })),
-    };
+  const converted = await jobs.convert(j.job.job_id);
+  await readUnits(jobs, j.job.job_id);
+  const receipt = {
+    step_id: "reading",
+    stage: "reconstruct",
+    summary: "Read every source unit and reconstructed its full argument.",
+    coverage: converted.job.coverage.map((u) => ({
+      unit_id: u.unit_id,
+      status: "complete" as const,
+    })),
+  };
   process.env.KB_TEST_FAULT = "step_before_checkpoint";
   try {
     await assert.rejects(() => jobs.submit(j.job.job_id, receipt), {

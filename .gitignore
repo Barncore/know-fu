@@ -4,6 +4,8 @@
 !/.gitattributes
 !/AGENTS.md
 !/README.md
+!/LICENSE
+!/.claude-plugin/
 !/CHANGELOG.md
 !/LESSONS.md
 !/package.json

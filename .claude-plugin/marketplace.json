@@ -1,0 +1,14 @@
+{
+  "name": "know-fu",
+  "description": "Know Fu, a local research library engine, packaged for Claude Code.",
+  "owner": {
+    "name": "Know Fu"
+  },
+  "plugins": [
+    {
+      "name": "know-fu",
+      "source": "./plugin",
+      "description": "A local research library for Claude Code. Install from a cloned and built copy of this repository; see plugin/docs/setup.md."
+    }
+  ]
+}

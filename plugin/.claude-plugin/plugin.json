@@ -1,0 +1,60 @@
+{
+  "name": "know-fu",
+  "displayName": "Know Fu",
+  "version": "1.2.0",
+  "description": "A local research library: ingest books, papers and videos, then explain, teach, apply and invent from what it holds.",
+  "author": {
+    "name": "Know Fu"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/Barncore/know-fu",
+  "keywords": ["research", "knowledge", "library", "mcp"],
+  "userConfig": {
+    "library_dir": {
+      "type": "directory",
+      "title": "Library folder",
+      "description": "The Know Fu library: originals, records and releases. Initialize it first (see the setup guide), and keep it outside this repository and out of sync folders.",
+      "required": true
+    },
+    "state_dir": {
+      "type": "directory",
+      "title": "State folder",
+      "description": "Runtime state, including the deletion ledger. Back up its ledgers folder with the library.",
+      "required": true
+    },
+    "media_runtime": {
+      "type": "string",
+      "title": "Media tools",
+      "description": "Where FFmpeg runs: native (on PATH) or wsl (inside a WSL distribution).",
+      "options": ["native", "wsl"],
+      "required": true
+    },
+    "wsl_distro": {
+      "type": "string",
+      "title": "WSL distribution",
+      "description": "Only used when media tools run in WSL.",
+      "default": "Ubuntu"
+    },
+    "advanced_tools": {
+      "type": "boolean",
+      "title": "Specialist tools",
+      "description": "Also list kb_lifecycle, kb_propose, kb_change, kb_retrieve and kb_evaluate. Leave off for everyday sessions; turn on for purges and maintenance.",
+      "default": false
+    }
+  },
+  "mcpServers": {
+    "know-fu": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/../dist/mcp.js"],
+      "env": {
+        "KB_CORPUS": "${user_config.library_dir}",
+        "KB_STATE_DIR": "${user_config.state_dir}",
+        "KB_MEDIA_RUNTIME": "${user_config.media_runtime}",
+        "KB_WSL_DISTRO": "${user_config.wsl_distro}",
+        "KB_ADVANCED_TOOLS": "${user_config.advanced_tools}",
+        "KB_PROJECT": "${CLAUDE_PROJECT_DIR}",
+        "KB_ACTOR": "claude"
+      }
+    }
+  }
+}

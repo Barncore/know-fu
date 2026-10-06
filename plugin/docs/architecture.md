@@ -21,6 +21,8 @@ Book / PDF / video / other source
 
 The split is simple. The AI writes the meaning, and the engine keeps it honest: it checks structure, references, scope, reading coverage, quotes and that publication is consistent. Those checks can't tell you an interpretation is *right*, only that it's well-formed and grounded. The wiki, graph and search index are all generated from the same published records. Think of them as three windows onto one library, not three separate readings of the source.
 
+The engine is one MCP server, and any agent that launches it gets the same tools. `plugin/` packages it for two: Codex through `.codex-plugin/plugin.json` and a generated `.mcp.json`, Claude Code through `.claude-plugin/plugin.json`, with one shared skill. The server lists eleven everyday tools. `kb_lifecycle`, `kb_evaluate`, `kb_propose`, `kb_change` and `kb_retrieve` are listed only when `KB_ADVANCED_TOOLS` is set (`exposedTools` in `api.ts`), and the CLI always accepts all of them.
+
 ## Records
 
 Everything in the library is a record. The [record schema](../contracts/schemas/record.schema.json) gives every record the same shared metadata, plus a payload for its family:
@@ -41,7 +43,7 @@ The shared fields are `id`, `revision`, `corpus_id`, `maintenance_module`, `scop
 
 ### Identity, provenance and labels
 
-An id plus a revision names one exact meaning at one point in time, a bit like a commit. A release says which revisions are current. Provenance ties each meaning to its sources and to the records it was built from. Epistemic labels keep a source's own account apart from synthesis, inference, hypothesis, judgment and illustration, so you always know whose claim you're looking at.
+An id plus a revision names one exact meaning at one point in time, a bit like a commit. A release says which revisions are current. Provenance ties each meaning to its sources and to the records it was built from, and names the agent that wrote it (`provenance.actor`, from the launcher's `KB_ACTOR`: `codex`, `claude`, or `unspecified` when the launcher doesn't say). A source also carries its evidence family, independence and the sources it derives from, set when it's registered; sources in one family count once toward independent support. Epistemic labels keep a source's own account apart from synthesis, inference, hypothesis, judgment and illustration, so you always know whose claim you're looking at.
 
 ### Assessments
 
@@ -87,7 +89,7 @@ sources/
 releases/
   <release-id>.json                 Revisions in the release, their paths and hashes
   <release-id>.impacts.json         Accounts awaiting reassessment after the release
-jobs/<job-id>/                      Requests, staged records, coverage, receipts, note slugs
+jobs/<job-id>/                      Requests, staged records, coverage, receipts, note slugs, the log of units served (reads.jsonl)
 audit/events/<event-id>.json        Authoritative operation events
 audit/events.jsonl                  Derived event stream, appended per event
 audit/journal-state.json            Tells the journal when it must be rebuilt
@@ -176,6 +178,8 @@ Its rules still matter, though. Qualifications, challenges, conceptual prerequis
 ## Ingestion and evaluation
 
 Ingestion jobs use workflow version 2. The reweave plan covers explanations, lessons and questions affected by changed inputs, or by new, changed or retired material relationships. A revised or reaffirmed decision needs a staged revision behind it; unresolved or out-of-scope targets stay pending. Decisions are bound to the staged meaning and expire if it changes. The check receipt records what understanding was added, which revisions changed, what's unresolved and which checks were actually run, plus a digest of exactly what was staged. Publication refuses if staging changed after the check (`CHECK_STALE`), and a proposal that arrives after the check sends the job back to it. The ingestion report survives an interrupted publication. Older jobs keep their original workflow, and `coverage_all` marks every remaining unit of the current stage in one go.
+
+Reading is checked rather than taken on trust. Jobs created since 7 October 2026 carry `read_receipts: true`. `readUnit` appends each serve (unit, character range, total length) to `jobs/<job>/reads.jsonl`, and a reconstruct receipt that marks a unit complete is refused unless the served ranges cover the unit from start to end; excluded units still only need a reason. The ingestion report adds `reading`: units, excluded, read in full and the ratio. This proves the text went out, not that the agent understood it. Older jobs report `reading: {tracked: false}`.
 
 Version 3 evaluations freeze the implementation, cases and rubrics, release, scope, model, budgets and conditions. Interactive conditions read through a pinned, read-only MCP reader, and fixed-packet and source-only controls keep their own names. The reader records chosen summaries, opened bodies and sections, graph routes, repeat reads, delivered characters and unmet requirements. Codex-reported input includes repeated context. The input-token ceiling is checked after the run, while tool-call, evidence and time limits are enforced during it. Separate quality dimensions and decisive failures stop a good average from hiding a lost condition. Sending extra source text to a grader needs a per-run authorization naming exact references or hashes. [Operations](../skills/know-fu/references/operations.md) has the details.
 

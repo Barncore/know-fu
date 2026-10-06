@@ -26,7 +26,7 @@ export interface JobData {
   };
   stage:
     "register" | "convert" | "reconstruct" | "integrate" | "discover" | "reweave" | "compile" | "check" | "publish";
-  status: "pending" | "running" | "waiting_for_codex" | "blocked" | "cancelled" | "complete";
+  status: "pending" | "running" | "waiting_for_agent" | "waiting_for_codex" | "blocked" | "cancelled" | "complete";
   /**
    * @minItems 1
    */
@@ -91,4 +91,8 @@ export interface JobData {
    * New jobs require explicit reweave decisions and an understanding-change report. Absent on preserved legacy jobs.
    */
   workflow_version?: 2;
+  /**
+   * Set on jobs created since read receipts began: a unit counts as read only when the engine served all of it.
+   */
+  read_receipts?: boolean;
 }

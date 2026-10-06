@@ -2,6 +2,10 @@
 
 Start with the bundled [package README](../../../README.md), the [architecture and layout](../../../docs/architecture.md) and the [setup guide](../../../docs/setup.md). `kb_status` tells you where the engine and the library are; they're separate places. The README at that engine path holds the deployment evidence and known limits. Local installation paths are configuration, not something this skill depends on.
 
+## Specialist tools
+
+Five tools stay out of everyday sessions to save context: `kb_lifecycle` (archive, withdraw, reinstate, purge), `kb_evaluate` (frozen evaluations, Codex only), `kb_propose` and `kb_change` (raw proposals and staged-job review), and `kb_retrieve` (the older packet and progressive routes). MCP lists them only when the plugin's server config sets `KB_ADVANCED_TOOLS=1`. If a task here needs one and it's missing, say so and ask the user to turn the flag on for that session, or use the CLI fallback, which always has every tool.
+
 ## Health, views and the graph
 
 To check health, use `kb_status`, `kb_maintain {action:"reindex"}` and `kb_maintain {action:"verify"}`. When a view is unavailable, the canonical files are still the authority, so never rewrite them to make an index look healthy. Reindexing also clears out the view folders of older releases, except any folder holding a wiki edit that hasn't been imported yet.
@@ -16,7 +20,7 @@ Whole-library `verify`, `export` and `formats` need unrestricted read access to 
 
 ## Configuring modules and bindings
 
-`kb_maintain {action:"configure"}` takes `module {module_id, title, description}`, `domains [{domain_id, title}]`, an optional `binding {project_id, read_modules, write_modules}`, optional `dimensions {name: {type, unit}}`, and the real task `authorization`. The owning project has to be able to write every module. Only bind a new Codex project when the user asks; integration with other agents is deferred. A condition dimension's meaning never changes, so when its unit or meaning changes, give it a new name.
+`kb_maintain {action:"configure"}` takes `module {module_id, title, description}`, `domains [{domain_id, title}]`, an optional `binding {project_id, read_modules, write_modules}`, optional `dimensions {name: {type, unit}}`, and the real task `authorization`. The owning project has to be able to write every module. Only bind a new project when the user asks. A condition dimension's meaning never changes, so when its unit or meaning changes, give it a new name.
 
 ## Archive, withdrawal and purge
 
