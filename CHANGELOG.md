@@ -4,6 +4,22 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-07 - Reading long books in stages
+
+Why: the owner approved D8 once it was clear how a stage-by-stage reader keeps the whole book in view. One long conversation compacts away the early chapters of a book before it reaches the late ones, and readers working in parallel can't see each other's chapters.
+
+- The books guide gains "Long books: a book map, then readers in order". The procedure:
+  - A book map first, saved as a source review.
+  - Spans along chapter boundaries: one chapter by default, short related chapters joined, oversized chapters split at their sections.
+  - One fresh subagent per span, in order, never in parallel, each given the map, every earlier chapter's digest, and the note lists of the chapters it builds on.
+  - A digest for every chapter.
+  - The whole-book work done by the main agent from the notes.
+  - A book that fits in one conversation keeps one reader.
+- The ingestion and video guides point to it; a long course gets the same staged reading by module.
+- AGENTS.md: when the owner says to push to `main`, the remote `staging` stays where it was.
+- The roadmap marks D8 done and records how the book map decides spans; NORTH_STAR records the decision.
+- Guide-only. The books guide grows by about 935 tokens, read only in book and paper ingests. No engine, schema or library change.
+
 ### 2026-10-07 - Honest ingestion, a Claude Code adapter and the MIT licence
 
 Why: before the first real ingest, the owner approved the guards from the roadmap's decision list (D3-D6, D9, D12, D13). The engine took an agent's word that it had read every page, stamped every record as written by Codex, and counted every source as its own independent family. And Know Fu only installed into Codex.

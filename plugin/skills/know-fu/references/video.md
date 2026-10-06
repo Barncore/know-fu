@@ -50,4 +50,6 @@ Use `source_review` to keep the source and part identity, transcript corrections
 
 Use the job's partial receipts for source units. Timing maps used only for navigation may be excluded from substantive reading, with that reason; never mark them fully inspected by default. Comparison and join units need real review. A sampled overview, native-frame inspection, direct listening and continuous playback are four different coverage claims.
 
+A course too long for one conversation gets the same staged reading as a long book: a map of the course first, then one reader per module in order, each building on the digests of the modules before it ([books guide](books.md#long-books-a-book-map-then-readers-in-order)).
+
 Reconstruct each teacher or course on its own terms before comparing it with the library. Keep conditions, mechanisms, examples, limitations and open choices, then update the cumulative account. Ground new ideas in named premises, differences, failure conditions and the next useful test. The finish report explains what the knowledge now lets the AI do, the limits of the evidence, and the actual paid spend. And it never turns results the source *reports* into performance anyone reproduced.

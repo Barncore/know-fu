@@ -51,7 +51,7 @@ All five are written up in [NORTH_STAR.md](NORTH_STAR.md#decisions-on-5-october-
 - One module with domain tags (D9) is now the setup guides' recommended layout.
 - The code is under the MIT licence (D13).
 - D10 is deferred for discussion: the owner doesn't want claims expiring on a guessed date, and suggested a sunset action instead. It moved to the second group as D10.
-- D8 waits on the owner's answer to how chapter reading would keep the whole book in view.
+- D8 approved after the owner's questions: long books are read in stages, a book map first and then one reader per span in order, never in parallel, with a digest per chapter. Built as a section of the books guide.
 
 ## Waiting on the owner
 
@@ -109,7 +109,7 @@ The library is agent-neutral but the prose isn't: Codex and Claude will write di
 
 Cost-benefit: twice the pilot's ingest tokens, against seeing on identical material which agent writes the better library, which settles who does the ingesting from then on.
 
-#### D8. Read long books in stages, with the whole book in view · waiting on the owner after their questions
+#### D8. Read long books in stages, with the whole book in view · approved and done
 
 What actually happens in one long conversation: the model keeps no memory between calls, so every tool call sends the whole conversation so far back to it, with the new result on the end. Providers cache that repeated part, so it's billed at a fraction and doesn't slow things much. The real problem is room. A 300-page book is very roughly 150,000-200,000 tokens of text (an estimate), so the conversation fills up partway through and the harness compacts it: the early chapters survive only as a summary. One long conversation already loses chapter 3 by the time it reaches chapter 8. It just loses it silently. (The earlier version of this entry blamed cost; the context limit is the bigger reason.)
 
@@ -120,6 +120,8 @@ The owner asked whether reading by chapter loses the whole book's teaching. Read
 3. The subagents do the real reading and analysis: they read every unit to its end (which the read receipts check) and write that chapter's notes. Extracting the text is already done by conversion before anyone reads.
 4. The main agent never re-reads the pages. It reads the notes and does the cross-chapter work: links between chapters, the comparison with the rest of the library, reweave, the teaching layer and the check.
 5. A book or paper that fits comfortably in one context skips all this and gets one reader.
+
+The owner approved this and asked what the book map should decide about how chapters are split among readers. The answer built into the books guide: spans follow chapter boundaries, one chapter per reader by default. Short neighbouring chapters that make one argument are joined, so their cross-references stay in one context. An oversized chapter is split at its sections. Every chapter gets its own digest either way, which is the owner's point: each chapter leaves something the next can build on. Readers get every earlier digest, plus the full note lists only for the chapters the map says they build on, so what each reader carries doesn't balloon over a long book. The size line starts at about 40,000 tokens of text per span and gets tuned in the pilot.
 
 One reader for the whole book in a subagent would only move the room problem into the subagent. What stays risky: a later chapter's reader sees earlier chapters only through their notes, so something the notes left out is invisible to it. The main agent's cross-chapter pass and the check stage are the guard. This is a guide change, nothing in the engine.
 

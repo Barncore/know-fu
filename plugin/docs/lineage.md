@@ -95,6 +95,7 @@ Fable 5.1 reviewed the whole project on 6 October 2026, at the owner's request. 
 | Evidence families set at registration (7 October 2026) | The review's point that family and independence are locked at registration, plus finding in the code that no tool could set them | `kb_ingest` takes them per source, including `owner` for the owner's own material, which the review flagged as a good source nobody had suggested |
 | A Claude Code adapter beside the Codex one (7 October 2026) | The review's argument to build it before the pilot rather than once finished | One plugin folder, two manifests, one skill |
 | Five specialist tools hidden by default (7 October 2026) | The review's tool-surface trim, minus `kb_maintain`, which the publish step needs | `KB_ADVANCED_TOOLS` lists them; about 550 tokens saved per session, measured |
+| Reading long books in stages (7 October 2026) | The review's suggestion to read chapters in fresh contexts, reworked after the owner asked how chapter readers would keep the whole book in view, and asked that every chapter leave something the next could build on | A book map first, then one reader per span in order, never in parallel, each given every earlier chapter's digest; the main agent does the whole-book pass from the notes |
 
 ## Research it compared itself against
 

@@ -85,7 +85,9 @@ Working through the ranked list in [ROADMAP.md](ROADMAP.md#waiting-on-the-owner)
 
 The pilot will run both agents on the same source, each into its own library, beside a flat-wiki control, so the comparison shows which agent writes the better library and whether the structure is worth its weight.
 
-Two questions stay open for discussion. The owner doesn't want claims expiring on a guessed date: whether a source is out of date is for the agent to judge on the way in, and a "sunset" action (outdated, kept for history) may fit better than validity windows. And reading long books in stages waits on how a stage-by-stage reader keeps the whole book in view.
+Long books are read in stages. A map of the whole book comes first, then one reader per chapter (or per span of short chapters) in order, never in parallel. Each reader builds on a digest of every chapter before it, and the main agent does the whole-book work from the notes. The owner's point that every chapter should leave something the next can build on is why each chapter gets its own digest.
+
+One question stays open for discussion. The owner doesn't want claims expiring on a guessed date: whether a source is out of date is for the agent to judge on the way in, and a "sunset" action (outdated, kept for history) may fit better than validity windows.
 
 ## One knowledge system, several ways in
 
