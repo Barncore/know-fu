@@ -2,7 +2,7 @@
 
 This is the working to-do list. [NORTH_STAR.md](NORTH_STAR.md) says what Know Fu is for and what the owner has decided, [VALIDATION.md](VALIDATION.md) says what's been shown to work, and this file says what to do next, in order. When a task is done, its result moves into VALIDATION or the change log and the task leaves this list. Task numbers never change, so the change log and the audit report can keep pointing at them.
 
-Updated 6 October 2026, engine 1.2.0 with `kb_connect`, assessments, functional facets, and the invention work on the `claude/know-fu-invention` branch.
+Updated 6 October 2026, engine 1.2.0 with `kb_connect`, assessments, functional facets and the invention work, all on `main`. New work lands on `staging` first (see [AGENTS.md](../AGENTS.md#branches)).
 
 ## Where 1.2.0 leaves things
 
@@ -38,19 +38,154 @@ All five are written up in [NORTH_STAR.md](NORTH_STAR.md#decisions-on-5-october-
 
 - Invention ranks first, with explaining and teaching a close second. See [NORTH_STAR.md](NORTH_STAR.md#decisions-on-6-october-2026).
 - Restore functional facets in `kb_write` (task 19, built). The measured cost is in [VALIDATION.md](VALIDATION.md).
-- Built on the `claude/know-fu-invention` branch: the idea lane with its walls (task 20), results from the owner's own tools (task 21), a real `invent` preset with opt-in bridges (task 22), gap suggestions (task 23), the guide changes for inventing, open problems and teaching by comparison (task 24), and decision points on procedures (task 25). Measurements are in [VALIDATION.md](VALIDATION.md).
+- Built, and merged into `main`: the idea lane with its walls (task 20), results from the owner's own tools (task 21), a real `invent` preset with opt-in bridges (task 22), gap suggestions (task 23), the guide changes for inventing, open problems and teaching by comparison (task 24), and decision points on procedures (task 25). Measurements are in [VALIDATION.md](VALIDATION.md).
 - A lineage map of sources isn't needed: the owner meant conceptual lineage, which `depends_on`, "Foundations first" and reweaving already carry.
-- Still open: how to store an accepted analogy. The recommendation on the table is to keep analogies, show them only in invent, and decide storage when analogy search gets built.
+- No `analogous_to` link. An accepted analogy is an idea, with both accounts as its premises; a pattern proven across two or more cases can become a `concept` with `exemplifies` links.
+- `staging` is the branch where work lands first, and `main` is the official version.
 
-Right now nothing waits on the owner except the go-ahead for task 1 and merging the branch.
+## Waiting on the owner
+
+Fable 5.1 reviewed the whole project on 6 October 2026 ([the audit](#where-these-came-from)), and this is the list of what's left to decide, merged with the owner's own open questions. It's grouped by when the answer is needed, and inside each group the ones I'd approve without hesitation come first and the uncertain or consequential ones last. When the owner decides one, it moves up into a "Decided on" list, and if it means building something, it gets a task number. Its D number stays the same.
+
+### Before installing and running the first ingest
+
+#### D1. Delete the two old branches · approve
+
+`claude/know-fu-2` and `claude/know-fu-invention` are fully merged into `main`, so deleting them loses nothing. With `staging` as the one working branch, they're just clutter on GitHub.
+
+#### D2. Narrow the skill's trigger · approve
+
+The skill's description says to use it when "explaining, teaching, applying, comparing or inventing", which matches almost any request in a harness with fifty skills. Rewrite it to fire on the library: a bound project, ingesting a source, or answering from what the library holds. One line, no effect on the data. The catch: in a project that isn't bound, a plain "explain X" won't load the skill, and that's the point.
+
+#### D3. Read receipts · approve
+
+Today `coverage_all {status:"complete"}` is the agent's word that it read every unit, and nothing checks it. The engine would log which units each job actually served (text units, page images and frames), refuse "complete" for a unit it never served to the end, and put the read ratio in the ingestion report. It doesn't prove the agent understood a page, but it closes the cheapest way to fake reading. About 100-150 lines plus tests. Units marked excluded (covers, blanks, indexes) still just need a reason.
+
+#### D4. Record which agent wrote each record · approve before any agent other than Codex writes
+
+Every record's provenance says `actor: "codex"`, because it's hard-coded in three places, and jobs wait in a status called `waiting_for_codex`. If Claude ingests the pilot, every record will claim Codex wrote it, and provenance can't be fixed after the fact without new revisions of everything. Each plugin's server config would name its agent, and the job status becomes `waiting_for_agent`, with the old name still accepted. Small change.
+
+#### D5. Set a source's evidence family when registering it · approve
+
+The rule that `high` evidence from thin support needs two independent source families only works if families are right. Today every source registers as its own family (`unknown-<hash>`) with independence `unknown`, and no tool can change it. So two copies of one book, or a book and its summary, count as two independent sources. `kb_ingest` would accept `evidence_family`, `independence` and `derived_from` per source, and the ingestion guide would say how to pick them, including `owner` for your own trading journal, session notes and half-finished ideas (which Fable rightly says are good sources nobody suggested). The family is effectively fixed at registration, so this should land before the first real source.
+
+#### D6. Claude Code adapter, in this repository · approve
+
+The engine is agent-neutral; only the packaging is Codex-shaped. Fable recommends building the Claude Code adapter before the pilot rather than "once finished", because your harness, research and review loop all live in Claude, and running the pilot in Codex means learning the agent's behaviour twice. Both adapters can live in the same `plugin/` folder: Codex reads `.codex-plugin/plugin.json` and Claude Code reads `.claude-plugin/plugin.json`, and both read the same `skills/` folder. What it needs:
+
+- D6a. One shared plugin folder with two manifests, rather than two copies. Recommend: shared, so the guides never drift apart.
+- D6b. One set of guides, agent-neutral, with a short note where the agents differ (Claude Code has subagents; only Codex runs `kb_evaluate`). Recommend: yes.
+- D6c. One library for both agents, with one writer at a time, or a library per agent. Recommend: one library. Two processes on one library are untested, so test that on a throwaway copy first (D24) before both are bound to it.
+- D6d. How Claude Code users install it: clone the repo, run the setup guide (Node build, Python converters), then add the clone as a local plugin marketplace. A one-command install from GitHub isn't possible yet, because Claude Code copies only the plugin folder and can't build the engine's native modules or install Python. Recommend: the clone route now.
+- D6e. A root `.claude-plugin/marketplace.json`, a "pick your agent" section in the README, the setup guide split into shared engine setup plus one short section per agent, and the package check validating both manifests. These follow from D6a-d.
+
+#### D7. Which agent runs the pilot · Claude Code recommended, your call
+
+The library is agent-neutral but the prose isn't: Codex and Claude will write different notes from the same chapter. Run the pilot with the agent you'll use day to day. Claude Code is my pick, because chapter-by-chapter reading in subagents (D8) is the biggest cost saving available and the harness around it is yours. Needs D4 and D6.
+
+#### D8. Read chapters in fresh contexts · approve
+
+A book read in one long conversation resends everything read so far on every tool call, so its total cost climbs much faster than its page count. Slugs already carry across `kb_write` batches in one job, so separate subagents can each read one chapter and write its notes, while the main agent does integrate, reweave and check. This is a guide rule: what each chapter subagent gets (job id, its units, the slug list, the current primer) and what the main agent keeps. It applies wherever the harness has subagents.
+
+#### D9. One wide module, with domain tags · approve
+
+When you set up your real library, put everything in one module and separate topics with domain tags. `cross_domain` bridges can only cross what a project can read, and moving a record to another module later is its own operation. Use a separate module only for material that has to stay apart, such as a client's.
+
+#### D10. Validity windows for claims that go stale · approve
+
+`valid_from` and `valid_until` already exist and recall flags an account outside its window, but no guide says when to set them. Prices, software versions, regulations and market behaviour go stale. A guide rule in the notes guide, and roadmap task 17's `review_after` remains the fuller version.
+
+#### D11. Run the pilot beside a flat-wiki control · approve, but it's your time
+
+The pilot (task 2) proves Know Fu can ingest a chapter. It doesn't prove the structure is worth its weight. Fable's control: the same chapter, by the same agent, written into plain Markdown pages indexed by QMD, with no records, links or reweave. Ask both the same five questions, compare blind, then ingest a second related source into Know Fu and check it revised the first. The control costs maybe a quarter of the Know Fu ingest. If the flat wiki wins, that's worth knowing before you feed it a library.
+
+#### D12. Hide five specialist tools by default · approve
+
+The 16 tool descriptions cost about 1,600 tokens in every session. `kb_retrieve` (the two old routes), `kb_propose` and `kb_change` (raw proposals), `kb_lifecycle` (archive, withdraw, purge) and `kb_evaluate` (the Codex evaluation harness) would load only when `KB_ADVANCED_TOOLS` is set, saving about 330 tokens a session. Fable also listed `kb_maintain`, but the publish step calls it to reindex, so it has to stay. Setup, purge and evaluation sessions turn the flag on.
+
+#### D13. A licence · your pick
+
+The repository is public with no licence, which means nobody may legally reuse it. That doesn't block installing it for yourself, but it should be settled before anyone else looks. The choice is between permissive (MIT, Apache-2.0), copyleft (GPL-3.0, AGPL-3.0), or source-available but not open source (PolyForm Noncommercial). Dependencies don't constrain the choice: the npm packages are permissive, and FalkorDB (SSPLv1) is a separate service that isn't bundled.
+
+### During the pilot, before the second source
+
+#### D14. A "missing foundations" gap signal · approve
+
+The fourth gap signal: concepts that accounts build on or use, but that have no account of their own. That's exactly the list of foundations an advanced book assumed, which answers the wrong-order-books worry directly. About 30 lines in `gaps.ts` with a test.
+
+#### D15. Record a novelty search on every idea · approve
+
+An originality rating is a guess, and the research is firm that guessed novelty is unreliable: about a quarter of "novel" AI proposals were reworded prior work. `kb_idea propose` would run its own search over the library's knowledge and ideas and store the nearest five with the date, so "original" means "nothing close found in this library as of this date". It also catches near-duplicate ideas before anyone spends a test on one. The rating stays, shown beside the search.
+
+#### D16. Refuse speculative knowledge notes · approve
+
+`kb_write` still accepts `epistemic: hypothesis` on knowledge notes, which is a side door around the ideas lane. Refuse it on new notes and allow it on revisions of existing records, so no library breaks.
+
+#### D17. Probe questions that stick around (task 8) · approve
+
+Two to five questions per source, rerun after later ingests, to catch knowledge quietly going missing as the library grows. Fable moves it before the second book, and I agree: it's the regression test for the library itself.
+
+#### D18. Reweave packets (task 7) · approve
+
+Reweave is where compounding happens and where a tired agent cuts corners. Handing it each affected account's current text with the notes that triggered it, in one call, lowers the cost of doing it properly.
+
+#### D19. Duplicate warnings at write time (task 9) · approve
+
+Stops the library filling with near-twins as it grows. Calibrate the threshold on the pilot's real notes.
+
+#### D20. Reading depth: full, selected or skim · approve, the most consequential in this group
+
+Today every source gets the full eight-stage treatment, so a blog post costs as much ceremony as a textbook, and a library that's expensive to grow stays small. A source would register with `reading_depth`: `full` as today, `selected` for named chapters, `skim` for a lighter pass with no reweave beyond flagging. Every note from a skimmed source carries a `skimmed` flag on its recall line. The cost: skimmed notes still enter the library as knowledge, so a library heavy with them is thinner than it looks. The flag keeps that visible.
+
+#### D21. Record the model's training cutoff beside a result · approve when trading ideas start
+
+For a trading idea, the model that generated it may have seen the test period. One optional field on a result, `generator_cutoff`, beside `data_window`.
+
+#### D22. Measure "it gets smarter" by replay (task 26) · approve after the second source
+
+Releases are immutable, so you can freeze the library from before source B arrived, ask the agent to invent toward what B found, with and without the library, and score the difference. It's the only measure of "ingesting makes it smarter" that isn't a feeling.
+
+#### D23. Test two agents on one library · only if both will share a library
+
+Locks and cache keys exist, but nobody has run Codex and Claude on one library at once. Run it on a throwaway copy before both are bound to the real one.
+
+### After the pilot, or when the need shows up
+
+#### D24. Keep files as the canonical store · approve
+
+The owner asked whether the FalkorDB graph should replace the JSON files as the library itself. My recommendation is no, and to keep the graph as a view. A graph database answers traversal questions fast, but Know Fu's recall already runs its graph work in process in milliseconds, and the files give things a graph database doesn't: every revision immutable and hash-checked, a release that's one atomic pointer swap, a purge you can verify because the files are gone, backups that are a folder copy, and a library you can read without a running service. FalkorDB also holds the whole graph in memory and has no built-in versioning, so revisions and releases would have to be rebuilt on top of it. When the library outgrows memory or the release manifests get slow (tasks 11 and 12), add a persistent index beside the files rather than moving the source of truth.
+
+#### D25. Move the Codex evaluation harness out of the way · approve hiding it, your call on moving it
+
+The `evaluation*.ts` files (about 1,400 lines) run frozen capability tests through locked-down Codex sessions. They produced the 1.1.0 capability evidence and have been used twice. D12 already hides `kb_evaluate`. Moving the code into its own folder or repository is tidier but changes nothing for daily use.
+
+#### D26. FalkorDB itself · keep it optional for now, your call
+
+Nothing answers from FalkorDB. The only reason to keep it installed is a future operational memory layer, where Graphiti (which runs on FalkorDB) is the obvious candidate. If that never happens, drop it, and the WSL service with it.
+
+#### D27. A third PDF converter for equation-heavy books · when the first such book arrives
+
+Fable reports that Marker and MinerU lead 2026 benchmarks on formulas and multi-column papers, while Docling leads on tables (not checked here). A third `pdf_profile` would help trading and statistics books. Python work, moderate size.
+
+#### D28. An audience level on lessons · maybe
+
+A lesson pitched at a novice can hurt an expert and the other way round. A tag on learning records would let a teaching session pick the right level. Small.
+
+#### D29. Export a library's procedures as a skill · maybe
+
+A `kb_export skill` that compiles a library's procedures and decision trees into a skill file with citations would make book-to-skill an output of Know Fu rather than a rival. Guide plus template, no engine change.
+
+### Where these came from
+
+Fable 5.1's strategic audit of 6 October 2026, kept outside the repository with the other research, supplied D2-D3, D5 (in part), D6-D12, D14-D15 and D17-D29. D4 and the evidence-family half of D5 came from checking Fable's points against the code, and D16 from a risk recorded below when the ideas lane was built. D1 and D13 are housekeeping. Fable also recommends treating `kb_idea` as experimental until the pilot has used it, which needs no decision.
 
 ## Task list
 
 ### Next
 
-#### 1. Install the current engine for Codex
+#### 1. Install the current engine
 
-Point the Codex plugin at this engine and refresh it, following the plugin refresh steps in [MAINTENANCE.md](MAINTENANCE.md), with a backup of the current plugin and cache first. This changes the working Codex setup, so it needs the owner's go-ahead. Done when a fresh Codex session lists `kb_brief`, `kb_recall`, `kb_connect`, `kb_file` and `kb_write` and reads the new guides.
+Point the plugin for the agent chosen in D7 at this engine, with a backup of any current plugin and cache first. For Codex, follow the plugin refresh steps in [MAINTENANCE.md](MAINTENANCE.md); for Claude Code, the adapter from D6 comes first. This changes the working setup, so it needs the owner's go-ahead, and it waits on the decisions in the first group above. Done when a fresh Codex session lists `kb_brief`, `kb_recall`, `kb_connect`, `kb_file` and `kb_write` and reads the new guides.
 
 #### 2. Run a real ingestion pilot with notes
 
@@ -114,7 +249,7 @@ Beyond `kb_connect`'s chains and bridges, the invent slate (task 22) and the gap
 
 #### 15. Claude Code adapter
 
-This waits until the owner judges the system finished. It would bind to its own library; Claude and Codex sharing one library is a separate question.
+This waited until the owner judged the system finished. Fable's review recommends building it before the pilot instead; that's D6, with its sub-decisions, and sharing one library between the agents is D6c and D23.
 
 #### 16. Keep the evaluation harness, stop growing it
 
@@ -122,7 +257,7 @@ The version 3 evaluator is Codex-specific and heavy. Use the lighter blind A/B m
 
 ### Parked by the owner
 
-Operational or project memory, knowledge promotion tiers, several agents writing to one library, and `analogous_to` links. Each needs its own decision before anyone starts on it.
+Operational or project memory, knowledge promotion tiers, and several agents writing to one library. Each needs its own decision before anyone starts on it. (`analogous_to` links were parked here too, and on 6 October 2026 the owner ruled them out.)
 
 ## What could bite later
 

@@ -26,6 +26,12 @@ After edits, run the relevant tests, `npm run build` when TypeScript changes, `n
 
 Every finished change to behavior, schemas, setup or dependencies gets a dated `CHANGELOG.md` entry and a matching doc update, or an explicit "Documentation impact: none" with the reason. Reusable findings go in `LESSONS.md`, which is a set of lessons, not a second diary. `docs/MAINTENANCE.md` maps code areas to the docs they affect. Run `npm run check:release -- --staged` before committing; it checks the staged files for private paths, common credential patterns and broken links, and makes sure the change log came along.
 
+## Branches
+
+`main` is the official version, and `staging` is where work lands first. Commit and push to `staging` unless the owner says to push to `main`. The owner reads the change on GitHub, then merges `staging` into `main` with a pull request when it's ready. Merge with a merge commit, not a squash: a squash gives `main` copies of the commits under new names, and the next pull request shows the old work again.
+
+Before starting work, bring `staging` up to date with `main` (`git fetch`, then `git merge --ff-only origin/main` on `staging`), so a pull request only ever shows new work. When two sessions work at the same time, each takes its own short-lived branch off `staging` and merges back into `staging` when done, so neither overwrites the other.
+
 ## What never goes in the repository
 
 The library, credentials, the machine-local `plugin/.mcp.json`, runtime and model caches, private acceptance outputs, benchmark copies of real libraries, and conversation exports. The root `.gitignore` only lets release-owned areas through; keep local benchmark material in the ignored `.bench/` folder. Look at the actual staged paths and contents before pushing. The repository has been public since 30 September 2026. That covers the reusable code, not private research, transcripts or writing samples, and it doesn't grant an open-source license.

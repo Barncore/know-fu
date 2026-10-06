@@ -45,7 +45,7 @@ Today's implementation is a custom TypeScript engine and research adapter, Falko
 
 The first deployment runs on local files and software, with no cloud database to pay for. Media transcription goes through APIs by preference. Research can feed general writing, teaching and product skills without needing a research collection about those skills.
 
-A few things are deliberately parked: promotion tiers for knowledge, several agents writing to one library, and operational or project memory. `analogous_to` links were excluded outright, and having compatible domains doesn't mean the system should draw cross-domain analogies on its own. A book doesn't become a skill. And no fixed quota of pages, links or probes defines a successful ingest.
+A few things are deliberately parked: promotion tiers for knowledge, several agents writing to one library, and operational or project memory. `analogous_to` links were excluded outright (and the exclusion was confirmed on 6 October 2026), and having compatible domains doesn't mean the system should draw cross-domain analogies on its own. A book doesn't become a skill. And no fixed quota of pages, links or probes defines a successful ingest.
 
 "Every ingest makes it smarter" is the objective, not a promise that any material raises a benchmark score. A redundant source may add very little. A weak source may end up qualified. A contradicting source can improve judgment just by removing false certainty. The useful question after an ingest is what understanding or capability changed, and whether everything unrelated stayed sound.
 
@@ -75,7 +75,9 @@ A research round on how people and machines invent followed (summarized in the [
 - The guides gain counter-framing, generating past the obvious, separate originality and feasibility ratings, and teaching by comparison.
 - Procedures carry decision points, shown as a tree. The owner's reason: "I need to see the decision tree."
 
-The owner also settled what "lineage" means for them: which concept leads to which, so books read in the wrong order still end up in the right order. That's the job `depends_on` links, "Foundations first" and reweaving already do, and the ingestion guide now says what to record when an advanced book arrives before its foundations. How to store an accepted analogy is still open.
+The owner also settled what "lineage" means for them: which concept leads to which, so books read in the wrong order still end up in the right order. That's the job `depends_on` links, "Foundations first" and reweaving already do, and the ingestion guide now says what to record when an advanced book arrives before its foundations.
+
+After an outside review by Fable 5.1 the same evening, the owner closed the analogy question: no `analogous_to` link, ever. `cross_domain` already controls cross-field borrowing at the moment of asking. An accepted analogy is an idea: the mapping is its statement, and both accounts are its premises. Once the same pattern has proven itself across two or more cases, it can become a `concept` for the abstract pattern, with `exemplifies` links from each case. Neither needs a new link type. The owner also made `staging` the branch where work lands first, with `main` reserved for the official version.
 
 ## One knowledge system, several ways in
 

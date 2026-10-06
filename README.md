@@ -143,6 +143,6 @@ The ideas come from Karpathy's LLM Wiki, Ars Contexta's Reweave, rohitg00's LLM 
 
 ## Boundaries
 
-Ingestion isn't fine-tuning, and passing an evaluation isn't general expertise. A link between two records is a recorded connection, not proof. Research memory and operational or project memory stay separate. Promotion tiers, several agents writing to one library, and `analogous_to` links are decisions for later.
+Ingestion isn't fine-tuning, and passing an evaluation isn't general expertise. A link between two records is a recorded connection, not proof. Research memory and operational or project memory stay separate. Promotion tiers and several agents writing to one library are decisions for later. There's no `analogous_to` link, by choice: an analogy worth keeping is stored as an idea.
 
 This is a public repository without an open-source license yet. Dependencies keep their own licenses. The README animation is third-party film imagery with its own [provenance note](assets/README.md). Private research, transcripts and credentials aren't part of the code.

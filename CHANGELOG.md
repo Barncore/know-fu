@@ -4,6 +4,15 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-06 - Branch workflow, no `analogous_to`, and the decision list
+
+Why: the invention work went to `main`, and the owner asked for one standing branch where work lands first. They also ruled out `analogous_to` after an outside review by Fable 5.1, and asked for a ranked list of what's left to decide before installing.
+
+- AGENTS.md gains a "Branches" section: work lands on `staging`, the owner merges it into `main` with a merge commit (not a squash), and parallel sessions use short-lived branches off `staging`.
+- Recorded the `analogous_to` decision in NORTH_STAR, the roadmap, the README and the skill's standing rules. An accepted analogy is an idea with both accounts as premises, or later a `concept` with `exemplifies` links.
+- The roadmap gains "Waiting on the owner": 29 decisions (D1-D29) grouped by when they're needed and ranked by how strongly they're recommended, each saying what it is, why it matters and what it implies. Task 1 now depends on the agent chosen in D7, and task 15 points at D6.
+- Documentation only. No runtime, schema, dependency or library change.
+
 ### 2026-10-06 - Ideas, a real invent preset, gap suggestions and decision points
 
 Why: the owner made invention the top priority and then decided how the library should hold invented ideas. They worried about ideas misguiding the library, so ideas got their own lane with walls the engine enforces. The rest came from the same research round: a real `invent` preset, test results recorded from the owner's own tools, gaps the library can suggest, the guide changes the research supported, and decision points on procedures, which the owner has always wanted from being taught by an expert. Built on the `claude/know-fu-invention` branch.
