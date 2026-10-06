@@ -32,7 +32,15 @@ Records, releases, lifecycle, scope, purge and evaluation didn't change, so no l
 - Keep FalkorDB for now as an optional view. Recall, brief and connect run in process and never wait on it. It stays for browsing visually in FalkorDB Browser and for ad hoc Cypher, and a future operational memory layer could reuse the service.
 - Make assessments useful: reasoned levels shown in recall and side by side in conflicts, never ranking a winner (task 4, built).
 
-All five are written up in [NORTH_STAR.md](NORTH_STAR.md#decisions-on-5-october-2026). Right now nothing waits on the owner except the go-ahead for task 1.
+All five are written up in [NORTH_STAR.md](NORTH_STAR.md#decisions-on-5-october-2026).
+
+## Decided on 6 October 2026
+
+- Invention ranks first, with explaining and teaching a close second. See [NORTH_STAR.md](NORTH_STAR.md#decisions-on-6-october-2026).
+- Restore functional facets in `kb_write` (task 19, built). The measured cost is in [VALIDATION.md](VALIDATION.md).
+- Still under discussion: idea records with lineage and status, an on-demand invent workflow, recording test results from the owner's own tools, computed gaps, how to store an accepted analogy, and a lineage map of sources. Each gets a task number from 20 once the owner decides.
+
+Right now nothing else waits on the owner except the go-ahead for task 1.
 
 ## Task list
 

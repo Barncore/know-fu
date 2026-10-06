@@ -68,6 +68,14 @@ Know Fu took three things in return. Anchoring a level to the kind of support, a
 
 Left out: fused 0-1 numbers, decay with time, reinforcement by repetition, automatic winners and forgetting by access. Two more ideas from the review became roadmap tasks 17 and 18.
 
+## Invention: what the 6 October 2026 research fed in
+
+On 6 October 2026 a research round looked at how people and machines invent, through ten research notes and a report kept outside this repository. It concluded that Know Fu's knowledge layer fits invention and that the layer above it was half-built. Each change it leads to is recorded here with the research it rests on. So far that's one.
+
+| Change | What it rests on | How Know Fu uses it |
+|---|---|---|
+| Functional facets restored in `kb_write` (6 October 2026) | Purpose-and-mechanism indexing improved analogy retrieval and the creativity of the ideas people produced ([Hope et al. 2017](https://arxiv.org/abs/1706.05585)); several short entries per slot beat one blended summary ([Hope et al. 2022](https://arxiv.org/abs/2102.09761)); analogy search turned up papers keyword search missed, which led to creative adaptations ([Kang et al. 2022](https://dl.acm.org/doi/fullHtml/10.1145/3530013)); domain-general wording helped people find distant analogues ([Linsey, Markman and Wood 2012](https://idreem.gatech.edu/publications-2/word-tree)); people recall analogues by surface but judge them by structure, so finding them is the weak step ([Gentner, Rattermann and Forbus 1993](https://groups.psych.northwestern.edu/gentner/papers/GentnerRattForbus93.pdf)). The facet slots themselves came from [Scideator](https://arxiv.org/abs/2409.14634) | New `mechanism` and `procedure` notes carry a purpose and a mechanism, each in the source's words and in domain-free words, so a later search can match records from different fields by what they do. Nothing searches the facets yet; far-analogy retrieval is a later, undecided step |
+
 ## Research it compared itself against
 
 These shaped questions and trade-offs. Their algorithms and performance claims aren't claims about Know Fu.

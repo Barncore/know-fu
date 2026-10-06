@@ -52,7 +52,9 @@ Recall puts the levels to work. It shows them on each account's identity line wi
 
 ### Extensions
 
-Two optional extensions carry extra structure. `extensions.navigation` holds an authored one-line summary where the record's own fields don't give one. `extensions.citations` holds verbatim quotes from the record's cited passages, and each quote is checked against the passage text when the record is staged and again at publication.
+Three optional extensions carry extra structure. `extensions.navigation` holds an authored one-line summary where the record's own fields don't give one. `extensions.citations` holds verbatim quotes from the record's cited passages, and each quote is checked against the passage text when the record is staged and again at publication.
+
+`extensions.functional_facets` says what an account does, so a record from another field can be matched by function rather than topic. Its slots are `purpose`, `mechanism`, `preconditions`, `failure_modes` and `evaluation_method`; each entry has `text` in the source's terms, an optional `abstract` wording in domain-free words, a `basis` and evidence refs. `kb_write` requires a purpose and a mechanism, both with abstract wordings, on every new `mechanism` and `procedure` note, and checks that each wording is short and that the abstract doesn't just repeat the text. A revision that only adds or edits facets isn't a change of meaning: it doesn't reopen dependents, clear pending flags or make a primer stale. `kb_brief` counts mechanism and procedure accounts that still lack facets. Nothing searches the facets yet; they're there so far-analogy retrieval can be built on them.
 
 ### Rules that keep history trustworthy
 

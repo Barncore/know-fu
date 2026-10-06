@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import { Store, type Materialized } from "./store.js";
+import { Store, facetsOnlyRevision, type Materialized } from "./store.js";
 import {
   VERSION,
   ENGINE_VERSION,
@@ -478,7 +478,11 @@ export class Jobs {
       path.join(this.jobPath(id), "staged.json"),
     );
     const base = await this.store.records(job.base_release);
-    const affected = knowledgeImpact(base, staged.records);
+    // Facets-only revisions say what an account does without changing its meaning.
+    const affected = knowledgeImpact(
+      base,
+      staged.records.filter((r) => !facetsOnlyRevision(base.get(r.id), r)),
+    );
     const previous = await readJson<any[]>(
       this.store.p(`releases/${job.base_release}.impacts.json`),
     ).catch(() => []);

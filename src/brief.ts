@@ -4,6 +4,8 @@ import { LibraryIndex } from "./library-index.js";
 import { ensure, key, readJson } from "./core.js";
 import type { RecordData, Scope } from "./core.js";
 import { summary } from "./navigation.js";
+import { hasCoreFacets } from "./notes.js";
+import { facetsOnlyRevision } from "./store.js";
 import {
   assessed,
   clip,
@@ -102,12 +104,25 @@ export class Brief {
       const primer = primers[0];
       if (primer) {
         const primerOrder = await index.releaseOrder(primer);
+        // Revisions that only added facets don't change what an account says, so they
+        // don't make the primer stale; date each account by its last meaningful revision.
+        const meaningfulOrder = async (record: RecordData) => {
+          let current = record;
+          while (current.revision > 1) {
+            const previous = await this.store
+              .exact({ id: current.id, revision: current.revision - 1 })
+              .catch(() => null);
+            if (!previous || !facetsOnlyRevision(previous, current)) break;
+            current = previous;
+          }
+          return index.releaseOrder(current);
+        };
         const newer: RecordData[] = [];
         for (const r of members)
           if (
             r.id !== primer.id &&
             !isFiledAnswer(r) &&
-            (await index.releaseOrder(r)) > primerOrder
+            (await meaningfulOrder(r)) > primerOrder
           )
             newer.push(r);
         // Release freshness and temporal validity are separate: a primer can be up to date
@@ -171,6 +186,19 @@ export class Brief {
           break;
         coreLines.push(line);
       }
+
+      // Facets let other fields match an account by what it does; a gap here weakens invention.
+      const functional = members.filter((r) =>
+        ["mechanism", "procedure"].includes(form(r)),
+      );
+      const withoutFacets = functional.filter(
+        (r) => !hasCoreFacets((r.extensions as any)?.functional_facets),
+      ).length;
+      if (withoutFacets)
+        add(
+          `Facets: ${withoutFacets} of ${functional.length} mechanism and procedure accounts don't yet say what they do; add facets when you next revise them.`,
+          true,
+        );
 
       const disputes = members.filter(
         (r) =>

@@ -102,6 +102,10 @@ export type RecordData = {
        */
       purpose?: {
         text: string;
+        /**
+         * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+         */
+        abstract?: string;
         basis: "source_stated" | "inferred" | "proposed";
         /**
          * @minItems 0
@@ -116,6 +120,10 @@ export type RecordData = {
        */
       mechanism?: {
         text: string;
+        /**
+         * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+         */
+        abstract?: string;
         basis: "source_stated" | "inferred" | "proposed";
         /**
          * @minItems 0
@@ -130,6 +138,10 @@ export type RecordData = {
        */
       preconditions?: {
         text: string;
+        /**
+         * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+         */
+        abstract?: string;
         basis: "source_stated" | "inferred" | "proposed";
         /**
          * @minItems 0
@@ -144,6 +156,10 @@ export type RecordData = {
        */
       failure_modes?: {
         text: string;
+        /**
+         * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+         */
+        abstract?: string;
         basis: "source_stated" | "inferred" | "proposed";
         /**
          * @minItems 0
@@ -158,6 +174,10 @@ export type RecordData = {
        */
       evaluation_method?: {
         text: string;
+        /**
+         * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+         */
+        abstract?: string;
         basis: "source_stated" | "inferred" | "proposed";
         /**
          * @minItems 0

@@ -62,6 +62,12 @@ Later that day, after reading the audit report, three more:
 - Keep FalkorDB for now, as an optional view. Answering doesn't need it, because recall's spreading activation and `kb_connect` both run in process over the release. It stays useful for browsing the graph visually and for ad hoc Cypher questions.
 - Make assessments earn their place. Agents assess evidence on claims a decision could rest on, give a one-line reason, and leave guesses blank. Recall shows the levels on each account and sets both sides of a conflict next to each other. Levels never rank one side over the other. The owner also asked for anything better in other tools to be adopted, and a review of eight of them added one thing: each evidence level names its basis, and the engine checks that basis against the number of independent source families (see the [design lineage](../plugin/docs/lineage.md)).
 
+## Decisions on 6 October 2026
+
+The owner sharpened the priority: "Ultimately, I want it to be an invention engine." Inventing new strategies, products, processes and ideas from what the library holds now ranks first. Explaining and teaching rank a close second, and they matter partly because they make invention better. The owner's own examples: new trading strategies or software that invents strategies, a mastering workflow or app from audio books and videos, explainer videos for nuanced skills, inventions from science books, products that combine fields nobody would put together, and the library naming its own gaps.
+
+A research round on how people and machines invent followed (summarized in the [design lineage](../plugin/docs/lineage.md)). It found the knowledge layer described above already fits invention, and that the layer for running invention was half-built. The owner approved one change straight away: restore functional facets in `kb_write`, after measuring their token cost, so every new mechanism and procedure says what it does in words another field could match. The rest of that research's proposals (idea records, an invent workflow, test results, computed gaps, analogy storage, source lineage) are under discussion, and [ROADMAP.md](ROADMAP.md) will carry whichever the owner chooses.
+
 ## One knowledge system, several ways in
 
 ```mermaid

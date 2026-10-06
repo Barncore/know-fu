@@ -82,6 +82,93 @@ const list = (value: unknown): any[] =>
 const text = (value: unknown) =>
   typeof value === "string" ? value.trim() : "";
 
+const FACET_SLOTS = [
+  "purpose",
+  "mechanism",
+  "preconditions",
+  "failure_modes",
+  "evaluation_method",
+];
+const FACET_CORE = ["purpose", "mechanism"];
+/** Forms that must say what they do when first written. */
+const FACET_FORMS = ["mechanism", "procedure"];
+const wordCount = (s: string) => s.split(/\s+/).filter(Boolean).length;
+
+export function hasCoreFacets(facets: any) {
+  return !!facets?.purpose?.length && !!facets?.mechanism?.length;
+}
+
+/**
+ * Builds `extensions.functional_facets` from a note's `facets` block. Each entry is a short
+ * phrase in the source's terms plus, for purpose and mechanism, an abstract wording without
+ * the field's own terms, which is what lets a record from another field match it.
+ */
+export function facetsFrom(value: unknown, where: string, epistemic: string) {
+  ensure(
+    !!value && typeof value === "object" && !Array.isArray(value),
+    "VALIDATION_FAILED",
+    `${where}: facets is a map of slots: ${FACET_SLOTS.join(", ")}`,
+  );
+  const facets: Record<string, any[]> = {};
+  for (const [slot, raw] of Object.entries(value as Record<string, unknown>)) {
+    ensure(
+      FACET_SLOTS.includes(slot),
+      "VALIDATION_FAILED",
+      `${where}: facets.${slot} isn't a facet slot; use ${FACET_SLOTS.join(", ")}`,
+    );
+    const entries = list(raw);
+    ensure(
+      entries.length >= 1 && entries.length <= 4,
+      "VALIDATION_FAILED",
+      `${where}: facets.${slot} takes one to four short entries`,
+    );
+    facets[slot] = entries.map((raw, i) => {
+      const at = `${where}: facets.${slot}[${i}]`;
+      const entry: any = typeof raw === "string" ? { text: raw } : (raw ?? {});
+      const phrase = text(entry.text);
+      const abstract = text(entry.abstract);
+      ensure(phrase, "VALIDATION_FAILED", `${at} needs text`);
+      ensure(
+        wordCount(phrase) <= 30,
+        "VALIDATION_FAILED",
+        `${at}: keep the text to a short phrase of 30 words or fewer`,
+      );
+      ensure(
+        !FACET_CORE.includes(slot) || abstract,
+        "VALIDATION_FAILED",
+        `${at} needs an abstract wording: the same ${slot} in domain-free words, so records from other fields can match it`,
+      );
+      if (abstract) {
+        ensure(
+          wordCount(abstract) <= 15,
+          "VALIDATION_FAILED",
+          `${at}: keep the abstract wording to 15 words or fewer`,
+        );
+        ensure(
+          abstract.toLowerCase() !== phrase.toLowerCase(),
+          "VALIDATION_FAILED",
+          `${at}: the abstract wording repeats the text; restate it without the field's own terms`,
+        );
+      }
+      const basis =
+        text(entry.basis) ||
+        (epistemic === "source_account" ? "source_stated" : "inferred");
+      ensure(
+        ["source_stated", "inferred", "proposed"].includes(basis),
+        "VALIDATION_FAILED",
+        `${at}: basis is source_stated, inferred or proposed`,
+      );
+      return {
+        text: phrase,
+        ...(abstract ? { abstract } : {}),
+        basis,
+        evidence_refs: [],
+      };
+    });
+  }
+  return facets;
+}
+
 export function splitNote(source: string) {
   const match = /^﻿?---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(source);
   ensure(
@@ -636,6 +723,18 @@ export class Notes {
           interface_version: "1.0.0",
           summary: text(f.nav_summary),
         };
+      // Functional facets say what an account does, in its own terms and in domain-free
+      // words, so records from other fields can be matched on function rather than topic.
+      if (f.facets !== undefined)
+        extensions.functional_facets = facetsFrom(f.facets, where, epistemic);
+      ensure(
+        type !== "knowledge" ||
+          !FACET_FORMS.includes(payload.form) ||
+          !!base ||
+          hasCoreFacets(extensions.functional_facets),
+        "VALIDATION_FAILED",
+        `${where}: a ${payload.form} note says what it does: add facets with at least one purpose and one mechanism, each with text and an abstract wording (see the notes guide)`,
+      );
       const uniqueInputs = [
         ...new Map(inputs.map((t) => [JSON.stringify(t), t])).values(),
       ];

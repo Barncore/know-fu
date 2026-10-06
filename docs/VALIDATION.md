@@ -4,6 +4,27 @@ The local development installation is Windows with Ubuntu WSL2, regular FalkorDB
 
 Entries run newest first. Each one says what was shown and what wasn't. Older entries are kept as written.
 
+## 2026-10-06: what functional facets cost
+
+Before restoring facets in `kb_write`, the owner asked what they'd cost in tokens. The test used the copy of the three-source acceptance library, which has 8 current procedure records (the forms that now require facets) and 40 authored accounts holding 13,881 tokens of prose.
+
+A fresh Sonnet subagent played the ingesting agent. It read each procedure's body and wrote a facets block following only the new guide section. All 8 blocks passed `kb_write`'s checks. The results, with tokens estimated as characters divided by four:
+
+| What | Before | After | Change |
+|---|---:|---:|---:|
+| Output to write facets, per procedure record | 0 | 247 (purpose and mechanism only) to 352 (with the optional slots the agent added) | +247 to +352 |
+| The same across the whole library (8 records) | 0 | 1,977 to 2,817 | +14% to +20% of the authored prose |
+| Guides read once per ingestion session (`notes.md`, `ingestion.md`) | 3,749 | 4,468 | +719 |
+| `kb_recall` briefings on the ten frozen cases | 5,984-10,695 | identical, byte for byte | none |
+| `kb_recall` time per call after the first | 15-23 ms | 17-21 ms | within noise |
+| `kb_brief` for the library | 2,676 | 2,705 while facets are missing, 2,676 once they're written | +29 at most |
+
+So facets cost output at ingestion and nothing at answering time, because recall neither shows nor searches them yet. Writing is the expensive kind of token, so the 14-20% matters, but it sits on top of an ingestion whose cost is dominated by reading the pages. The agent's own report: about 20 seconds per record, with the hardest records being formulas that carry little plain meaning (a critical-difference rule, an F-distribution conversion) and decision rules where "what it's for" and "how it works" overlap. The guide now says how to handle both, and that optional slots need no abstract wording.
+
+The test also caught two side effects, both fixed before release. Adding facets to 8 existing records as new revisions marked 27 dependent accounts as pending reassessment, and it made the domain primer look stale, because the engine treated every revision as a possible change of meaning. A revision that only adds or edits facets now changes nothing downstream; republishing the same 8 records flagged 0 accounts and the primer stayed current. A plain reaffirmation, which changes nothing at all, still counts as a reassessment, as before.
+
+Not measured: whether these facets are good enough to find real analogies. That needs far-analogy retrieval, which isn't built, and the ingestion pilot's records, where the owner rates 30 abstract wordings against a bar set beforehand.
+
 ## 2026-10-06: independent audit and repairs
 
 An independent reviewer audited commit `754329d` (engine 1.2.0 with `kb_connect` and assessments). They built it from the lockfile, ran the full suite (131 tests, 128 passed, 3 skipped, plus the three conversion tests separately with an existing Python runtime), and wrote twelve isolated reproductions on fictional, disposable libraries. Each reproduction exposed a real defect while every existing test passed. That's the useful lesson: the suite covered the paths it was written for, and these sat just beside them.

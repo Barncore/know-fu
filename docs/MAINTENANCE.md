@@ -30,7 +30,7 @@ The first commit summarized earlier local development rather than inventing a fa
 | `core.ts` | Hashing, atomic and immutable writes, safe paths, locks, schema validation, condition evaluation |
 | `store.ts` | Releases, exact reads, scope checks, compiling and validating proposals, publication, the audit journal |
 | `jobs.ts`, `source-workflow.ts`, `media.ts`, `visuals.ts` | Ingestion jobs, conversion, source review, frames, crops and paid media transcription |
-| `notes.ts`, `quote.ts` | `kb_write` note compilation, assessment checks and quote matching |
+| `notes.ts`, `quote.ts` | `kb_write` note compilation, functional facets, assessment checks and quote matching |
 | `knowledge-impact.ts` | Which accounts a change affects |
 | `library-index.ts`, `text-index.ts` | The recall index: visibility and reliance rules, BM25, the link map with labels, spreading activation |
 | `recall.ts`, `brief.ts`, `connect.ts`, `filing.ts` | `kb_recall`, `kb_brief`, `kb_connect`, `kb_file` |

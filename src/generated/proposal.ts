@@ -360,6 +360,10 @@ export interface ProposalData {
          */
         purpose?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0
@@ -379,6 +383,10 @@ export interface ProposalData {
          */
         mechanism?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0
@@ -398,6 +406,10 @@ export interface ProposalData {
          */
         preconditions?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0
@@ -417,6 +429,10 @@ export interface ProposalData {
          */
         failure_modes?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0
@@ -436,6 +452,10 @@ export interface ProposalData {
          */
         evaluation_method?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0

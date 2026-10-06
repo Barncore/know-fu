@@ -4,6 +4,19 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-06 - Functional facets restored in kb_write
+
+Why: the owner made invention the top priority. Research on how people and machines invent found that the weak step is finding a useful idea from another field, and that describing what something does (its purpose and mechanism) in domain-free words is what makes that possible. The record schema already had a `functional_facets` field for this, but the 1.2.0 note format dropped the way to write it, so no record in the acceptance library had any.
+
+- `kb_write` notes accept a `facets` block. New `mechanism` and `procedure` notes must give at least one `purpose` and one `mechanism`, each with `text` in the source's terms and an `abstract` wording in domain-free words. `preconditions`, `failure_modes` and `evaluation_method` are optional. The engine checks lengths (30 words for text, 15 for an abstract) and that the abstract doesn't repeat the text. Revisions inherit facets, and a reaffirmation doesn't need them.
+- The facet entries gain an optional `abstract` field in the record, proposal and reading schemas. Record schema stays 1.1.0; an older engine rejects a record that carries `abstract`, so roll engine and plugin forward together.
+- A revision that only adds or edits facets is no longer treated as a change of meaning: it doesn't reopen dependents, clear pending flags, create reweave targets or make a primer stale. A reaffirmation that changes nothing still counts, as before.
+- `kb_brief` notes how many mechanism and procedure accounts in a domain still lack facets.
+- The notes guide explains how to write facets, with worked wordings; the ingestion guide points to it; the guide's own complete example now carries facets.
+- Measured before release: 247-352 output tokens per procedure record, 14-20% more authored text across the acceptance library, about 720 more guide tokens per ingestion session, and no change at all to `kb_recall` output. See [VALIDATION.md](docs/VALIDATION.md).
+- Recorded the owner's 6 October decisions in [NORTH_STAR.md](docs/NORTH_STAR.md) and [ROADMAP.md](docs/ROADMAP.md), and the research this change rests on in [lineage](plugin/docs/lineage.md).
+- Verification: 145 tests (142 passed, 3 Python conversion tests skipped on this machine), build, formatting and package check.
+
 ### 2026-10-06 - Repairs from an independent implementation audit
 
 Why: an independent review of commit `754329d` found twelve defects, each with a reproduction script, while all 131 existing tests passed. Every finding reproduced on this branch, so all twelve are fixed, and each reproduction is now a regression test that fails on the old code and passes on the new.

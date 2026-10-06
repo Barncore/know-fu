@@ -90,7 +90,7 @@ The setup guide separates what the system actually needs from choices one instal
 
 ## Where it's at
 
-It works on the development machine: Windows 11, Ubuntu WSL2, FalkorDB and QMD on the CPU. There are 143 automated tests; 140 pass, and 3 Python conversion tests skip where that runtime isn't installed. The whole pipeline has run end to end on technical papers, including a three-source test where later papers had to revise earlier understanding. An independent audit on 5 October 2026 found twelve defects the tests had missed; all are fixed, and each now has a regression test.
+It works on the development machine: Windows 11, Ubuntu WSL2, FalkorDB and QMD on the CPU. There are 145 automated tests; 142 pass, and 3 Python conversion tests skip where that runtime isn't installed. The whole pipeline has run end to end on technical papers, including a three-source test where later papers had to revise earlier understanding. An independent audit on 5 October 2026 found twelve defects the tests had missed; all are fixed, and each now has a regression test.
 
 What it hasn't done yet: ingest a long book or a full course with the new note format. A different machine needs its own dependency setup and checks, and Docker deployment and local speech transcription are configurable but untested end to end. [Validation](docs/VALIDATION.md) and [performance](docs/PERFORMANCE.md) keep score on what's been shown and what hasn't.
 

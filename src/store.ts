@@ -46,6 +46,30 @@ export type Materialized = {
   proposal_hash: string;
   local_refs: Record<string, Ref>;
 };
+/** Whether a revision differs from its predecessor only in functional facets and bookkeeping. */
+export function facetsOnlyRevision(
+  previous: RecordData | undefined,
+  next: RecordData,
+) {
+  if (!previous || previous.revision >= next.revision) return false;
+  // A revision with no change at all is a reaffirmation, which must still count.
+  const facets = (r: RecordData) =>
+    JSON.stringify((r.extensions as any)?.functional_facets ?? null);
+  if (facets(previous) === facets(next)) return false;
+  const comparable = (r: RecordData) => {
+    const copy: any = structuredClone(r);
+    delete copy.revision;
+    delete copy.created_at;
+    delete copy.change_reason;
+    if (copy.extensions) delete copy.extensions.functional_facets;
+    if (copy.extensions && !Object.keys(copy.extensions).length)
+      delete copy.extensions;
+    if (copy.body) delete copy.body.path;
+    return JSON.stringify(copy);
+  };
+  return comparable(previous) === comparable(next);
+}
+
 export type Ledger = {
   version: 1;
   corpus_id: string;
@@ -1214,10 +1238,15 @@ export class Store {
         validation_receipts: [],
       };
       await validate("release", release);
-      const changed = new Set(records.map((r) => r.id)),
+      // A revision that only adds or edits functional facets says what an account does without
+      // changing what it claims, so it neither reopens dependents nor counts as a reassessment.
+      const material = records.filter(
+        (r) => !facetsOnlyRevision(prior.get(r.id), r),
+      );
+      const changed = new Set(material.map((r) => r.id)),
         affected = knowledgeImpact(
           base,
-          records,
+          material,
           prior,
           [...omitIds].flatMap((id) => (prior.has(id) ? [prior.get(id)!] : [])),
         ),

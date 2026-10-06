@@ -141,6 +141,10 @@ export interface ReadingData {
          */
         purpose?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0
@@ -155,6 +159,10 @@ export interface ReadingData {
          */
         mechanism?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0
@@ -169,6 +177,10 @@ export interface ReadingData {
          */
         preconditions?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0
@@ -183,6 +195,10 @@ export interface ReadingData {
          */
         failure_modes?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0
@@ -197,6 +213,10 @@ export interface ReadingData {
          */
         evaluation_method?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0
@@ -325,6 +345,10 @@ export interface ReadingData {
          */
         purpose?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0
@@ -339,6 +363,10 @@ export interface ReadingData {
          */
         mechanism?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0
@@ -353,6 +381,10 @@ export interface ReadingData {
          */
         preconditions?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0
@@ -367,6 +399,10 @@ export interface ReadingData {
          */
         failure_modes?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0
@@ -381,6 +417,10 @@ export interface ReadingData {
          */
         evaluation_method?: {
           text: string;
+          /**
+           * The same purpose or mechanism in domain-free words, so records from other fields can match it.
+           */
+          abstract?: string;
           basis: "source_stated" | "inferred" | "proposed";
           /**
            * @minItems 0

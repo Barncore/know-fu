@@ -15,6 +15,13 @@ title: Holm step-down: order, threshold and stopping rule
 summary: Sort p-values, compare the i-th with alpha/(m-i+1), and stop at the first failure.
 holds_when: [a planned family of m hypotheses, valid marginal p-values]
 not_for: [choosing the family after seeing the results]
+facets:
+  purpose:
+    - text: Control the chance of any false rejection across a planned family of tests
+      abstract: Limit the chance of any false alarm across many related checks
+  mechanism:
+    - text: Compare sorted p-values with thresholds that loosen step by step, stopping at the first failure
+      abstract: Test candidates in order of strength against a bar that relaxes after each pass
 cites:
   - unit: source:aa5fa1c71338d0d380e7a97e3503:unit-34
     quote: "Holm's step-down procedure"
@@ -50,9 +57,31 @@ The same batch can hold the `family-wise-error` concept and the `post-hoc-compar
 | `domains` | Defaults to the job's domains. |
 | `revises` | A published record id. The note becomes its next revision and inherits every field you leave out. Needs `change` or `reaffirm`. |
 | `change`, `reaffirm` | Why this revision exists. `reaffirm` alone, with no body, keeps the record as it is and records that new evidence was considered. |
+| `facets` | What the note does, so other fields can find it by function. Required on new `mechanism` and `procedure` notes: at least one `purpose` and one `mechanism`, each `{text, abstract}`. Optional slots: `preconditions`, `failure_modes`, `evaluation_method`. See "Saying what a note does" below. |
 | `assess` | Optional: `{evidence: {level, basis, why}}`, and `{level, why}` for `fidelity` and `applicability`. Levels are `low`, `moderate`, `high` and `unknown`. Each level needs a one-line `why`. See "Assessing a note" below. |
 
 Family fields: a concept may set `definition`, `meaning_scope` and `aliases`. A learning note lists what it teaches under `uses` and may set `objectives`. A judgment sets `issues` (the accounts it weighs), `outcome` (`different_scope`, `compatible`, `qualified`, `provisional_preference`, `superseded_interpretation`, `unresolved`), optional `alternatives` and `preferred`, and `what_would_change`. A question sets `related`, `known`, `unknown`, `impact`, `next_action` and `priority: {impact, effort, why}`.
+
+## Saying what a note does
+
+Facets are how the library finds a useful idea in a field that shares no words with the problem. A volatility-targeting rule in a trading book and a compressor in a mastering book do the same job, and only their facets would show it. So every new `mechanism` and `procedure` note says what it's for (`purpose`) and how it works (`mechanism`), and each entry gets two wordings:
+
+- `text`: a short phrase in the source's own terms, 30 words or fewer.
+- `abstract`: the same thing with the field's own vocabulary taken out, 15 words or fewer. Name the specific subproblem it solves, not the field's overall goal. "Limit the chance of any false alarm across many related checks" works; "improve statistical rigour" doesn't, because half the library could claim it.
+
+```yaml
+facets:
+  purpose:
+    - text: Keep portfolio volatility near a target
+      abstract: Hold a fluctuating output near a set level
+  mechanism:
+    - text: Scale position size inversely to recent realized volatility
+      abstract: Reduce input gain when measured disturbance rises
+  failure_modes:
+    - Volatility jumps faster than the lookback window can see
+```
+
+One to four entries per slot, and one each is usually right; add a second only for a genuinely separate job or step. For a decision rule, the purpose is the decision it supports and the mechanism is the test it applies. `preconditions`, `failure_modes` and `evaluation_method` are optional plain phrases with no abstract wording; add them only when the source states them. Each entry's `basis` defaults to `source_stated` for a source's own account and `inferred` otherwise; set `basis: proposed` for a function you're suggesting rather than reporting. Write facets while the page is open, because that's when they're cheap. A revision keeps the facets it inherits unless you give new ones, and a reaffirmation doesn't need them; `kb_brief` counts the accounts still missing them.
 
 ## Assessing a note
 

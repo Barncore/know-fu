@@ -410,6 +410,11 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "abstract": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "The same purpose or mechanism in domain-free words, so records from other fields can match it."
+                        },
                         "basis": {
                           "enum": [
                             "source_stated",
@@ -474,6 +479,11 @@
                         "text": {
                           "type": "string",
                           "minLength": 1
+                        },
+                        "abstract": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "The same purpose or mechanism in domain-free words, so records from other fields can match it."
                         },
                         "basis": {
                           "enum": [
@@ -540,6 +550,11 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "abstract": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "The same purpose or mechanism in domain-free words, so records from other fields can match it."
+                        },
                         "basis": {
                           "enum": [
                             "source_stated",
@@ -605,6 +620,11 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "abstract": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "The same purpose or mechanism in domain-free words, so records from other fields can match it."
+                        },
                         "basis": {
                           "enum": [
                             "source_stated",
@@ -669,6 +689,11 @@
                         "text": {
                           "type": "string",
                           "minLength": 1
+                        },
+                        "abstract": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "The same purpose or mechanism in domain-free words, so records from other fields can match it."
                         },
                         "basis": {
                           "enum": [

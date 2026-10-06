@@ -4,8 +4,10 @@ import path from "node:path";
 import * as fs from "node:fs/promises";
 import { published } from "./helpers.js";
 import { Jobs } from "../src/jobs.js";
-import { Notes, splitNote } from "../src/notes.js";
+import { Notes, facetsFrom, splitNote } from "../src/notes.js";
+import { facetsOnlyRevision } from "../src/store.js";
 import { Recall } from "../src/recall.js";
+import { Brief } from "../src/brief.js";
 import { hash, key, objectPath, readJson } from "../src/core.js";
 import type { RecordData } from "../src/core.js";
 import { normalizeForQuote, quoteFound } from "../src/quote.js";
@@ -80,6 +82,13 @@ id: humid-rule
 type: knowledge
 form: procedure
 title: Humid-room handling needs ten minutes of ventilation
+facets:
+  purpose:
+    - text: Move an amber-badged lantern safely in a humid workshop
+      abstract: Make a transfer safe under a risky ambient condition
+  mechanism:
+    - text: Run the vent for ten minutes before moving
+      abstract: Clear the hazard for a fixed time before acting
 cites:
   - unit: ${f.unit}
     quote: "can be moved once the vent runs"
@@ -96,6 +105,13 @@ id: humid-rule
 type: knowledge
 form: procedure
 title: Humid-room handling needs ten minutes of ventilation
+facets:
+  purpose:
+    - text: Move an amber-badged lantern safely in a humid workshop
+      abstract: Make a transfer safe under a risky ambient condition
+  mechanism:
+    - text: Run the vent for ten minutes before moving
+      abstract: Clear the hazard for a fixed time before acting
 summary: In a humid room, run the vent ten minutes before moving an amber-badged lantern.
 holds_when: humid workshop
 cites:
@@ -168,6 +184,13 @@ id: humid-rule
 type: knowledge
 form: procedure
 title: Humid-room handling needs ten minutes of ventilation
+facets:
+  purpose:
+    - text: Move an amber-badged lantern safely in a humid workshop
+      abstract: Make a transfer safe under a risky ambient condition
+  mechanism:
+    - text: Run the vent for ten minutes before moving
+      abstract: Clear the hazard for a fixed time before acting
 cites:
   - unit: ${f.unit}
     quote: "may be moved only after the vent has run for ten minutes"
@@ -355,4 +378,156 @@ test("an assessment needs its reason, and a revision keeps the dimensions it lea
     "Two workshop inspections agree.",
   );
   assert.equal(revised.assessments.applicability.level, "not_assessed");
+});
+
+test("facets say what a mechanism or procedure does, in its own terms and in domain-free words", async () => {
+  const f = await converted("notes-facets");
+  const procedure = (facets: string) => `---
+id: vent-first
+type: knowledge
+form: procedure
+title: Vent before moving in a humid workshop
+cites: [${f.unit}]
+${facets}---
+Run the vent for ten minutes before moving the lantern.`;
+  await assert.rejects(
+    f.notes.write({ job_id: f.id, notes: [procedure("")], dry_run: true }),
+    /says what it does: add facets/,
+  );
+  await assert.rejects(
+    f.notes.write({
+      job_id: f.id,
+      notes: [
+        procedure(
+          "facets:\n  purpose:\n    - text: Move the lantern safely\n  mechanism:\n    - text: Run the vent first\n      abstract: Clear the hazard before acting\n",
+        ),
+      ],
+      dry_run: true,
+    }),
+    /needs an abstract wording/,
+  );
+  await assert.rejects(
+    f.notes.write({
+      job_id: f.id,
+      notes: [
+        procedure(
+          "facets:\n  purpose:\n    - text: Move the lantern safely\n      abstract: Move the lantern safely\n  mechanism:\n    - text: Run the vent first\n      abstract: Clear the hazard before acting\n",
+        ),
+      ],
+      dry_run: true,
+    }),
+    /repeats the text/,
+  );
+  await assert.rejects(
+    f.notes.write({
+      job_id: f.id,
+      notes: [
+        procedure(
+          "facets:\n  purpose:\n    - text: Move the lantern safely\n      abstract: Make a transfer safe under a risky ambient condition that keeps on changing through the day\n  mechanism:\n    - text: Run the vent first\n      abstract: Clear the hazard before acting\n",
+        ),
+      ],
+      dry_run: true,
+    }),
+    /15 words or fewer/,
+  );
+  await assert.rejects(
+    f.notes.write({
+      job_id: f.id,
+      notes: [procedure("facets:\n  goal:\n    - text: Move it\n")],
+      dry_run: true,
+    }),
+    /isn't a facet slot/,
+  );
+  await f.notes.write({
+    job_id: f.id,
+    notes: [
+      procedure(
+        "facets:\n  purpose:\n    - text: Move the lantern safely in humid air\n      abstract: Make a transfer safe under a risky ambient condition\n  mechanism:\n    - text: Run the vent for ten minutes first\n      abstract: Clear the hazard for a fixed time before acting\n  failure_modes:\n    - Moving before the vent has run\n",
+      ),
+    ],
+  });
+  const batch = await readJson<any>(
+    path.join(f.jobs.jobPath(f.id), "staged.json"),
+  );
+  const staged: RecordData = batch.records.find(
+    (r: RecordData) => r.title === "Vent before moving in a humid workshop",
+  );
+  const facets = (staged.extensions as any).functional_facets;
+  assert.equal(
+    facets.purpose[0].abstract,
+    "Make a transfer safe under a risky ambient condition",
+  );
+  assert.equal(facets.purpose[0].basis, "source_stated");
+  assert.deepEqual(facets.failure_modes[0], {
+    text: "Moving before the vent has run",
+    basis: "source_stated",
+    evidence_refs: [],
+  });
+
+  // A one-line reaffirmation of an older procedure needs no facets, and the brief counts the gap.
+  await f.notes.write({
+    job_id: f.id,
+    notes: [
+      `---\nid: handling-still-holds\nrevises: knowledge:handling@1\nreaffirm: The notice leaves the dry-room procedure unchanged.\n---\n`,
+    ],
+  });
+  const brief: any = await new Brief(f.store).brief({});
+  assert.match(
+    brief.briefing,
+    /Facets: \d+ of \d+ mechanism and procedure accounts don't yet say what they do/,
+  );
+});
+
+test("adding facets to an existing account reopens nothing and doesn't make the primer stale", async () => {
+  const f = await published("notes-facets-only");
+  const old = (await f.store.records()).get("knowledge:handling")!;
+  const body = await f.store.body(old);
+  const withFacets: any = structuredClone(old);
+  withFacets.revision = old.revision + 1;
+  withFacets.change_reason = "Added functional facets";
+  withFacets.extensions = {
+    ...(old.extensions ?? {}),
+    functional_facets: facetsFrom(
+      {
+        purpose: [
+          {
+            text: "Decide when a lantern may be moved",
+            abstract: "Decide when a transfer is safe",
+          },
+        ],
+        mechanism: [
+          {
+            text: "Check badge colour and valve state together",
+            abstract: "Require two independent conditions before acting",
+          },
+        ],
+      },
+      "test",
+      old.epistemic,
+    ),
+  };
+  withFacets.body = {
+    path: objectPath(withFacets) + "/body.md",
+    sha256: hash(body),
+  };
+  assert(facetsOnlyRevision(old, withFacets));
+  const result = await f.store.publish(
+    [withFacets],
+    { [key(withFacets)]: body },
+    await f.store.current(),
+    "Add facets",
+    f.scope,
+  );
+  assert.deepEqual(result.impacts, []);
+  const brief: any = await new Brief(f.store).brief({});
+  assert.match(brief.briefing, /learning:primer@1 · current/);
+  // A change of meaning is still material, and so is a reaffirmation that changes nothing.
+  const changed = { ...structuredClone(withFacets), title: "A new claim" };
+  assert(!facetsOnlyRevision(old, changed));
+  assert(
+    !facetsOnlyRevision(old, {
+      ...structuredClone(old),
+      revision: old.revision + 1,
+    }),
+  );
 });
