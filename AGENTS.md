@@ -28,7 +28,7 @@ Every finished change to behavior, schemas, setup or dependencies gets a dated `
 
 ## Branches
 
-`main` is the official version, and `staging` is where work lands first. Commit and push to `staging` unless the owner says to push to `main`. The owner reads the change on GitHub, then merges `staging` into `main` with a pull request when it's ready. When the owner says to push to `main`, push the work to `main` only and leave the remote `staging` where it was. Merge with a merge commit, not a squash: a squash gives `main` copies of the commits under new names, and the next pull request shows the old work again.
+`main` is the official version, and `staging` is where work lands first. Commit and push to `staging` unless the owner says to push to `main`. The owner reads the change on GitHub, then merges `staging` into `main` with a pull request when it's ready. When the owner says to push to `main`, push `staging` too, so the two stay level. Git keeps every earlier version as a commit, so going back never depends on `staging` lagging behind. Merge with a merge commit, not a squash: a squash gives `main` copies of the commits under new names, and the next pull request shows the old work again.
 
 Before starting work, bring `staging` up to date with `main` (`git fetch`, then `git merge --ff-only origin/main` on `staging`), so a pull request only ever shows new work. When two sessions work at the same time, each takes its own short-lived branch off `staging` and merges back into `staging` when done, so neither overwrites the other.
 

@@ -4,6 +4,13 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-07 - Branch rule: keep staging level with main
+
+Why: the owner withdrew the rule from earlier the same day that left `staging` behind when pushing to `main`, once it was clear that git keeps every earlier version anyway.
+
+- AGENTS.md: pushing to `main` now pushes `staging` too.
+- Documentation only.
+
 ### 2026-10-07 - Reading long books in stages
 
 Why: the owner approved D8 once it was clear how a stage-by-stage reader keeps the whole book in view. One long conversation compacts away the early chapters of a book before it reaches the late ones, and readers working in parallel can't see each other's chapters.
