@@ -12,14 +12,13 @@ Book / PDF / video / other source
   -> the AI reads text and visuals, rebuilds the argument, writes notes
   -> the engine validates and publishes canonical JSON records + Markdown prose
        -> wiki (generated)
-       -> FalkorDB graph (generated, optional for answering)
        -> QMD keyword and vector search (generated)
   -> kb_brief, kb_recall, kb_connect, exact reads of records and source pages
   -> explanation, teaching, application, new ideas, corrections, new questions
   -> kb_file sends worth-keeping answers back in as cited syntheses
 ```
 
-The split is simple. The AI writes the meaning, and the engine keeps it honest: it checks structure, references, scope, reading coverage, quotes and that publication is consistent. Those checks can't tell you an interpretation is *right*, only that it's well-formed and grounded. The wiki, graph and search index are all generated from the same published records. Think of them as three windows onto one library, not three separate readings of the source.
+The split is simple. The AI writes the meaning, and the engine keeps it honest: it checks structure, references, scope, reading coverage, quotes and that publication is consistent. Those checks can't tell you an interpretation is *right*, only that it's well-formed and grounded. The wiki and the search index are both generated from the same published records, and the engine reads the links straight from those records. Think of them as windows onto one library, not separate readings of the source.
 
 The engine is one MCP server, and any agent that launches it gets the same tools. `plugin/` packages it for two: Codex through `.codex-plugin/plugin.json` and a generated `.mcp.json`, Claude Code through `.claude-plugin/plugin.json`, with one shared skill. The server lists eleven everyday tools. `kb_lifecycle`, `kb_evaluate`, `kb_propose`, `kb_change` and `kb_retrieve` are listed only when `KB_ADVANCED_TOOLS` is set (`exposedTools` in `api.ts`), and the CLI always accepts all of them.
 
@@ -183,26 +182,20 @@ Reading is checked rather than taken on trust. Jobs created since 7 October 2026
 
 Version 3 evaluations freeze the implementation, cases and rubrics, release, scope, model, budgets and conditions. Interactive conditions read through a pinned, read-only MCP reader, and fixed-packet and source-only controls keep their own names. The reader records chosen summaries, opened bodies and sections, graph routes, repeat reads, delivered characters and unmet requirements. Codex-reported input includes repeated context. The input-token ceiling is checked after the run, while tool-call, evidence and time limits are enforced during it. Separate quality dimensions and decisive failures stop a good average from hiding a lost condition. Sending extra source text to a grader needs a per-run authorization naming exact references or hashes. [Operations](../skills/know-fu/references/operations.md) has the details.
 
-## Graph and search storage
+## Links and search storage
 
-FalkorDB holds a generated graph named `kb_` plus the first 24 characters of the SHA-256 of the `corpus_id`. Each record becomes a `Record` node, and dependency and provenance references become `INPUT` edges. A relationship sits as a node between its two ends:
+The links are part of the records. A relationship record names its subject, its object, a predicate and the reason it was written, and every record lists the exact revisions it rests on. The engine reads these into memory. `LibraryIndex` builds the link map that recall, brief, connect and invent follow, and `linkedRelationships` in `retrieval.ts` finds the relationships touching a set of records for the older packet and progressive routes. Nothing is copied into a database, so there's no second copy to rebuild, check or purge.
 
-```text
-subject Record --SUBJECT_OF--> relationship Record --OBJECT--> object Record
-```
-
-The relationship node holds the predicate, but meaning and evidence are always read from the canonical files. A `Projection` node names the release. Rebuilding clears and recreates this library's graph, so editing the database directly is never a way to author anything. Since 1.2.0, answering doesn't need the graph at all. It stays as a view for visual exploration and Cypher queries, and the older retrieval routes use it when it's running.
-
-The original WSL deployment keeps FalkorDB's data under `/var/lib/research-knowledge` in Redis RDB and AOF formats, with service configuration under `/opt/research-knowledge`. Those are database files, not the research record.
+Until 12 October 2026 a FalkorDB server held a copy of the links as a view. By then nothing answered from it, and on Windows it was the only reason to install WSL2, so it was removed. An older setup's FalkorDB data is a stale copy that purges no longer reach; [setup](setup.md#upgrading-from-a-falkordb-setup) says how to clear it.
 
 QMD keeps a local keyword and vector index over the generated Markdown, grouped by module, in its own storage. Its configuration and model cache live under the state folder (`KB_STATE_DIR`, or the engine's `.runtime/` by default), and its status command reports on the index. All of it can be rebuilt from the library.
 
 The engine also keeps verified canonical files in a bounded cache. Access policy, the deletion ledger, its generation and the release pointer are reread on every request and checked again before anything is returned. A cached file is only reused if its path and filesystem fingerprint still match; a changed file gets reread and checked against its expected hash. So the cache makes repeat reads fast without ever becoming an authority. It does assume an ordinary local filesystem, not an adversary who can fake file identity and every timestamp.
 
-Graph writes go in bounded batches, check node and edge counts, and write the release marker last. Search runs through QMD's SDK in a reusable local worker that closes its database and model handles after each request, exits after 60 seconds idle, and restarts after a timeout or crash. Reindex and purge stop it first. It's an internal process, not a service you install, and no local reasoning model is involved.
+Search runs through QMD's SDK in a reusable local worker that closes its database and model handles after each request, exits after 60 seconds idle, and restarts after a timeout or crash. Reindex and purge stop it first. It's an internal process, not a service you install, and no local reasoning model is involved.
 
 ## Scope and recovery
 
 One library can hold several maintenance modules and domain tags. Project bindings decide which modules a calling project may read or write. These are checks inside the application, not an operating-system security boundary against someone with direct file access. Cross-domain use stays scoped rather than blending everything into universal advice.
 
-Keep the library together with its deletion ledger, which lives under the state folder's `ledgers/` (by default the engine's `.runtime/ledgers/`). The ledger sits outside the library on purpose: restoring an old library can't quietly bring back knowledge you purged. It blocks whole ids, and also exact historical revisions (`blocked_refs`): when an account was revised to independent material before its source was purged, the current revision stays, and the earlier source-derived revisions are deleted and refused. And the generated wiki, search and graph are not a backup. [Setup](setup.md) covers the rest.
+Keep the library together with its deletion ledger, which lives under the state folder's `ledgers/` (by default the engine's `.runtime/ledgers/`). The ledger sits outside the library on purpose: restoring an old library can't quietly bring back knowledge you purged. It blocks whole ids, and also exact historical revisions (`blocked_refs`): when an account was revised to independent material before its source was purged, the current revision stays, and the earlier source-derived revisions are deleted and refused. And the generated wiki and search index are not a backup. [Setup](setup.md) covers the rest.

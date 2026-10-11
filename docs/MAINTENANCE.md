@@ -37,8 +37,8 @@ The first commit summarized earlier local development rather than inventing a fa
 | `ideas.ts`, `idea-rules.ts` | `kb_idea`, and the publish rules that keep ideas in their own lane |
 | `gaps.ts` | Gap suggestions for the brief and `investigate` |
 | `navigation.ts`, `research-view.ts`, `reading.ts`, `reading-render.ts` | Progressive reading and its MCP presentation |
-| `retrieval.ts` | The older packet route |
-| `projections.ts`, `graph-projection.ts`, `qmd-search.ts`, `qmd-worker.ts` | Wiki, FalkorDB and QMD views, and view cleanup |
+| `retrieval.ts` | The older packet route, and `linkedRelationships`, which both older routes use to find linked records in the canonical records |
+| `projections.ts`, `qmd-search.ts`, `qmd-worker.ts` | Wiki and QMD views, and view cleanup |
 | `present.ts`, `job-render.ts`, `mcp.ts`, `api.ts`, `cli.ts` | Tool descriptions, which tools MCP lists (`exposedTools`), dispatch, and what MCP clients receive |
 | `lifecycle.ts`, `governance.ts`, `maintenance.ts` | Archive, withdrawal, purge, configuration, meaning changes, export and restore |
 | `evaluation*.ts` | Frozen evaluations through Codex |

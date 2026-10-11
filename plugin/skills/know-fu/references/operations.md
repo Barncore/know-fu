@@ -6,13 +6,13 @@ Start with the bundled [package README](../../../README.md), the [architecture a
 
 Five tools stay out of everyday sessions to save context: `kb_lifecycle` (archive, withdraw, reinstate, purge), `kb_evaluate` (frozen evaluations, Codex only), `kb_propose` and `kb_change` (raw proposals and staged-job review), and `kb_retrieve` (the older packet and progressive routes). MCP lists them only when the plugin's server config sets `KB_ADVANCED_TOOLS=1`. If a task here needs one and it's missing, say so and ask the user to turn the flag on for that session, or use the CLI fallback, which always has every tool.
 
-## Health, views and the graph
+## Health and views
 
 To check health, use `kb_status`, `kb_maintain {action:"reindex"}` and `kb_maintain {action:"verify"}`. When a view is unavailable, the canonical files are still the authority, so never rewrite them to make an index look healthy. Reindexing also clears out the view folders of older releases, except any folder holding a wiki edit that hasn't been imported yet.
 
-`kb_recall`, `kb_brief` and `kb_connect` read the published release directly, so they keep working while FalkorDB or QMD is down. If QMD is down, recall says semantic search was unavailable, and suggests rewording or reindexing if keywords also matched poorly.
+`kb_recall`, `kb_brief` and `kb_connect` read the published release directly, so they keep working while QMD is down. If QMD is down, recall says semantic search was unavailable, and suggests rewording or reindexing if keywords also matched poorly.
 
-Use regular FalkorDB through the configured managed-WSL or external-server deployment. There's no silent fallback to a SQLite graph or FalkorDBLite. To start, check or restart the graph, run the engine's `scripts/graph-service.ps1 -Action start|status|restart`. The setup guide says which deployments are tested and which are just configurable.
+There's no graph server to start or check. The links live in the records, and every route, `kb_retrieve` included, follows them from the published release.
 
 ## Scope and authority
 

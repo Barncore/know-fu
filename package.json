@@ -8,7 +8,7 @@
     "node": "24.14.x"
   },
   "scripts": {
-    "build": "node scripts/patch-falkordb.mjs && node scripts/generate-types.mjs && tsc",
+    "build": "node scripts/generate-types.mjs && tsc",
     "test": "node --import tsx --test test/*.test.ts",
     "kb": "node dist/cli.js",
     "mcp": "node dist/mcp.js",
@@ -23,7 +23,6 @@
     "@tobilu/qmd": "2.8.3",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
-    "falkordb": "6.8.0",
     "yaml": "2.9.0",
     "zod": "4.6.5"
   },

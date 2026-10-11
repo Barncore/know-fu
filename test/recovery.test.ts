@@ -76,10 +76,6 @@ test("purge blocks historical access and rejects restoration of an older backup"
     m = new Maintenance(f.store);
   const bundle = await m.exportBundle();
   const life = new Lifecycle(f.store, {
-    graph: async () => ({
-      graph: { query: async () => ({}) },
-      db: { close: async () => {} },
-    }),
     indexName: async () => "isolated-purge-test",
   } as any);
   const p = await life.plan(

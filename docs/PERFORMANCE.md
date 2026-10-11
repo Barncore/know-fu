@@ -48,6 +48,8 @@ Regression tests cover warm-cache corrections, withdrawal, historical retrieval,
 
 ## Graph projection (1.0.1)
 
+FalkorDB was removed on 12 October 2026. These numbers stay as history.
+
 Live FalkorDB rebuilds used separate random graph names, and compared complete sorted lists of dependency and relationship edges against the previous writer. Only those temporary graphs were removed afterward.
 
 | Nodes | Edges | Previous writer | Batched writer |

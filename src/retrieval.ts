@@ -18,6 +18,38 @@ import {
 import type { RecordData, Scope, Ref } from "./core.js";
 import type { RetrievalData } from "./generated/retrieval.js";
 
+/**
+ * Relationship records linked to any of `ids`, read straight from the canonical records.
+ * The relationship and both endpoints must sit in a readable module. Sorted by id and capped
+ * at `limit`, so a caller can tell when the cap was reached.
+ */
+export function linkedRelationships(
+  records: Map<string, RecordData>,
+  ids: string[],
+  modules: string[],
+  limit: number,
+) {
+  const wanted = new Set(ids),
+    readable = new Set(modules),
+    found: string[] = [];
+  for (const r of records.values()) {
+    if (r.record_type !== "relationship" || !readable.has(r.maintenance_module))
+      continue;
+    const p = r.payload as any,
+      subject = records.get(p.subject.id),
+      object = records.get(p.object.id);
+    if (
+      subject &&
+      object &&
+      readable.has(subject.maintenance_module) &&
+      readable.has(object.maintenance_module) &&
+      (wanted.has(subject.id) || wanted.has(object.id))
+    )
+      found.push(r.id);
+  }
+  return found.sort().slice(0, limit);
+}
+
 export class Retrieval {
   constructor(
     public store: Store,
@@ -110,15 +142,6 @@ export class Retrieval {
       typeof input.query === "string" && input.query.trim(),
       "VALIDATION_FAILED",
       "A nonempty retrieval query is required",
-    );
-    const graphFresh = await this.projections.fresh(
-      release.release_id,
-      "graph",
-    );
-    ensure(
-      !input.graph_required || graphFresh,
-      "GRAPH_UNAVAILABLE",
-      "A matching graph projection is unavailable; reindex and resume",
     );
     const initialReceipt = await this.projections.receipt(),
       useSemantic =
@@ -216,80 +239,72 @@ export class Retrieval {
         allowed.get(id)!.record_type === "passage" ? "evidence" : "explanation",
       );
     }
-    if (graphFresh && input.graph !== false && seeds.length) {
-      try {
-        const t = performance.now();
-        let frontier = seeds;
-        for (let hop = 0; hop < Math.min(input.hops ?? 2, 4); hop++) {
-          const found = await this.projections.adjacent(
-            frontier,
-            scope.read_modules,
-            100,
-          );
-          if (found.length === 100) truncated = true;
-          const next: string[] = [];
-          for (const id of found) {
-            const r = allowed.get(id);
-            if (
-              !r ||
-              r.lifecycle !== "active" ||
-              r.archived ||
-              relianceBlocked.has(id)
-            )
-              continue;
-            const p = r.payload as any;
-            if (
-              !frontier.includes(p.subject.id) &&
-              !frontier.includes(p.object.id)
-            )
-              continue;
-            relations.add(id);
-            for (const end of [p.subject.id, p.object.id])
-              if (
-                allowed.has(end) &&
-                !selected.has(end) &&
-                allowed.get(end)!.lifecycle === "active" &&
-                !allowed.get(end)!.archived &&
-                !relianceBlocked.has(end)
-              ) {
-                selected.add(end);
-                next.push(end);
-                const subject = end === p.subject.id;
-                selection.set(
-                  end,
-                  p.predicate === "depends_on" && subject
-                    ? `Dependent account that depends on a retrieved prerequisite (${id})`
-                    : `Graph ${p.predicate} relationship ${id}; ${subject ? "subject" : "object"} endpoint`,
-                );
-                roles.set(
-                  end,
-                  p.predicate === "challenges" && subject
-                    ? "counterevidence"
-                    : p.predicate === "qualifies" && subject
-                      ? "qualification"
-                      : p.predicate === "depends_on" && !subject
-                        ? "prerequisite"
-                        : p.predicate === "depends_on" ||
-                            (["qualifies", "challenges"].includes(
-                              p.predicate,
-                            ) &&
-                              !subject)
-                          ? "explanation"
-                          : "evidence",
-                );
-              }
-          }
-          frontier = next;
-          if (!next.length) break;
-        }
-        graphMs = performance.now() - t;
-        route.push("graph");
-      } catch (e: any) {
-        ensure(!input.graph_required, "GRAPH_UNAVAILABLE", e.message);
-        warnings.push(
-          "Graph expansion failed; canonical qualifications remain available.",
+    if (input.graph !== false && seeds.length) {
+      const t = performance.now();
+      let frontier = seeds;
+      for (let hop = 0; hop < Math.min(input.hops ?? 2, 4); hop++) {
+        const found = linkedRelationships(
+          all,
+          frontier,
+          scope.read_modules,
+          100,
         );
+        if (found.length === 100) truncated = true;
+        const next: string[] = [];
+        for (const id of found) {
+          const r = allowed.get(id);
+          if (
+            !r ||
+            r.lifecycle !== "active" ||
+            r.archived ||
+            relianceBlocked.has(id)
+          )
+            continue;
+          const p = r.payload as any;
+          if (
+            !frontier.includes(p.subject.id) &&
+            !frontier.includes(p.object.id)
+          )
+            continue;
+          relations.add(id);
+          for (const end of [p.subject.id, p.object.id])
+            if (
+              allowed.has(end) &&
+              !selected.has(end) &&
+              allowed.get(end)!.lifecycle === "active" &&
+              !allowed.get(end)!.archived &&
+              !relianceBlocked.has(end)
+            ) {
+              selected.add(end);
+              next.push(end);
+              const subject = end === p.subject.id;
+              selection.set(
+                end,
+                p.predicate === "depends_on" && subject
+                  ? `Dependent account that depends on a retrieved prerequisite (${id})`
+                  : `Graph ${p.predicate} relationship ${id}; ${subject ? "subject" : "object"} endpoint`,
+              );
+              roles.set(
+                end,
+                p.predicate === "challenges" && subject
+                  ? "counterevidence"
+                  : p.predicate === "qualifies" && subject
+                    ? "qualification"
+                    : p.predicate === "depends_on" && !subject
+                      ? "prerequisite"
+                      : p.predicate === "depends_on" ||
+                          (["qualifies", "challenges"].includes(p.predicate) &&
+                            !subject)
+                        ? "explanation"
+                        : "evidence",
+              );
+            }
+        }
+        frontier = next;
+        if (!next.length) break;
       }
+      graphMs = performance.now() - t;
+      route.push("graph");
     }
     // Bring in dependencies before checking qualifications, including qualifications of prerequisites.
     for (let round = 0; round < 8; round++) {
@@ -512,19 +527,6 @@ export class Retrieval {
           );
         }
     }
-    if (
-      route.includes("graph") &&
-      !(await this.projections.fresh(release.release_id, "graph"))
-    ) {
-      ensure(
-        !input.graph_required,
-        "GRAPH_UNAVAILABLE",
-        "Graph changed during retrieval; retry",
-      );
-      warnings.push(
-        "Graph projection changed during retrieval; returned records were verified against the pinned canonical release.",
-      );
-    }
     if (!items.length)
       missing.push(
         "No usable account was found in the selected corpus scope. State the gap rather than inventing library evidence.",
@@ -556,11 +558,11 @@ export class Retrieval {
       truncated,
       freshness: {
         canonical_release: release.release_id,
-        graph_release:
-          receipt?.graph?.state === "ready" ? receipt.release_id : null,
+        // Links are read from the canonical release itself, so they always match it.
+        graph_release: release.release_id,
         search_release:
           receipt?.search?.state === "ready" ? receipt.release_id : null,
-        degraded: route.includes("canonical_fallback") || !graphFresh,
+        degraded: route.includes("canonical_fallback"),
       },
       fingerprints: {
         coordinator: ENGINE_VERSION,
@@ -575,14 +577,12 @@ export class Retrieval {
     };
     packet.freshness =
       route.includes("canonical_fallback") ||
-      !graphFresh ||
       (input.semantic !== false && !useSemantic)
         ? "degraded"
         : release.release_id === (await this.store.current())
           ? "current"
           : "pinned_historical";
-    packet.fingerprints.graph_release =
-      receipt?.graph?.state === "ready" ? receipt.release_id : "unavailable";
+    packet.fingerprints.graph_release = release.release_id;
     packet.fingerprints.search_release =
       receipt?.search?.state === "ready" ? receipt.release_id : "unavailable";
     packet.fingerprints.semantic_mode = route.includes("canonical_fallback")

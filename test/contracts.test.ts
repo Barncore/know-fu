@@ -101,14 +101,13 @@ test("material exception remains in packet despite a narrow relevance limit", as
     ),
   );
   assert.equal(result.freshness, "degraded");
-  await assert.rejects(
-    () =>
-      new Retrieval(f.store).retrieve({
-        query: "handling",
-        graph_required: true,
-      }),
-    { code: "GRAPH_UNAVAILABLE" },
-  );
+  // Links come from the canonical records, so a required graph needs no server.
+  const linked = await new Retrieval(f.store).retrieve({
+    query: "handling",
+    graph_required: true,
+  });
+  assert(linked.route.includes("graph"));
+  assert(linked.relationship_refs.length > 0);
 });
 test("semantic compiler resolves local names and never invents assessments", async () => {
   const f = await published();

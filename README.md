@@ -31,7 +31,7 @@ flowchart LR
   A -- kb_file: good answers go back in, cited --> L
   A -- kb_idea: candidate ideas, kept apart --> D[(Ideas and test results)]
   D -. invent recall only .-> A
-  L --> V[Views: wiki, FalkorDB graph, QMD search]
+  L --> V[Views: wiki, QMD search]
 ```
 
 ### Getting knowledge in
@@ -68,7 +68,7 @@ Every claim can be checked. Records point to exact pages, quotes are verified ag
 
 Answering should get cheaper as the library grows, not pricier. On the three-paper test library, `kb_recall` sends about 6,000-11,000 tokens per answer, where the older route sent 18,000-80,000. In a blind comparison on ten frozen questions, graders rated its answers as good as the older route's: 10 of 10 passed, against 9 of 10. (That test ran on slightly larger briefings than today's; an audit fix made the size accounting honest and trimmed them by 5-10%.) [Validation](docs/VALIDATION.md) has the details and the limits.
 
-The canonical records own the meaning. The wiki, the FalkorDB graph and the QMD search index are generated views. Delete one and you lose nothing; rebuild it from the records.
+The canonical records own the meaning. The wiki and the QMD search index are generated views, and the links are read straight from the records. Delete a view and you lose nothing; rebuild it from the records.
 
 ## Tools
 
@@ -101,13 +101,13 @@ Clone the repository, open it in your coding assistant and say:
 
 Know Fu runs with Codex or Claude Code, from the same `plugin/` folder and the same skill. Codex installs through a generated local launcher (`scripts/configure-plugin.mjs`); Claude Code installs by adding this checkout as a local plugin marketplace and filling in the library and state folders it asks for. Both need the engine built first, and the [setup guide](plugin/docs/setup.md) has the steps for each. Every record notes which agent wrote it, so you can compare their work, and two agents can share one library as long as only one writes at a time.
 
-The setup guide separates what the system actually needs from choices one installation happened to make: where the library and runtime state live, how FalkorDB runs (managed WSL or a server you run yourself), native or WSL media tools, and API or local transcription. The [decision matrix](plugin/docs/setup-choices.md) lays out the options.
+The setup guide separates what the system actually needs from choices one installation happened to make: where the library and runtime state live, native or WSL media tools, and API or local transcription. The [decision matrix](plugin/docs/setup-choices.md) lays out the options.
 
 ## Where it's at
 
-It works on the development machine: Windows 11, Ubuntu WSL2, FalkorDB and QMD on the CPU. There are 158 automated tests; 155 pass, and 3 Python conversion tests skip where that runtime isn't installed. The whole pipeline has run end to end on technical papers, including a three-source test where later papers had to revise earlier understanding. An independent audit on 5 October 2026 found twelve defects the tests had missed; all are fixed, and each now has a regression test.
+It works on the development machine: Windows 11 with QMD on the CPU. Since 12 October 2026 it needs no database server; the automated tests cover that change, but it hasn't run on a live library yet. There are 157 automated tests; 154 pass, and 3 Python conversion tests skip where that runtime isn't installed. The whole pipeline has run end to end on technical papers, including a three-source test where later papers had to revise earlier understanding. An independent audit on 5 October 2026 found twelve defects the tests had missed; all are fixed, and each now has a regression test.
 
-What it hasn't done yet: ingest a long book or a full course with the new note format. A different machine needs its own dependency setup and checks, and Docker deployment and local speech transcription are configurable but untested end to end. [Validation](docs/VALIDATION.md) and [performance](docs/PERFORMANCE.md) keep score on what's been shown and what hasn't.
+What it hasn't done yet: ingest a long book or a full course with the new note format. A different machine needs its own dependency setup and checks, and local speech transcription is configurable but untested end to end. [Validation](docs/VALIDATION.md) and [performance](docs/PERFORMANCE.md) keep score on what's been shown and what hasn't.
 
 ## Code versus your data
 
@@ -118,12 +118,11 @@ This repository holds the engine and the plugin. Your library lives somewhere el
 | `src/` | The engine: storage, publication, ingestion jobs, recall, brief, connect, lifecycle |
 | `contracts/schemas/` | The authoritative JSON schemas |
 | `plugin/` | The Codex skill, its guides, setup docs and bundled schema copies |
-| `scripts/` | Build, conversion, packaging and service helpers |
+| `scripts/` | Build, conversion and packaging helpers |
 | `test/` | Automated checks with fictional fixtures |
 | `docs/` | Intent, roadmap, validation, performance and maintenance |
 | Your library folder | Sources, records and prose, jobs, audit history, generated views. Outside Git |
 | Your state folder | Runtime configuration, the deletion ledger, model caches. Outside Git |
-| Your graph storage | FalkorDB's own files, wherever its deployment keeps them |
 
 Setup asks where each of these should go. The machine-local `plugin/.mcp.json` is generated and never committed. One thing worth remembering: back up the library and its deletion ledger together. An old library backup without the matching ledger could bring back material you deliberately purged.
 
@@ -143,7 +142,7 @@ That builds and tests the engine. It doesn't install a graph server, a Python co
 
 ## Built from
 
-TypeScript, JSON Schema with AJV, the MCP SDK, FalkorDB with its official client, QMD, Poppler, Docling and FFmpeg. The coding agent does all the reasoning. Speech APIs are optional and billed separately, and there's no cloud database.
+TypeScript, JSON Schema with AJV, the MCP SDK, QMD, Poppler, Docling and FFmpeg. The coding agent does all the reasoning. Speech APIs are optional and billed separately, and there's no cloud database.
 
 The ideas come from Karpathy's LLM Wiki, Ars Contexta's Reweave, rohitg00's LLM Wiki v2, discourse graphs and provenance practice, Scideator, HippoRAG's personalized PageRank, Vectorize's Hindsight, and [ste-bah](https://github.com/ste-bah)'s Memory Graph and Archon. Know Fu doesn't bundle any of those systems. The [lineage](plugin/docs/lineage.md) says what came from where.
 
@@ -151,4 +150,4 @@ The ideas come from Karpathy's LLM Wiki, Ars Contexta's Reweave, rohitg00's LLM 
 
 Ingestion isn't fine-tuning, and passing an evaluation isn't general expertise. A link between two records is a recorded connection, not proof. Research memory and operational or project memory stay separate. Promotion tiers and several agents writing to one library are decisions for later. There's no `analogous_to` link, by choice: an analogy worth keeping is stored as an idea.
 
-The code is released under the [MIT licence](LICENSE). Dependencies keep their own licences, and FalkorDB (SSPLv1) is a separate service, not bundled. The README animation is third-party film imagery that the licence doesn't cover; see its [provenance note](assets/README.md). Private research, transcripts and credentials aren't part of the code.
+The code is released under the [MIT licence](LICENSE). Dependencies keep their own licences. The README animation is third-party film imagery that the licence doesn't cover; see its [provenance note](assets/README.md). Private research, transcripts and credentials aren't part of the code.

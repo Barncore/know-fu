@@ -4,11 +4,7 @@ import { published } from "./helpers.js";
 import { Retrieval } from "../src/retrieval.js";
 import { atomic, json, ref, objectPath, hash, key } from "../src/core.js";
 
-async function selected(
-  f: Awaited<ReturnType<typeof published>>,
-  id: string,
-  graph = false,
-) {
+async function selected(f: Awaited<ReturnType<typeof published>>, id: string) {
   const release = (await f.store.current())!;
   const record = (await f.store.records()).get(id)!;
   await atomic(
@@ -16,17 +12,15 @@ async function selected(
     json({ "module/account.md": { record_ref: ref(record) } }),
   );
   return new Retrieval(f.store, {
-    fresh: async (_r: string, kind: string) => kind === "search" || graph,
+    fresh: async (_r: string, kind: string) => kind === "search",
     receipt: async () => ({
       release_id: release,
-      graph: { state: "ready" },
       search: { state: "ready", semantic: true, version: "fixture" },
     }),
     search: async () => ({
       items: [{ file: "qmd://module/account.md", score: 1 }],
       elapsed_ms: 0,
     }),
-    adjacent: async () => ["relationship:prerequisite"],
   } as any);
 }
 
@@ -73,7 +67,7 @@ test("an active judgment still qualifies retrieved accounts", async () => {
 test("graph dependency roles distinguish prerequisites from their dependents", async () => {
   const f = await published("audit-direction");
   const reverse = await (
-    await selected(f, "concept:ready-handbook", true)
+    await selected(f, "concept:ready-handbook")
   ).retrieve({ query: "semantic-only-needle", limit: 1, hops: 1 });
   const dependent = reverse.items.find(
     (i) => i.record_ref.id === "knowledge:handling",
@@ -81,7 +75,7 @@ test("graph dependency roles distinguish prerequisites from their dependents", a
   assert.notEqual(dependent.role, "prerequisite");
   assert.match(dependent.selection_reason, /dependent|depends on/i);
   const forward = await (
-    await selected(f, "knowledge:handling", true)
+    await selected(f, "knowledge:handling")
   ).retrieve({ query: "semantic-only-needle", limit: 1, hops: 1 });
   assert.equal(
     forward.items.find((i) => i.record_ref.id === "concept:ready-handbook")

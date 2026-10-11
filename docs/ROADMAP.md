@@ -53,6 +53,10 @@ All five are written up in [NORTH_STAR.md](NORTH_STAR.md#decisions-on-5-october-
 - D10 is deferred for discussion: the owner doesn't want claims expiring on a guessed date, and suggested a sunset action instead. It moved to the second group as D10.
 - D8 approved after the owner's questions: long books are read in stages, a book map first and then one reader per span in order, never in parallel, with a digest per chapter. Built as a section of the books guide.
 
+## Decided on 12 October 2026
+
+- D26: FalkorDB is gone, with its WSL2 service, setup scripts, client and client patch. Nothing answered from it, and on Windows it was the only reason to install WSL2. The older `kb_retrieve` routes now find linked records from the canonical records, so they still work as a comparison baseline. See [NORTH_STAR.md](NORTH_STAR.md#decisions-on-12-october-2026).
+
 ## Waiting on the owner
 
 Fable 5.1 reviewed the whole project on 6 October 2026 ([the audit](#where-these-came-from)), and this is the list of what's left to decide, merged with the owner's own open questions. It's grouped by when the answer is needed, and inside each group the ones I'd approve without hesitation come first and the uncertain or consequential ones last. When the owner decides one, its heading says so and it's added to a "Decided on" list, and if it means building something, it gets a task number. Its D number stays the same.
@@ -225,7 +229,7 @@ Cost-benefit: one short session on a throwaway copy, against the risk of two age
 
 #### D24. Keep files as the canonical store · approve
 
-The owner asked whether the FalkorDB graph should replace the JSON files as the library itself. My recommendation is no, and to keep the graph as a view. A graph database answers traversal questions fast, but Know Fu's recall already runs its graph work in process in milliseconds, and the files give things a graph database doesn't: every revision immutable and hash-checked, a release that's one atomic pointer swap, a purge you can verify because the files are gone, backups that are a folder copy, and a library you can read without a running service. FalkorDB also holds the whole graph in memory and has no built-in versioning, so revisions and releases would have to be rebuilt on top of it. When the library outgrows memory or the release manifests get slow (tasks 11 and 12), add a persistent index beside the files rather than moving the source of truth.
+The owner asked whether the FalkorDB graph should replace the JSON files as the library itself. My recommendation is no. A graph database answers traversal questions fast, but Know Fu's recall already runs its graph work in process in milliseconds, and the files give things a graph database doesn't: every revision immutable and hash-checked, a release that's one atomic pointer swap, a purge you can verify because the files are gone, backups that are a folder copy, and a library you can read without a running service. FalkorDB also holds the whole graph in memory and has no built-in versioning, so revisions and releases would have to be rebuilt on top of it. When the library outgrows memory or the release manifests get slow (tasks 11 and 12), add a persistent index beside the files rather than moving the source of truth.
 
 Cost-benefit: nothing now, and a persistent index later if the library gets big. Switching to a graph database would give up history, crash safety and verifiable purges with no speed gain at this size.
 
@@ -235,11 +239,11 @@ The `evaluation*.ts` files (about 1,400 lines) run frozen capability tests throu
 
 Cost-benefit: hiding is free once D12 is done. Moving the code costs a few hours for a small gain in tidiness.
 
-#### D26. FalkorDB itself · keep it optional for now, your call
+#### D26. FalkorDB itself · decided 12 October 2026: removed
 
-Nothing answers from FalkorDB. The only reason to keep it installed is a future operational memory layer, where Graphiti (which runs on FalkorDB) is the obvious candidate. If that never happens, drop it, and the WSL service with it.
+Nothing answered from FalkorDB, and the operational memory the owner has in mind would be a separate plugin with its own store. Memory Graph, named for that, runs without a server. So FalkorDB went, along with the WSL2 service it needed.
 
-Cost-benefit: keeping it costs a WSL service and setup time on any new machine, and nothing per session. Dropping it saves that friction but closes the easy route to Graphiti for operational memory.
+Cost-benefit: setup loses a WSL2 service, a Linux database and a password file on every new machine, and nothing per session changes. The loss is the visual graph browser, and a picture of the graph can be drawn from the files if it's ever wanted.
 
 #### D27. A third PDF converter for equation-heavy books · when the first such book arrives
 
@@ -357,9 +361,10 @@ Operational or project memory, knowledge promotion tiers, and several agents wri
 | Assessment levels get read as verdicts, or filled in by guesswork | An agent picks the higher level in a conflict, or sets levels just to fill the field | Levels never touch ranking; conflicts show both sides with a note to weigh the reasons; `kb_write` refuses a level without a reason or basis, and `high` from thin support in one source family; task 2 checks real notes |
 | A test result recorded against an idea is wrong or cherry-picked | The owner's tool had a bug, or only the good runs got reported | The pass rule has to be published a revision before the result and is frozen after it; every result carries a trial count; a failure says whether the idea or the test was at fault. Know Fu can't check that a run happened, so re-running a claimed result stays with the owner's tools |
 | A speculative claim enters as knowledge instead of as an idea | An agent writes a knowledge note marked `epistemic: hypothesis`, which `kb_write` still accepts for older libraries | The ingestion guide sends candidate inventions to the report and `kb_idea`; recall flags `hypothesis` on the account's identity line. Refusing it outright would break revisions of existing records, so that waits for a decision |
+| An old FalkorDB copy of a library outlives a purge | Any install that ran FalkorDB before 12 October 2026 | The engine no longer writes to or clears that copy; [setup](../plugin/docs/setup.md#upgrading-from-a-falkordb-setup) says to stop the server and delete its data |
 | Two MCP processes on one library | Codex and Claude, or two sessions at once | Publication locks, control-signature cache keys and the short-lived search worker already handle it, but test it before relying on it |
 | The `braces` stack-exhaustion advisory (GHSA-vfj7-8cjw-p6xm), reached through QMD's micromatch and fast-glob | Only if untrusted, deeply nested glob patterns ever reach QMD | Know Fu passes generated collection paths today. Don't add configurable patterns without reviewing this, and don't apply npm's forced QMD downgrade; update when QMD ships a fixed dependency |
 
 ## What stays true whatever changes
 
-Canonical JSON records and Markdown bodies own the meaning; the wiki, graph and search index are rebuildable views. Scope, withdrawal, purge and pinned-release rules apply on every read path, recall, brief and connect included. Each author's account stays distinct from synthesis and inference. A capability claim needs a comparison with stated limits behind it, not a green test run. [AGENTS.md](../AGENTS.md) has the working rules.
+Canonical JSON records and Markdown bodies own the meaning; the wiki and search index are rebuildable views, and links are read from the records themselves. Scope, withdrawal, purge and pinned-release rules apply on every read path, recall, brief and connect included. Each author's account stays distinct from synthesis and inference. A capability claim needs a comparison with stated limits behind it, not a green test run. [AGENTS.md](../AGENTS.md) has the working rules.

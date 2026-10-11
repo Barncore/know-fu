@@ -80,14 +80,10 @@ test("a partly failed purge resumes with its original inventory and keeps access
   const f = await published();
   let fail = true;
   const life = new Lifecycle(f.store, {
-    graph: async () => {
+    indexName: async () => {
       if (fail) throw Error("Service stopped");
-      return {
-        graph: { query: async () => ({}) },
-        db: { close: async () => {} },
-      };
+      return "purge-resume-fixture";
     },
-    indexName: async () => "purge-resume-fixture",
   } as any);
   const plan = await life.plan(
     "purge",
@@ -117,10 +113,6 @@ test("an unmanaged pre-purge backup cannot resurrect deleted research", async ()
     external = f.store.root + "-external-backup";
   await fs.cp(b.path, external, { recursive: true });
   const life = new Lifecycle(f.store, {
-    graph: async () => ({
-      graph: { query: async () => ({}) },
-      db: { close: async () => {} },
-    }),
     indexName: async () => "purge-backup-fixture",
   } as any);
   const p = await life.plan(
@@ -281,10 +273,6 @@ test("purge removes dependent meaning plans and redacts earlier authorization re
     json({ targets: [target], user_instruction: "Private source wording" }),
   );
   const life = new Lifecycle(f.store, {
-      graph: async () => ({
-        graph: { query: async () => ({}) },
-        db: { close: async () => {} },
-      }),
       indexName: async () => "purge-auxiliary-fixture",
     } as any),
     plan = await life.plan("purge", [target], "Delete this source");
@@ -310,7 +298,6 @@ test("keyword-only projections never report semantic retrieval", async () => {
   const receipt = {
     release_id: f.publication.release_id,
     search: { state: "ready", semantic: false, version: "fixture" },
-    graph: { state: "ready" },
   };
   const r = new Retrieval(f.store, {
     fresh: async () => true,

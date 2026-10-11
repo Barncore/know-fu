@@ -19,6 +19,25 @@ import type { RecordData } from "../src/core.js";
 const noIndex = { fresh: async () => false, receipt: async () => null } as any;
 const exact = (id: string, revision = 1) => ({ id, revision });
 
+test("progressive discovery offers linked neighbours from the canonical records, with no graph server", async () => {
+  const f = await published("progressive-canonical-links");
+  const linked = await new Reading(f.store, noIndex).retrieve({
+    query: "handling",
+    semantic: false,
+    limit: 1,
+  });
+  assert(linked.route.includes("graph"));
+  assert(linked.graph_candidates?.length);
+  const off = await new Reading(f.store, noIndex).retrieve({
+    query: "handling",
+    semantic: false,
+    limit: 1,
+    graph: false,
+  });
+  assert(!off.route.includes("graph"));
+  assert.equal(off.graph_candidates, undefined);
+});
+
 test("full passage text receives body relevance rather than the authored-summary multiplier", async () => {
   const f = await fixture("passage-body-ranking");
   const base = f.records.find((r) => r.id === "knowledge:handling")!;
@@ -520,9 +539,6 @@ test("retired judgments are not returned as current material guidance", async ()
 test("projection navigation has authored summaries, meaningful topic links and distinct search levels", async () => {
   const f = await published("progressive-projection"),
     projections = new Projections(f.store);
-  projections.graph = async () => {
-    throw new Error("isolated fixture");
-  };
   projections.qmd = async () =>
     ({ stdout: "fixture", stderr: "", code: 0 }) as any;
   const result = await projections.build({ semantic: false });

@@ -1,5 +1,6 @@
 import { Store } from "./store.js";
 import { Projections } from "./projections.js";
+import { linkedRelationships } from "./retrieval.js";
 import {
   atomic,
   ensure,
@@ -338,74 +339,50 @@ export class Reading {
             key(a).localeCompare(key(b)),
         );
       chosen = page(ranked);
-      const graphFresh =
-        input.graph !== false || input.graph_required
-          ? await this.projections.fresh(view.release, "graph")
-          : false;
-      ensure(
-        !input.graph_required || graphFresh,
-        "GRAPH_UNAVAILABLE",
-        "A matching graph projection is unavailable; reindex and resume",
-      );
-      if (graphFresh && input.graph !== false && chosen.length) {
-        try {
-          const found = await this.projections.adjacent(
-            chosen.map((r) => r.id),
-            view.scope.read_modules,
-            100,
-          );
-          const seedIds = new Set(chosen.map((r) => r.id));
-          const neighbors = new Map<string, RecordData>();
-          for (const id of found) {
-            const relation = view.visible.get(id);
+      if (input.graph !== false && chosen.length) {
+        const found = linkedRelationships(
+          view.visible,
+          chosen.map((r) => r.id),
+          view.scope.read_modules,
+          100,
+        );
+        const seedIds = new Set(chosen.map((r) => r.id));
+        const neighbors = new Map<string, RecordData>();
+        for (const id of found) {
+          const relation = view.visible.get(id);
+          if (
+            !relation ||
+            relation.record_type !== "relationship" ||
+            !view.usable(relation)
+          )
+            continue;
+          const p = relation.payload as any;
+          if (!seedIds.has(p.subject.id) && !seedIds.has(p.object.id)) continue;
+          for (const endpoint of [p.subject, p.object]) {
+            const record = view.visible.get(endpoint.id);
             if (
-              !relation ||
-              relation.record_type !== "relationship" ||
-              !view.usable(relation)
+              record &&
+              key(record) === key(endpoint) &&
+              view.usable(record) &&
+              !seedIds.has(record.id)
             )
-              continue;
-            const p = relation.payload as any;
-            if (!seedIds.has(p.subject.id) && !seedIds.has(p.object.id))
-              continue;
-            for (const endpoint of [p.subject, p.object]) {
-              const record = view.visible.get(endpoint.id);
-              if (
-                record &&
-                key(record) === key(endpoint) &&
-                view.usable(record) &&
-                !seedIds.has(record.id)
-              )
-                neighbors.set(record.id, record);
-            }
+              neighbors.set(record.id, record);
           }
-          result.graph_candidates = [...neighbors.values()]
-            .slice(0, limit)
-            .map((r) =>
-              view.card(
-                r,
-                "Optional typed graph neighbor; relevance and transfer still need judgment",
-              ),
-            );
-          result.graph_omitted = Math.max(0, neighbors.size - limit);
-          if (found.length === 100)
-            result.warnings.push(
-              "Graph exploration reached its edge limit; it does not establish complete coverage.",
-            );
-          result.route.push("graph");
-          ensure(
-            await this.projections.fresh(view.release, "graph"),
-            "GRAPH_UNAVAILABLE",
-            "Graph projection changed during discovery",
-          );
-        } catch (error: any) {
-          ensure(!input.graph_required, "GRAPH_UNAVAILABLE", error.message);
-          result.warnings.push(
-            "Graph exploration failed; canonical material-context checks remain available.",
-          );
-          delete result.graph_candidates;
-          delete result.graph_omitted;
-          result.route = result.route.filter((r: string) => r !== "graph");
         }
+        result.graph_candidates = [...neighbors.values()]
+          .slice(0, limit)
+          .map((r) =>
+            view.card(
+              r,
+              "Optional typed graph neighbor; relevance and transfer still need judgment",
+            ),
+          );
+        result.graph_omitted = Math.max(0, neighbors.size - limit);
+        if (found.length === 100)
+          result.warnings.push(
+            "Graph exploration reached its edge limit; it does not establish complete coverage.",
+          );
+        result.route.push("graph");
       }
       if (!chosen.length)
         result.warnings.push(

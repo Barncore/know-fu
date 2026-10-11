@@ -1,8 +1,21 @@
 # Validation status
 
-The local development installation is Windows with Ubuntu WSL2, regular FalkorDB and CPU QMD. This repository is a reusable source baseline; not every deployment option has been provisioned on a fresh machine.
+The local development installation is Windows with CPU QMD. Until 12 October 2026 it also ran regular FalkorDB in Ubuntu WSL2, and the entries before that date were measured with it. This repository is a reusable source baseline; not every deployment option has been provisioned on a fresh machine.
 
 Entries run newest first. Each one says what was shown and what wasn't. Older entries are kept as written.
+
+## 2026-10-12: FalkorDB removed
+
+What was shown, on the engine's automated tests only:
+
+- 157 tests: 154 pass, and the same 3 Python conversion tests skip as before. Two tests of the graph writer went with it, and one was added.
+- The added test shows the progressive route returning linked neighbours with no graph server, and none with `graph:false`. It would fail on the old code, which only followed links when the server's graph was fresh (read from the code, not run).
+- A required graph (`graph_required:true`) on the packet route now succeeds with the `graph` route and relationship references, where it used to fail with `GRAPH_UNAVAILABLE`.
+- The existing test of packet-route dependency roles now runs against the real lookup instead of a stubbed neighbour list, and passes.
+- The two purge-resume tests now simulate a stopped search index instead of a stopped graph, since a purge no longer touches a graph.
+- `npm run build`, `npm run format:check` and `npm run check:package` pass.
+
+What wasn't: no live library has run on the new engine, and the 4 October reading comparison wasn't repeated. The older routes now get their links from the records instead of FalkorDB's copy. The relationships found should be the same, but the order and which ones hit the 100-link cap can differ, so a rerun of that comparison would not match its old numbers exactly.
 
 ## 2026-10-07: read receipts, agent provenance, evidence families and the Claude Code adapter
 

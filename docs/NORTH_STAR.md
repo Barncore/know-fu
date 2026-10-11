@@ -38,10 +38,10 @@ The chosen architecture is a machine-oriented research library with full explana
 | Keep fidelity, support and applicability separate | A faithful account of an author's claim can still rest on weak evidence, or have unknown relevance to the case in front of you |
 | Make knowledge reachable at several levels | Orientation, topic summaries, complete explanations and original evidence all coexist. Summaries guide reading; the detail stays there for when it matters |
 | Evaluate capability, not plumbing | Check explanation, application, exceptions, synthesis and revision in fresh contexts. Record counts, link counts and a healthy index are infrastructure evidence, not capability |
-| Keep one owner of published meaning | Versioned canonical JSON and authored Markdown bodies are the authority. The wiki, FalkorDB and QMD are rebuildable views of a published release |
+| Keep one owner of published meaning | Versioned canonical JSON and authored Markdown bodies are the authority. The wiki and QMD are rebuildable views of a published release, and links are read straight from the records |
 | Keep specialist research portable and scoped | One modular library with enforced module and source boundaries. Domain tags help discovery. Operational and session memory stay separate |
 
-Today's implementation is a custom TypeScript engine and research adapter, FalkorDB, QMD and Codex doing the reasoning. Memory Graph is a design influence, not an installed dependency; keeping a custom adapter was a deliberate choice after comparing the two.
+Today's implementation is a custom TypeScript engine and research adapter, QMD, and Codex or Claude Code doing the reasoning. There's no database server. Memory Graph is a design influence, not an installed dependency; keeping a custom adapter was a deliberate choice after comparing the two.
 
 The first deployment runs on local files and software, with no cloud database to pay for. Media transcription goes through APIs by preference. Research can feed general writing, teaching and product skills without needing a research collection about those skills.
 
@@ -89,6 +89,12 @@ Long books are read in stages. A map of the whole book comes first, then one rea
 
 One question stays open for discussion. The owner doesn't want claims expiring on a guessed date: whether a source is out of date is for the agent to judge on the way in, and a "sunset" action (outdated, kept for history) may fit better than validity windows.
 
+## Decisions on 12 October 2026
+
+The owner dropped FalkorDB. By then nothing answered from it: recall, brief, connect and invent follow links in memory, and the older routes and a purge were the only things that touched the server. On Windows it was the only reason to install WSL2 and run a Linux service, and a comparison on 4 October found the graph route no better than the same route without it. Its one real use, a picture of the graph, can be drawn from the files if it's ever wanted. If a library outgrows memory, the answer is an index saved on disk beside the files (D24), not a second copy in a database. The older `kb_retrieve` routes now find linked records from the canonical records themselves, so they keep working as a comparison baseline.
+
+The owner's plan for operational memory, if it's built, is a separate plugin with its own store, which can point at Know Fu records by id. Memory Graph, which the owner named for it, can run without a server, so that doesn't need FalkorDB either.
+
 ## One knowledge system, several ways in
 
 ```mermaid
@@ -97,7 +103,7 @@ flowchart TD
     R --> I[Integrate and reconsider affected knowledge]
     I --> C[Canonical explanations, relationships, judgments and learning records]
     C --> W[Wiki: orientation, topic maps and complete articles]
-    C --> G[FalkorDB: qualified connections and dependencies]
+    C --> G[Links in the records: qualified connections and dependencies]
     C --> Q[QMD: exact and semantic discovery]
     C --> K[Recall index: budgeted briefings, briefs and connection chains]
     W --> P[Select and read for the present task]

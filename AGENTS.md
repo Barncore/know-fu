@@ -8,7 +8,7 @@ For installation requests, start with `plugin/docs/setup-ai.md`. Offer the optio
 
 ## Changing the engine
 
-The contracts in `contracts/schemas/` are the authority, and `src/` validates against them. Full explanatory prose and source provenance matter as much as the links. The wiki, graph and search index are views of the canonical records, never separate authorities. Research memory and operational memory stay separate until the owner decides otherwise.
+The contracts in `contracts/schemas/` are the authority, and `src/` validates against them. Full explanatory prose and source provenance matter as much as the links. The wiki and search index are views of the canonical records, never separate authorities, and links are read from the records themselves. Research memory and operational memory stay separate until the owner decides otherwise.
 
 `kb_recall` is the routine way to answer. Its rules (scope filtering, withdrawal and reliance blocking, pinned releases, caveats packed with what they qualify) have to hold on every read path, including `kb_brief`, `kb_connect` and anything you add. The older packet and progressive routes stay for comparison; don't delete them without a decision.
 

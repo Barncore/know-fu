@@ -216,10 +216,6 @@ test("even a full owner cannot silently transfer a record identity to a differen
 test("purge execution rechecks the executing project and revoked permissions before writing receipts or ledger", async () => {
   const f = await published("audit-purge-authority");
   const projections = {
-    graph: async () => ({
-      graph: { query: async () => ({}) },
-      db: { close: async () => {} },
-    }),
     indexName: async () => "audit-isolated-purge",
   } as any;
   const owner = new Lifecycle(f.store, projections);
@@ -294,14 +290,10 @@ test("a partial purge cannot resume after its executor loses write permission", 
   const f = await published("audit-purge-resume-authority");
   let fail = true;
   const life = new Lifecycle(f.store, {
-    graph: async () => {
+    indexName: async () => {
       if (fail) throw Error("Simulated stopped projection");
-      return {
-        graph: { query: async () => ({}) },
-        db: { close: async () => {} },
-      };
+      return "audit-purge-resume-authority";
     },
-    indexName: async () => "audit-purge-resume-authority",
   } as any);
   const plan = await life.plan(
     "purge",

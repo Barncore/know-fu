@@ -466,16 +466,6 @@ export class Lifecycle {
             if (hit(refs(r))) await remove("lifecycle/meaning/" + name);
           }
           try {
-            const { db, graph } = await this.projections.graph();
-            try {
-              await graph.query("MATCH (n) DETACH DELETE n");
-            } finally {
-              await db.close();
-            }
-          } catch (e: any) {
-            failures.push("graph: " + e.message);
-          }
-          try {
             const index = await this.projections.indexName(),
               cache = path.join(STATE, "cache/qmd");
             for (const suffix of [".sqlite", ".sqlite-wal", ".sqlite-shm"])

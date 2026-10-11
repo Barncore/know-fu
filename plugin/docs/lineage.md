@@ -8,7 +8,7 @@ flowchart TD
   A[Ars Contexta: Reweave] --> P
   V[LLM Wiki v2 / agentmemory] --> L[Qualified revision, consolidation and audit]
   D[Discourse Graphs / provenance practice] --> R[Source-linked records and qualified relationships]
-  M[Memory Graph / ste-bah] --> G[FalkorDB graph view]
+  M[Memory Graph / ste-bah] --> G[Typed links followed in memory]
   S[Scideator] --> Q[Grounded questions, applications and patterns]
   E[Compilation and application evaluation] --> C[Checks, corrections and explicit gaps]
   U[Book and video research experience] --> I[Source reconstruction with exact locators]
@@ -20,6 +20,7 @@ flowchart TD
   L --> K
   K --> P
   K --> G
+  G --> T
   K --> F[QMD search]
   K --> T[Budgeted recall, brief and connect]
   F --> T
@@ -37,7 +38,7 @@ flowchart TD
 | [LLM Wiki v2 by rohitg00](https://gist.github.com/rohitg00/2067ab416f7bbe447c1977edaaa681e2) and [agentmemory](https://github.com/rohitg00/agentmemory) | Confidence assessment, scoped supersession, consolidation, auditability, filtering and governed bulk work | Know Fu splits confidence into fidelity, evidence and applicability, as levels with reasons rather than one fused number, and repetition never counts as independent evidence. Mesh sync and automatic crystallization into skills are deferred |
 | [Discourse Graphs](https://joelchan.me/assets/pdf/Discourse_Graphs_for_Augmented_Knowledge_Synthesis_What_and_Why.pdf) | Inspectable links among questions, claims and evidence | Know Fu adds full explanations, mechanisms, procedures and accounts kept per source |
 | [W3C PROV-O](https://www.w3.org/TR/prov-o/) and [n-ary relationships](https://www.w3.org/TR/swbp-n-aryRelations/) | Relationships with their own identity, provenance and conditions | Conceptual only. Know Fu uses JSON Schema and a property graph, not an RDF or SHACL runtime |
-| [Memory Graph upstream](https://github.com/memory-graph/memory-graph), [ste-bah](https://github.com/ste-bah) and [ste-bah's Memory Graph fork](https://github.com/ste-bah/memory-graph) | Experience with graph backends and capable relationship queries; FalkorDB as the graph backend | Know Fu has its own graph adapter. The Memory Graph application and fork aren't installed or vendored |
+| [Memory Graph upstream](https://github.com/memory-graph/memory-graph), [ste-bah](https://github.com/ste-bah) and [ste-bah's Memory Graph fork](https://github.com/ste-bah/memory-graph) | Experience with graph backends and capable relationship queries; FalkorDB as the graph backend, used as a view until 12 October 2026 | Know Fu follows its own links in memory and runs no graph database. The Memory Graph application and fork aren't installed or vendored |
 | [Scideator](https://arxiv.org/abs/2409.14634) | Purpose, mechanism and evaluation facets as prompts for grounded idea finding and application | Borrowed questions, not an analogy engine or proof that an idea is new |
 | Earlier book, PDF and video ingestion work | Edition identity, complete requested coverage, two transcripts compared, exact locators, native visual evidence, decision-time versus hindsight, cumulative synthesis | Generalized into the book and video guides. Private source material and conversation transcripts aren't distributed |
 | Cross-model design review | Sharper primers, learning and application records, compact semantic authoring, materiality, question backlogs and independent evaluation | Each suggestion was judged on its own merits. No other assistant's architecture or private session files came in |
@@ -114,7 +115,6 @@ These shaped questions and trade-offs. Their algorithms and performance claims a
 | Node.js, TypeScript, AJV, JSON Schema | The engine, its authoring contracts and validation |
 | [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) | The local tool interface |
 | [yaml](https://github.com/eemeli/yaml) 2.9.0 | Frontmatter in `kb_write` notes. Already installed through QMD at the same version |
-| [FalkorDB](https://github.com/FalkorDB/FalkorDB) and its [official TypeScript client](https://github.com/FalkorDB/falkordb-ts) | The rebuildable graph view and its queries |
 | [QMD](https://github.com/tobi/qmd) | Local keyword and vector search over generated documents |
 | [Docling](https://github.com/docling-project/docling), direct format readers and PDF and image libraries | Conversion, page and asset rendering, locators |
 | [Poppler](https://poppler.freedesktop.org/) | A second PDF text and layout extraction. Installed separately as a command-line tool |
@@ -122,9 +122,9 @@ These shaped questions and trade-offs. Their algorithms and performance claims a
 | [FFmpeg](https://ffmpeg.org/) | Media inspection, audio preparation and visual evidence |
 | Configured speech APIs | Optional paid media transcription, billed separately from the agent subscription |
 
-The exact packages are in the lockfiles, and their licenses still apply. The repository bundles no models, no database binary and no copy of Memory Graph. Formatting uses pinned Prettier 3.9.9. The cache, the batched graph writer and the QMD worker are Know Fu's own code; the worker calls QMD's official SDK on the existing local CPU search setup.
+The exact packages are in the lockfiles, and their licenses still apply. The repository bundles no models, no database binary and no copy of Memory Graph. Formatting uses pinned Prettier 3.9.9. The cache, the link lookups and the QMD worker are Know Fu's own code; the worker calls QMD's official SDK on the existing local CPU search setup.
 
-There's exactly one local compatibility patch. `scripts/patch-falkordb.mjs` adds an early error listener to the pinned official FalkorDB client 6.8.0, so a failed connection rejects cleanly instead of crashing before a caller can attach a listener. It's version-guarded and applied at build time. It's a Know Fu patch, not ste-bah's Memory Graph patch.
+No dependency is patched locally. Until 12 October 2026 [FalkorDB](https://github.com/FalkorDB/FalkorDB) and its [official TypeScript client](https://github.com/FalkorDB/falkordb-ts) 6.8.0 held a rebuildable graph view, with one build-time patch so a failed connection rejected cleanly. By then nothing answered from the view, and on Windows it was the only reason to install WSL2, so the server, the client, the patch and the WSL scripts were removed.
 
 ## Considered, and passed on
 
@@ -134,6 +134,6 @@ LanceDB with hosted embeddings and reranking was an earlier proposal; QMD won. B
 
 ## The Memory Graph fork question
 
-A separate exercise once reconciled the TypeScript Memory Graph upstream of the day with relevant fixes from ste-bah. That candidate isn't a dependency. Know Fu's graph code calls the official FalkorDB client directly and projects Know Fu's own research schema, so installing it needs no Memory Graph fork at all.
+A separate exercise once reconciled the TypeScript Memory Graph upstream of the day with relevant fixes from ste-bah. That candidate isn't a dependency. Know Fu follows its own research schema's links in memory, so it needs no Memory Graph fork at all.
 
 If code from that candidate ever gets adopted, record the exact upstream and fork revisions, the patches kept, the license, the provenance and the live tests here and in the change log. A maintained public fork or a versioned patch series can then be judged on its merits. Creating a fork now would just add a dependency nothing uses.

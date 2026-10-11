@@ -55,10 +55,6 @@ test("F01: purging a source also deletes earlier revisions derived from it, and 
     f.scope,
   );
   const life = new Lifecycle(f.store, {
-    graph: async () => ({
-      graph: { query: async () => ({}) },
-      db: { close: async () => {} },
-    }),
     indexName: async () => "audit-historical-purge",
   } as any);
   const plan = await life.plan(
@@ -522,9 +518,6 @@ test("F11: the reported budget is the whole delivered briefing, and overflow is 
 test("F12: wiki_edit returns an edit kept in an older view, and says which release it was made against", async () => {
   const w = await published("audit-old-wiki-edit");
   const projections = new Projections(w.store);
-  projections.graph = async () => {
-    throw new Error("Graph unavailable in this test");
-  };
   projections.qmd = async () =>
     ({ stdout: "", stderr: "", elapsed_ms: 0 }) as any;
   await projections.build({ semantic: false });

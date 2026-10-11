@@ -2,6 +2,10 @@
 
 Things this project learned the hard way, newest first. Each one says what happened and what to do differently.
 
+## 2026-10-12 - When a component's job moves, decide its future then
+
+Version 1.2.0 moved link-following into the engine on 5 October, and FalkorDB stayed "optional for now". For a week it kept costing every new install a WSL2 service and a password file. A reindex without it was logged as incomplete, and the code that talked to it only ever ran against stand-ins in the tests. Only a hidden comparison tool and a purge still used it. When a rebuild takes over a component's work, decide then whether the component stays, and write down what would make it worth bringing back.
+
 ## 2026-10-06 - A required guard can't ride on an optional feature
 
 An independent audit found that recall carried a filed answer's inherited conditions only when optional graph expansion happened to pull in the procedure underneath. Switch the graph off and the condition vanished, while progressive reading, which resolves guards from exact premises, still found it. The two read paths had drifted apart because each had its own guard logic. Mandatory rules (what must travel with an account, what blocks reliance) belong in one shared resolver that every read path calls. Ranking, expansion and budgets decide what else to show, never whether a guard appears.

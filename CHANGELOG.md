@@ -4,6 +4,17 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-12 - FalkorDB removed
+
+Why: the owner decided D26. Nothing answered from FalkorDB: recall, brief, connect and invent already followed links in memory. Only the hidden `kb_retrieve` routes, reindex and purge still touched it, and on Windows it was the only reason to install WSL2 and run a Linux database service.
+
+- Engine: `graph-projection.ts` and the FalkorDB parts of `projections.ts` are gone. Reindex no longer writes a graph, and a reindex counts as complete once search is ready. Purge no longer clears a graph.
+- `kb_retrieve`, both modes: linked records now come from the canonical records through `linkedRelationships` in `retrieval.ts`, with the same module rules and the same 100-link cap. `graph`, `graph_required` and `hops` keep working, so `graph_required` can no longer fail with `GRAPH_UNAVAILABLE`. A packet's `graph_release` is now the canonical release, and a missing graph no longer marks a packet degraded. No schema changed.
+- Removed: the `falkordb` client and its Redis dependencies, `scripts/patch-falkordb.mjs`, `scripts/setup-wsl.sh`, `scripts/graph-service.ps1` and `.sh`, and `runtime.external.example.json`. The runtime example now holds only `python`.
+- Tests: the two graph-writer tests went, one test was added for the progressive route's links without a server, and the purge-resume tests now simulate a stopped search index. 157 tests, 154 pass, 3 skipped as before.
+- Docs: setup, setup choices, setup for an AI, architecture, lineage, both READMEs, the operations and ingestion guides, NORTH_STAR (decisions on 12 October), ROADMAP (D26 decided, a new risk row), MAINTENANCE, AGENTS.md, VALIDATION, a history note in PERFORMANCE, and a lesson.
+- Migration: none for the library. An older `config.json` can keep its `deployment` and `graph` keys, which are now ignored. A FalkorDB server from an older setup still holds a copy of the library that purges no longer reach; the setup guide says to stop it and delete its data.
+
 ### 2026-10-11 - No set voice for doc work
 
 Why: the owner removed the "Writing docs" section from AGENTS.md. MAINTENANCE.md still described that voice and sent readers to the removed section.

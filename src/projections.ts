@@ -1,6 +1,5 @@
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import { FalkorDB } from "falkordb";
 import {
   APP,
   VERSION,
@@ -20,7 +19,6 @@ import {
 import type { RecordData } from "./core.js";
 import { Store } from "./store.js";
 import { run } from "./process.js";
-import { writeGraph } from "./graph-projection.js";
 import { QmdSearch } from "./qmd-search.js";
 import {
   isAccount,
@@ -28,9 +26,6 @@ import {
   summary as authoredSummary,
 } from "./navigation.js";
 
-export async function runtime() {
-  return readJson(path.join(STATE, "config.json"));
-}
 export class Projections {
   private searchWorker = new QmdSearch();
   closeSearch() {
@@ -39,51 +34,6 @@ export class Projections {
   constructor(public store: Store) {}
   async indexName() {
     return "kb_" + hash((await this.store.config()).corpus_id).slice(0, 24);
-  }
-  async graph() {
-    const c = await runtime();
-    ensure(
-      ["ubuntu-wsl2-direct", "falkordb-external"].includes(c.deployment) &&
-        c.graph,
-      "GRAPH_UNAVAILABLE",
-      "Configure the regular FalkorDB server deployment",
-    );
-    ensure(
-      c.deployment !== "falkordb-external" || c.graph.auto_start !== true,
-      "GRAPH_UNAVAILABLE",
-      "External FalkorDB is managed by its chosen service, not the WSL helper",
-    );
-    const password = (await fs.readFile(c.graph.password_file, "utf8")).trim();
-    const connect = () =>
-      FalkorDB.connect({
-        socket: {
-          host: c.graph.host,
-          port: c.graph.port,
-          connectTimeout: 5000,
-          reconnectStrategy: false,
-          ...(c.graph.tls ? { tls: true } : {}),
-        } as any,
-        password,
-      });
-    let db;
-    try {
-      db = await connect();
-    } catch (e) {
-      if (c.graph.auto_start !== true) throw e;
-      await run(
-        "powershell.exe",
-        [
-          "-NoProfile",
-          "-File",
-          path.join(APP, "scripts/graph-service.ps1"),
-          "-Action",
-          "start",
-        ],
-        { timeout: 30000 },
-      );
-      db = await connect();
-    }
-    return { db, graph: db.selectGraph(await this.indexName()) };
   }
   async qmd(args: string[], timeout = 120000) {
     return run(
@@ -109,30 +59,14 @@ export class Projections {
   async receipt() {
     return readJson(this.store.p("views/receipt.json")).catch(() => null);
   }
-  async fresh(release: string, kind: "graph" | "search" | "wiki") {
+  async fresh(release: string, kind: "search" | "wiki") {
     const r = await this.receipt();
-    if (!(
+    return Boolean(
       r &&
       r.release_id === release &&
       r[kind]?.state === "ready" &&
-      !(await exists(this.store.p(".projection.lock")))
-    ))
-      return false;
-    if (kind === "graph") {
-      let c;
-      try {
-        c = await this.graph();
-        const q = await c.graph.query(
-          "MATCH (n:Projection) RETURN n.release AS release",
-        );
-        return (q.data?.[0] as any)?.release === release;
-      } catch {
-        return false;
-      } finally {
-        await c?.db.close();
-      }
-    }
-    return true;
+      !(await exists(this.store.p(".projection.lock"))),
+    );
   }
   async build(options: { semantic?: boolean } = {}) {
     return withLock(this.store.root, "projection", async () => {
@@ -168,7 +102,6 @@ export class Projections {
         release_id: release.release_id,
         started_at: now(),
         manifest_sha256: hash(json(release)),
-        graph: { state: "pending" },
         wiki: { state: "pending" },
         search: { state: "pending" },
         semantic_requested: options.semantic !== false,
@@ -306,27 +239,6 @@ export class Projections {
       );
       receipt.wiki = { state: "ready", pages: pages.length };
       await atomic(this.store.p("views/receipt.json"), json(receipt));
-      let connection: Awaited<ReturnType<Projections["graph"]>> | null = null;
-      try {
-        connection = await this.graph();
-        const metrics = await writeGraph(
-          connection.graph,
-          records,
-          release.release_id,
-        );
-        receipt.graph = {
-          state: "ready",
-          ...metrics,
-          client: (
-            await readJson(path.join(APP, "node_modules/falkordb/package.json"))
-          ).version,
-        };
-      } catch (e: any) {
-        receipt.graph = { state: "failed", error: e.message };
-      } finally {
-        await connection?.db.close();
-      }
-      await atomic(this.store.p("views/receipt.json"), json(receipt));
       try {
         for (const m of (await this.store.config()).modules) {
           const name = "m" + hash(m.module_id).slice(0, 16),
@@ -374,9 +286,7 @@ export class Projections {
         "Rebuilt canonical knowledge views",
         [],
         release.release_id,
-        receipt.graph.state === "ready" && receipt.search.state === "ready"
-          ? "completed"
-          : "incomplete",
+        receipt.search.state === "ready" ? "completed" : "incomplete",
       );
       return receipt;
     });
@@ -439,18 +349,6 @@ export class Projections {
       limit,
       rerank,
     });
-  }
-  async adjacent(ids: string[], modules: string[], limit: number) {
-    const { db, graph } = await this.graph();
-    try {
-      const result = await graph.query(
-        "MATCH (s:Record)-[:SUBJECT_OF]->(a:Record)-[:OBJECT]->(o:Record) WHERE (s.id IN $ids OR o.id IN $ids) AND a.module IN $modules AND s.module IN $modules AND o.module IN $modules RETURN a.id AS id LIMIT $limit",
-        { params: { ids, modules, limit } },
-      );
-      return (result.data ?? []).map((r: any) => r.id as string);
-    } finally {
-      await db.close();
-    }
   }
   async verifyViews() {
     const release = await this.store.release();
