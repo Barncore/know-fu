@@ -6,9 +6,9 @@ Things this project learned the hard way, newest first. Each one says what happe
 
 The pilot library was bound to its folder with backslashes, the way Codex passes it, and Claude Code's first call was refused: Claude Code passes the same folder with forward slashes. The error didn't say which project it had received, so the cause took a code change to see. Compare identities that the outside world spells in more than one way in a normalized form, and make every refusal name the value it refused.
 
-## 2026-10-12 - Install a plugin before trusting its paths
+## 2026-10-12 - Ask the running program where it reads from
 
-The Claude Code adapter passed the plugin validator on 7 October and launched its engine at `${CLAUDE_PLUGIN_ROOT}/../dist/mcp.js`. Claude Code runs a cached copy of a local plugin, not the source folder, so that path pointed at nothing, and the validator never launches a server to find out. The first real install showed it. Before relying on any path relative to a plugin root, install the plugin and look at where it actually landed.
+After the first Claude Code install, a copy of the plugin sat in Claude Code's plugin cache and the install record pointed at it. That looked like proof that sessions ran the copy, so a launch path that already worked got "fixed" and the fix was written up as a bug. A stub launched through the plugin, and a session reporting where it loaded the skill from, showed the checkout was used in place. A file that exists isn't proof that a program reads it. Before changing anything on the strength of a folder layout, ask the running program, with a probe that reports its own environment.
 
 ## 2026-10-12 - When a component's job moves, decide its future then
 

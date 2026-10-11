@@ -88,9 +88,9 @@ Five specialist tools (`kb_lifecycle`, `kb_evaluate`, `kb_propose`, `kb_change`,
 
 ### Claude Code
 
-Claude Code copies `plugin/` into its plugin cache (`~/.claude/plugins/cache/know-fu/know-fu/<version>/`) and runs the skill from that copy, which is why the engine's location is a plugin option. It starts `node <engine_dir>/dist/mcp.js` with `KB_ACTOR=claude`, and passes the session's project folder as `KB_PROJECT`, because Claude Code otherwise starts plugin servers in the plugin's own folder. Node has to be on PATH for Claude Code, at version 24.14.
+Claude Code keeps a copy of `plugin/` in its plugin cache (`~/.claude/plugins/cache/know-fu/know-fu/<version>/`). With this marketplace, which is a local git checkout, Claude Code 2.1.296 still reads the plugin from the checkout itself: `CLAUDE_PLUGIN_ROOT` is the checkout's `plugin/` folder, and the skill loads from there. Another local plugin on the development machine has run from its cached copy, though, so the manifest starts the engine from the `engine_dir` option rather than from a path relative to the plugin. It runs `node <engine_dir>/dist/mcp.js` with `KB_ACTOR=claude`, and passes the session's project folder as `KB_PROJECT`. Node has to be on PATH for Claude Code, at version 24.14.
 
-A pull and rebuild of this checkout reaches the engine at the next session. A change to the skill or its guides reaches Claude Code only after the version goes up and you run `claude plugin marketplace update know-fu` and `claude plugin update know-fu@know-fu`. A one-command install from GitHub doesn't work yet: Claude Code would copy only the plugin folder, and the engine's native modules and Python converters need building where they run.
+A pull and rebuild of this checkout reaches the engine, the skill and its guides at the next session, or after `/reload-plugins`. `claude plugin update know-fu@know-fu` says whether your version reads the plugin in place. If it ever reports a cached copy instead, a change to the skill or guides needs a version bump and that update. A one-command install from GitHub doesn't work yet: Claude Code would copy only the plugin folder, and the engine's native modules and Python converters need building where they run.
 
 ### Codex
 

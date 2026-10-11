@@ -99,7 +99,7 @@ To bring back a library from a backup, don't use this script. A restore needs th
 
 3. Check it. From the project folder, `claude mcp list` should show `plugin:know-fu:know-fu` as connected. Then start a new session in the project folder and call `kb_status`. It should report the library, the state folder and a scope with read and write modules. If it says `SCOPE_DENIED`, its `details.project` is the folder the engine received. Open the session in the bound folder instead, or, from a session in the bound folder, add a binding for the new one with `kb_maintain configure`. Windows paths match however they're written (slashes, letter case), so a mismatch means a different folder.
 
-Claude Code runs a cached copy of `plugin/` and starts the engine from `engine_dir`. So a pull and rebuild reaches the engine at the next session, while a change to the skill or its guides needs a version bump and `claude plugin update know-fu@know-fu`.
+Claude Code reads this plugin from the checkout and starts the engine from `engine_dir`, so a pull and rebuild reaches both at the next session, or after `/reload-plugins`. `claude plugin update know-fu@know-fu` says whether your version reads the plugin in place; [setup](setup.md#claude-code) covers the other case.
 
 ### Codex
 
@@ -125,7 +125,7 @@ Then tell the person:
 - Where each part lives and how big it is: the engine, the converters, the library, the state folder and the model caches.
 - What costs money. Only hosted transcription does, and only when they authorize it per job.
 - How to back up: the library together with the state folder's `ledgers`, using the export workflow, never a live sync folder.
-- How updates reach them: pull and rebuild for the engine. For Claude Code, a version bump and a plugin update for the skill and guides.
+- How updates reach them: pull, rebuild, and start a new session.
 
 Update the setup note. If the setup exposed a bug or a missing step, fix the docs and the change log too. If they asked for an adapter that doesn't exist yet, that's a follow-up task, not a quiet switch to some other paid service.
 

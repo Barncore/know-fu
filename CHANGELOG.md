@@ -22,6 +22,7 @@ Why: installing the plugin showed that Claude Code copies a local plugin folder 
 - `plugin/.claude-plugin/plugin.json`: a required `engine_dir` option, and the server runs `${user_config.engine_dir}/dist/mcp.js`. `scripts/package-plugin.mjs` checks for that path.
 - Setup, the AI setup guide, both READMEs and MAINTENANCE: the engine folder is one of the options, the install commands are the terminal ones, and a change to the skill or guides needs a version bump and `claude plugin update` before Claude Code sees it. A pull and rebuild still reaches the engine at the next session.
 - No engine, schema or library change.
+- Correction, later the same night: the diagnosis above was wrong. A stub launched through the plugin showed Claude Code 2.1.296 setting `CLAUDE_PLUGIN_ROOT` to the checkout's `plugin/` folder and starting the server in the session's project folder, and a session loaded the skill from the checkout too. The cache copy exists, but this marketplace doesn't run from it, so the old path would have worked. `engine_dir` stays, because it works wherever Claude Code reads the plugin from, and another local plugin on the development machine did run from its cached copy on 11 October. The docs now say a pull reaches the skill and guides at the next session, without a version bump.
 
 ### 2026-10-12 - FalkorDB removed
 

@@ -13,7 +13,7 @@
     "engine_dir": {
       "type": "directory",
       "title": "Engine folder",
-      "description": "The Know Fu repository checkout this plugin was installed from, built with npm ci and npm run build. Claude Code runs a cached copy of the plugin folder, so the engine is found here.",
+      "description": "The Know Fu repository checkout this plugin was installed from, built with npm ci and npm run build. The engine starts from its dist folder, wherever Claude Code reads the plugin from.",
       "required": true
     },
     "library_dir": {
