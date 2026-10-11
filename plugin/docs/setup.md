@@ -25,8 +25,8 @@ There's no database server to install: the library's links live in its records, 
 | Location | What it holds |
 |---|---|
 | `plugin/.mcp.json` | Codex's generated machine-local launcher: Node, engine path, library, state, media mode, `KB_ACTOR=codex` and optional project identity. Ignored by Git |
-| `plugin/.claude-plugin/plugin.json` | Claude Code's launcher, committed: it runs `../dist/mcp.js` from the plugin folder with `KB_ACTOR=claude` and the session's project folder, and takes the library, state and media settings from the plugin's options |
-| Claude Code's plugin options | The library and state folders, media tools and the specialist-tools switch you enter when enabling the plugin, kept in your Claude Code settings |
+| `plugin/.claude-plugin/plugin.json` | Claude Code's launcher, committed: it runs `dist/mcp.js` from the engine folder set in the plugin's options, with `KB_ACTOR=claude` and the session's project folder, and takes the library, state and media settings from the same options |
+| Claude Code's plugin options | The engine, library and state folders, media tools and the specialist-tools switch you enter when enabling the plugin, kept in your Claude Code settings |
 | `<state>/config.json` | The Python executable, and optional `pdftotext`, speech and evaluation settings. See [the runtime example](../examples/runtime.example.json) |
 | `<corpus>/corpus.json` | Library identity, domains and modules, and allowed projects. Created by `init` |
 | `<corpus>/dimensions.json` | Applicability dimensions and their units |
@@ -67,14 +67,16 @@ Run `node scripts/configure-plugin.mjs --help`, then pass the chosen absolute li
 
 ### Claude Code
 
-Claude Code installs the plugin straight from this checkout, so build the engine here first (`npm ci`, `npm run build`, and the Python converters). Then, in Claude Code:
+Claude Code installs the plugin from this checkout, so build the engine here first (`npm ci`, `npm run build`, and the Python converters). Then, from a terminal:
 
 ```text
-/plugin marketplace add <path to this repository>
-/plugin install know-fu@know-fu
+claude plugin marketplace add <path to this repository>
+claude plugin install know-fu@know-fu --config engine_dir=<path to this repository>
 ```
 
-Claude Code asks for the plugin's options when you enable it: the library folder (already initialized with `init`), the state folder, where media tools run, the WSL distribution, and whether to list the specialist tools. The plugin loads in place from `plugin/`, starts `node ../dist/mcp.js` with `KB_ACTOR=claude`, and passes the session's project folder as `KB_PROJECT`, because Claude Code otherwise starts plugin servers in the plugin's own folder. So a pull and rebuild of this checkout updates the plugin at the next session, and every project that uses the library needs its own binding. A one-command install from GitHub doesn't work yet: Claude Code would copy only the plugin folder, and the engine's native modules and Python converters need building where they run.
+Inside a Claude Code session, `/plugin marketplace add` and `/plugin install` do the same, where the session offers them.
+
+The plugin's options are the engine folder (this checkout), the library folder (already initialized with `init`), the state folder, where media tools run, the WSL distribution, and whether to list the specialist tools. Set them with `/plugin configure know-fu@know-fu` in a session, or pipe a JSON object to `claude plugin configure know-fu@know-fu --values-stdin`. Claude Code copies `plugin/` into its plugin cache (`~/.claude/plugins/cache/know-fu/know-fu/<version>/`) and runs the skill from that copy, which is why the engine's location is an option. It starts `node <engine folder>/dist/mcp.js` with `KB_ACTOR=claude`, and passes the session's project folder as `KB_PROJECT`, because Claude Code otherwise starts plugin servers in the plugin's own folder. A pull and rebuild of this checkout reaches the engine at the next session. A change to the skill or its guides reaches Claude Code only after the version goes up and you run `claude plugin marketplace update know-fu` and `claude plugin update know-fu@know-fu`. Every project that uses the library needs its own binding. A one-command install from GitHub doesn't work yet: Claude Code would copy only the plugin folder, and the engine's native modules and Python converters need building where they run.
 
 Node has to be on PATH for Claude Code, at version 24.14. Start a new session in a bound project and call `kb_status` to see the engine, library and scope it actually reports.
 

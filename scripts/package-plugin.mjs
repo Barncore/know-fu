@@ -70,7 +70,8 @@ for (const [label, manifest] of [['Codex', codex], ['Claude Code', claude]]) {
 }
 await fs.access(path.join(plugin, 'skills/know-fu/SKILL.md'));
 const server = claude.mcpServers?.['know-fu'];
-if (server?.args?.[0] !== '${CLAUDE_PLUGIN_ROOT}/../dist/mcp.js' || server.env?.KB_ACTOR !== 'claude' || server.env?.KB_PROJECT !== '${CLAUDE_PROJECT_DIR}') throw Error('Claude Code server must run the engine beside the plugin, as claude, bound to the session project');
+// Claude Code runs a cached copy of the plugin folder, so the engine path comes from the plugin's options.
+if (server?.args?.[0] !== '${user_config.engine_dir}/dist/mcp.js' || server.env?.KB_ACTOR !== 'claude' || server.env?.KB_PROJECT !== '${CLAUDE_PROJECT_DIR}') throw Error('Claude Code server must run the engine from the configured engine folder, as claude, bound to the session project');
 for (const match of JSON.stringify(server).matchAll(/\$\{user_config\.([a-z_]+)\}/g)) if (!claude.userConfig?.[match[1]]) throw Error(`Undeclared user_config.${match[1]}`);
 if (market.plugins?.[0]?.name !== claude.name || market.plugins[0].source !== './plugin') throw Error('The Claude Code marketplace must list ./plugin');
 console.log(JSON.stringify({ mode: check ? 'checked' : 'packaged', schemas: schemaNames.length, examples_valid: true, relative_links: links, manifests: ['codex', 'claude'] }));

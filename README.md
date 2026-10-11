@@ -99,7 +99,7 @@ Clone the repository, open it in your coding assistant and say:
 
 ### Pick your agent
 
-Know Fu runs with Codex or Claude Code, from the same `plugin/` folder and the same skill. Codex installs through a generated local launcher (`scripts/configure-plugin.mjs`); Claude Code installs by adding this checkout as a local plugin marketplace and filling in the library and state folders it asks for. Both need the engine built first, and the [setup guide](plugin/docs/setup.md) has the steps for each. Every record notes which agent wrote it, so you can compare their work, and two agents can share one library as long as only one writes at a time.
+Know Fu runs with Codex or Claude Code, from the same `plugin/` folder and the same skill. Codex installs through a generated local launcher (`scripts/configure-plugin.mjs`); Claude Code installs by adding this checkout as a local plugin marketplace and filling in the engine, library and state folders it asks for. Both need the engine built first, and the [setup guide](plugin/docs/setup.md) has the steps for each. Every record notes which agent wrote it, so you can compare their work, and two agents can share one library as long as only one writes at a time.
 
 The setup guide separates what the system actually needs from choices one installation happened to make: where the library and runtime state live, native or WSL media tools, and API or local transcription. The [decision matrix](plugin/docs/setup-choices.md) lays out the options.
 

@@ -4,6 +4,14 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-12 - Claude Code adapter: the engine folder is an option
+
+Why: installing the plugin showed that Claude Code copies a local plugin folder into `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` and runs it from there. The manifest launched `${CLAUDE_PLUGIN_ROOT}/../dist/mcp.js`, which pointed into the cache, where there's no engine, so the server could never have started. The validator passed because it doesn't launch anything.
+
+- `plugin/.claude-plugin/plugin.json`: a required `engine_dir` option, and the server runs `${user_config.engine_dir}/dist/mcp.js`. `scripts/package-plugin.mjs` checks for that path.
+- Setup, the AI setup guide, both READMEs and MAINTENANCE: the engine folder is one of the options, the install commands are the terminal ones, and a change to the skill or guides needs a version bump and `claude plugin update` before Claude Code sees it. A pull and rebuild still reaches the engine at the next session.
+- No engine, schema or library change.
+
 ### 2026-10-12 - FalkorDB removed
 
 Why: the owner decided D26. Nothing answered from FalkorDB: recall, brief, connect and invent already followed links in memory. Only the hidden `kb_retrieve` routes, reindex and purge still touched it, and on Windows it was the only reason to install WSL2 and run a Linux database service.

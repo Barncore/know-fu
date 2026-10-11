@@ -4,6 +4,12 @@ The local development installation is Windows with CPU QMD. Until 12 October 202
 
 Entries run newest first. Each one says what was shown and what wasn't. Older entries are kept as written.
 
+## 2026-10-12: Claude Code install
+
+Shown on this machine: `claude plugin marketplace add` and `claude plugin install know-fu@know-fu` succeeded on Claude Code 2.1.296, and the installed copy sits in `~/.claude/plugins/cache/know-fu/know-fu/1.2.0/` with only the plugin folder's contents. That copy is why the old `../dist/mcp.js` launch couldn't work. `claude plugin validate` passes on the fixed manifest. Started the way the manifest now starts it (`node <engine folder>/dist/mcp.js` with the plugin's environment, a throwaway library and state folder, and the specialist tools off), the engine answered an MCP `initialize` and listed its 11 everyday tools.
+
+Not shown: a Claude Code session starting the server, because the library, state and media options aren't set until the pilot library exists. The skill firing in a bound project, and any real ingest by Claude Code, are also still to come.
+
 ## 2026-10-12: FalkorDB removed
 
 What was shown, on the engine's automated tests only:

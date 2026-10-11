@@ -10,6 +10,12 @@
   "repository": "https://github.com/Barncore/know-fu",
   "keywords": ["research", "knowledge", "library", "mcp"],
   "userConfig": {
+    "engine_dir": {
+      "type": "directory",
+      "title": "Engine folder",
+      "description": "The Know Fu repository checkout this plugin was installed from, built with npm ci and npm run build. Claude Code runs a cached copy of the plugin folder, so the engine is found here.",
+      "required": true
+    },
     "library_dir": {
       "type": "directory",
       "title": "Library folder",
@@ -45,7 +51,7 @@
   "mcpServers": {
     "know-fu": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/../dist/mcp.js"],
+      "args": ["${user_config.engine_dir}/dist/mcp.js"],
       "env": {
         "KB_CORPUS": "${user_config.library_dir}",
         "KB_STATE_DIR": "${user_config.state_dir}",

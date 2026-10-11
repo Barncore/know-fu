@@ -2,6 +2,10 @@
 
 Things this project learned the hard way, newest first. Each one says what happened and what to do differently.
 
+## 2026-10-12 - Install a plugin before trusting its paths
+
+The Claude Code adapter passed the plugin validator on 7 October and launched its engine at `${CLAUDE_PLUGIN_ROOT}/../dist/mcp.js`. Claude Code runs a cached copy of a local plugin, not the source folder, so that path pointed at nothing, and the validator never launches a server to find out. The first real install showed it. Before relying on any path relative to a plugin root, install the plugin and look at where it actually landed.
+
 ## 2026-10-12 - When a component's job moves, decide its future then
 
 Version 1.2.0 moved link-following into the engine on 5 October, and FalkorDB stayed "optional for now". For a week it kept costing every new install a WSL2 service and a password file. A reindex without it was logged as incomplete, and the code that talked to it only ever ran against stand-ins in the tests. Only a hidden comparison tool and a purge still used it. When a rebuild takes over a component's work, decide then whether the component stays, and write down what would make it worth bringing back.
