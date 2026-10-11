@@ -4,6 +4,14 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-11 - No set voice for doc work
+
+Why: the owner removed the "Writing docs" section from AGENTS.md. MAINTENANCE.md still described that voice and sent readers to the removed section.
+
+- AGENTS.md: the "Writing docs" section is gone.
+- MAINTENANCE.md: the voice description and its pointer to AGENTS.md are gone. The rule that past change log entries and earlier validation records stay as written remains.
+- Documentation only.
+
 ### 2026-10-07 - Branch rule: keep staging level with main
 
 Why: the owner withdrew the rule from earlier the same day that left `staging` behind when pushing to `main`, once it was clear that git keeps every earlier version anyway.

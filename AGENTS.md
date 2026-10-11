@@ -2,12 +2,6 @@
 
 Start with `docs/NORTH_STAR.md` before you change architecture, ingestion, retrieval or evaluation. It holds what the product is for and every decision the owner has made. `docs/ROADMAP.md` has the task list and the failure modes worth watching. For what the system does today, trust the schemas in `contracts/schemas/` and the code in `src/`; for what has actually been shown to work, trust `docs/VALIDATION.md`. An approved plan is not evidence that it works.
 
-## Writing docs
-
-Write docs the way you'd explain the project to a sharp colleague out loud: conversational, specific, with a view where a choice was made, and a little personality. Mix short sentences with longer ones that carry a fact and its consequence. Use the real names of files, tools and fields, and real numbers. Headings can say something ("Where it chokes") rather than just label a section. The owner settled on this voice on 5 October 2026, after finding a plain, stripped-down version dull next to an explainer written in it.
-
-Accuracy still comes first. If you can't confirm a fact, keep the existing wording rather than guess. Lookup material, such as field tables and schema lists, can stay dry. Leave past change log entries and earlier validation records as they were written. This is not the owner's personal writing voice: don't load a personal writing skill for repository docs, and keep the owner's name and personal details out of them.
-
 ## Installing
 
 For installation requests, start with `plugin/docs/setup-ai.md`. Offer the options, ask where the library and state should live before initializing anything, keep choices the owner already made, and be clear about which alternatives are configurable but untested.

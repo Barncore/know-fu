@@ -19,7 +19,7 @@ Regenerate the plugin's contract copies after changing an engine schema or the t
 
 Every finished change gets a dated change log entry. A code-only fix with nothing for users to read can say "Documentation impact: none" with a reason, and reviewers should actually judge that reason rather than wave it through.
 
-The docs are written in a conversational voice: the way you'd explain the project to a sharp colleague, with real names, real numbers and a view where a choice was made. The owner settled on it on 5 October 2026. [AGENTS.md](../AGENTS.md) has the details. Past change log entries and earlier validation records stay as they were written, because they're history.
+Past change log entries and earlier validation records stay as they were written, because they're history.
 
 The first commit summarized earlier local development rather than inventing a fake history. The repository has been public since 30 September 2026. Private evidence stays local, and no open-source license has been chosen yet.
 
