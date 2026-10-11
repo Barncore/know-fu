@@ -33,7 +33,7 @@ Measured on the development machine (Windows 11) on 12 October 2026, as space on
 | QMD's embedding model, downloaded at the first reindex | Search by meaning | `<state>/cache/qmd/models` | 318 MB |
 | QMD's reranker, downloaded only if you turn on `rerank` | Optional reranking | `<state>/cache/qmd/models` | 610 MB |
 | The search index | Search | `<state>/cache/qmd` | 3-4 MB for each small test library |
-| FFmpeg and FFprobe | Video and audio only | Its own install, or inside WSL | Not measured |
+| FFmpeg and FFprobe (the gyan.dev Essentials build, through winget) | Video and audio only | Its own install, or inside WSL | 307 MB, of which `ffplay` is 100 MB that Know Fu doesn't use |
 
 For books and papers that comes to about 3 GB, before the library itself. The library grows with what you ingest: every source keeps its original file and its page images, alongside the records and their prose.
 

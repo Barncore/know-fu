@@ -13,6 +13,7 @@ Why: setting up the Claude Code pilot library turned up four snags. Creating a l
 - Engine: `projectKey` and `sameProject` in `core.ts`. Windows paths (drive letter or UNC) compare the same whatever their slashes or letter case; anything else compares exactly. Scope, and `kb_maintain configure`'s binding lookup and duplicate check, use it. Evaluation manifests still match their project exactly. `SCOPE_DENIED` for an unbound project now carries `details.project`.
 - Docs: `setup-ai.md` is now a seven-phase walkthrough: look around, ask the choices with the agent's question tool (`AskUserQuestion` in Claude Code, `request_user_input` in Codex's Plan mode), build, converters, library, connect each agent, prove it and hand over. `setup.md` becomes the reference, with a table of what each dependency costs on disk and a table of the engine's environment variables. The README and AGENTS.md point at the walkthrough.
 - Tests: one added, for Windows project spellings. With the converter environment in place, all 158 run and pass.
+- The size table's FFmpeg row is measured: the Essentials build takes 307 MB.
 - No schema or library change. Existing bindings keep working, and a Windows binding now also matches its other spellings.
 
 ### 2026-10-12 - Claude Code adapter: the engine folder is an option
