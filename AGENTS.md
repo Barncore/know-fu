@@ -4,7 +4,7 @@ Start with `docs/NORTH_STAR.md` before you change architecture, ingestion, retri
 
 ## Installing
 
-For installation requests, start with `plugin/docs/setup-ai.md`. Offer the options, ask where the library and state should live before initializing anything, keep choices the owner already made, and be clear about which alternatives are configurable but untested.
+For installation requests, follow `plugin/docs/setup-ai.md` phase by phase. Ask the choices with your question tool before initializing anything, keep choices the owner already made, and be clear about which alternatives are configurable but untested.
 
 ## Changing the engine
 

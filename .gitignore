@@ -23,6 +23,7 @@
 /plugin/.mcp.json
 /scripts/*
 !/scripts/configure-plugin.mjs
+!/scripts/create-library.mjs
 !/scripts/install-plugin.mjs
 !/scripts/package-plugin.mjs
 !/scripts/check-release.mjs

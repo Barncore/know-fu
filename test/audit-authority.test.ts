@@ -12,6 +12,7 @@ import {
   ref,
   uid,
   VERSION,
+  sameProject,
   type RecordData,
   type ProposalData,
 } from "../src/core.js";
@@ -319,5 +320,31 @@ test("a partial purge cannot resume after its executor loses write permission", 
   assert.equal(
     (await life.execute(plan.plan_id, authorization)).plan.state,
     "complete",
+  );
+});
+
+test("a Windows project path matches its binding whatever the slashes or letter case", async () => {
+  assert(sameProject("P:\\Pilot\\Claude", "P:/Pilot/Claude"));
+  assert(sameProject("p:/pilot/claude/", "P:\\Pilot\\Claude"));
+  assert(sameProject("\\\\server\\share\\x", "//server/share/x"));
+  assert(sameProject("C:\\", "c:/"));
+  assert(!sameProject("P:/Pilot/Claude", "P:/Pilot/Codex"));
+  assert(!sameProject("/home/a/Research", "/home/a/research"));
+  assert(!sameProject("specification_review", "Specification_Review"));
+  const f = await published("audit-windows-project-spelling");
+  const config = await f.store.config();
+  const own = config.project_bindings[0];
+  config.project_bindings.push({
+    project_id: "P:\\Pilot\\Claude",
+    read_modules: own.read_modules,
+    write_modules: [],
+  });
+  await atomic(f.store.p("corpus.json"), json(config));
+  const claude = new Store(f.store.root, "P:/Pilot/Claude", f.store.ledgerRoot);
+  assert.deepEqual((await claude.scope()).read_modules, own.read_modules);
+  await assert.rejects(
+    () => new Store(f.store.root, "P:/Pilot/Other", f.store.ledgerRoot).scope(),
+    (e: any) =>
+      e.code === "SCOPE_DENIED" && e.details?.project === "P:/Pilot/Other",
   );
 });

@@ -32,6 +32,7 @@ import {
   subset,
   emptyAssessment,
   STATE,
+  sameProject,
 } from "./core.js";
 import type {
   RecordData,
@@ -226,10 +227,13 @@ export class Store {
 
   async scope(request?: Scope) {
     const config = await this.config();
-    const binding = config.project_bindings.find(
-      (binding) => binding.project_id === this.project,
+    const binding = config.project_bindings.find((binding) =>
+      sameProject(binding.project_id, this.project),
     );
-    ensure(binding, "SCOPE_DENIED", "Project is not bound to this corpus");
+    // Name the identity that failed: a binding is an exact string, so a path written differently is the usual cause.
+    ensure(binding, "SCOPE_DENIED", "Project is not bound to this corpus", {
+      project: this.project,
+    });
     const permitted = {
       read_modules: binding.read_modules,
       write_modules: binding.write_modules,

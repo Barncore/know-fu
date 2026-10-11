@@ -58,6 +58,12 @@ def poppler_pages(source, output, page_count, layout=False, executable=None):
     executable = executable or os.environ.get('KB_PDFTOTEXT') or shutil.which('pdftotext')
     if not executable:
         raise RuntimeError('Poppler pdftotext is required by the PDF policy; install it or set KB_PDFTOTEXT.')
+    # Git for Windows puts Xpdf's pdftotext on PATH. It can't read stdin, and its failure says nothing useful.
+    banner = subprocess.run([executable, '-v'], capture_output=True, timeout=20)
+    banner = (banner.stderr or banner.stdout).decode('utf-8', errors='replace')
+    if 'poppler' not in banner.lower():
+        raise RuntimeError(f'{executable} is not Poppler pdftotext (Git for Windows ships Xpdf\'s). Set KB_PDFTOTEXT, or "pdftotext" in the state folder\'s config.json, to Poppler\'s.')
+    tool_version = banner.splitlines()[0]
     file = output / ('poppler-layout.txt' if layout else 'poppler-flow.txt')
     args = [executable, '-enc', 'UTF-8', '-eol', 'unix']
     if layout:
@@ -72,8 +78,6 @@ def poppler_pages(source, output, page_count, layout=False, executable=None):
         pages.pop()
     if len(pages) != page_count:
         raise RuntimeError(f'Poppler page-boundary count {len(pages)} differs from original PDF count {page_count}.')
-    result = subprocess.run([executable, '-v'], capture_output=True, timeout=20)
-    tool_version = (result.stderr or result.stdout).decode('utf-8', errors='replace').splitlines()[0]
     return pages, file, tool_version
 
 

@@ -8,7 +8,14 @@ Entries run newest first. Each one says what was shown and what wasn't. Older en
 
 Shown on this machine: `claude plugin marketplace add` and `claude plugin install know-fu@know-fu` succeeded on Claude Code 2.1.296, and the installed copy sits in `~/.claude/plugins/cache/know-fu/know-fu/1.2.0/` with only the plugin folder's contents. That copy is why the old `../dist/mcp.js` launch couldn't work. `claude plugin validate` passes on the fixed manifest. Started the way the manifest now starts it (`node <engine folder>/dist/mcp.js` with the plugin's environment, a throwaway library and state folder, and the specialist tools off), the engine answered an MCP `initialize` and listed its 11 everyday tools.
 
-Not shown: a Claude Code session starting the server, because the library, state and media options aren't set until the pilot library exists. The skill firing in a bound project, and any real ingest by Claude Code, are also still to come.
+Later the same night, the pilot library was created and the plugin's options set:
+
+- The converter environment was built with uv (Python 3.12.13, Docling 2.130.0, CPU PyTorch 2.14.0), and the 3 Python conversion tests, which convert a real PDF and EPUB, passed against it. The full suite is now 158 tests, all passing.
+- `claude mcp list`, run from the project folder, showed the plugin's server as connected, started from the configured engine folder.
+- A headless Claude Code session in the project folder called `kb_status`. The first call failed with `SCOPE_DENIED`: Claude Code had passed the folder with forward slashes, and the binding was written with backslashes, the way Codex passes it. After `sameProject`, the same call reported the library, the state folder and read and write access to its module.
+- `scripts/create-library.mjs` refused the Xpdf `pdftotext` on PATH, created a test library when given Poppler's, refused a second run over it, and served `kb_status` to a forward-slash spelling of its backslash binding.
+
+Not shown: the skill firing in an interactive session, the tool list as a session sees it, and any real ingest by Claude Code. The pilot's first run covers those.
 
 ## 2026-10-12: FalkorDB removed
 

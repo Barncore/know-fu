@@ -296,6 +296,23 @@ export function refs(value: unknown): Ref[] {
 export function uniqueRefs(list: Ref[]) {
   return [...new Map(list.map((r) => [key(r), ref(r)])).values()];
 }
+const windowsPath = /^(?:[a-zA-Z]:[\\/]|[\\/]{2}[^\\/])/;
+
+/**
+ * A project's identity in one form. Windows paths (drive letter or UNC) name the same folder whatever
+ * the slashes or letter case, and Claude Code passes `P:/a` where Codex passes `P:\a`, so they compare
+ * normalized. Any other identity compares exactly.
+ */
+export function projectKey(id: string) {
+  if (!windowsPath.test(id)) return id;
+  const key = path.win32.normalize(id).toLowerCase();
+  return /^[a-z]:\\$/.test(key) ? key : key.replace(/\\+$/, "");
+}
+
+export function sameProject(a: string, b: string) {
+  return projectKey(a) === projectKey(b);
+}
+
 export function recordRefs(r: RecordData) {
   return uniqueRefs([
     ...r.provenance.source_refs,

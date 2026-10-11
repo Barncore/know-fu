@@ -14,6 +14,7 @@ import {
   objectPath,
   validate,
   withLock,
+  sameProject,
 } from "./core.js";
 import type { Ref, RecordData } from "./core.js";
 export class Governance {
@@ -44,8 +45,8 @@ export class Governance {
           "Module already exists",
         );
         config.modules.push(input.module);
-        const binding = config.project_bindings.find(
-          (b) => b.project_id === this.store.project,
+        const binding = config.project_bindings.find((b) =>
+          sameProject(b.project_id, this.store.project),
         )!;
         binding.read_modules.push(input.module.module_id);
         binding.write_modules.push(input.module.module_id);
@@ -63,7 +64,9 @@ export class Governance {
           "Binding modules must exist and writes require reads",
         );
         ensure(
-          !config.project_bindings.some((x) => x.project_id === b.project_id),
+          !config.project_bindings.some((x) =>
+            sameProject(x.project_id, b.project_id),
+          ),
           "REVISION_CONFLICT",
           "Project already bound; edit requires an explicit replacement plan",
         );

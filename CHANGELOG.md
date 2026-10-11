@@ -4,6 +4,17 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-12 - A setup walkthrough, a library script and Windows project paths
+
+Why: setting up the Claude Code pilot library turned up four snags. Creating a library meant hand-writing a corpus JSON full of escaped paths. Claude Code passes the project folder with forward slashes while Codex passes backslashes, so a binding written one way refused the other agent. The `pdftotext` Git for Windows puts on PATH is Xpdf's, not Poppler's. And `SCOPE_DENIED` didn't say which project it had received. The owner also asked for a setup an AI can walk someone through, with choices asked through the agent's question tool, and for the size of each dependency.
+
+- `scripts/create-library.mjs`: creates a library with one `research` module, its domains and one bound project folder, runs `init`, and writes `<state>/config.json` with the converter and Poppler paths. It refuses a `pdftotext` that isn't Poppler's, and refuses to touch an existing library or config.
+- PDF conversion checks that its `pdftotext` is Poppler's before using it, and says so plainly when it isn't. Xpdf's failed with a bare exit status 99, because it can't read a PDF from stdin.
+- Engine: `projectKey` and `sameProject` in `core.ts`. Windows paths (drive letter or UNC) compare the same whatever their slashes or letter case; anything else compares exactly. Scope, and `kb_maintain configure`'s binding lookup and duplicate check, use it. Evaluation manifests still match their project exactly. `SCOPE_DENIED` for an unbound project now carries `details.project`.
+- Docs: `setup-ai.md` is now a seven-phase walkthrough: look around, ask the choices with the agent's question tool (`AskUserQuestion` in Claude Code, `request_user_input` in Codex's Plan mode), build, converters, library, connect each agent, prove it and hand over. `setup.md` becomes the reference, with a table of what each dependency costs on disk and a table of the engine's environment variables. The README and AGENTS.md point at the walkthrough.
+- Tests: one added, for Windows project spellings. With the converter environment in place, all 158 run and pass.
+- No schema or library change. Existing bindings keep working, and a Windows binding now also matches its other spellings.
+
 ### 2026-10-12 - Claude Code adapter: the engine folder is an option
 
 Why: installing the plugin showed that Claude Code copies a local plugin folder into `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` and runs it from there. The manifest launched `${CLAUDE_PLUGIN_ROOT}/../dist/mcp.js`, which pointed into the cache, where there's no engine, so the server could never have started. The validator passed because it doesn't launch anything.

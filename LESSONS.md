@@ -2,6 +2,10 @@
 
 Things this project learned the hard way, newest first. Each one says what happened and what to do differently.
 
+## 2026-10-12 - Two agents can name one folder two ways
+
+The pilot library was bound to its folder with backslashes, the way Codex passes it, and Claude Code's first call was refused: Claude Code passes the same folder with forward slashes. The error didn't say which project it had received, so the cause took a code change to see. Compare identities that the outside world spells in more than one way in a normalized form, and make every refusal name the value it refused.
+
 ## 2026-10-12 - Install a plugin before trusting its paths
 
 The Claude Code adapter passed the plugin validator on 7 October and launched its engine at `${CLAUDE_PLUGIN_ROOT}/../dist/mcp.js`. Claude Code runs a cached copy of a local plugin, not the source folder, so that path pointed at nothing, and the validator never launches a server to find out. The first real install showed it. Before relying on any path relative to a plugin root, install the plugin and look at where it actually landed.
