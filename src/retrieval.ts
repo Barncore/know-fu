@@ -596,6 +596,8 @@ export class Retrieval {
     await atomic(
       this.store.p(`retrieval-receipts/${packet.request_id}.json`),
       json({
+        // The real calling folder and agent, never a stand-in.
+        ...(await this.store.caller()),
         request_id: packet.request_id,
         release_id: packet.release_id,
         query_hash: hash(input.query),

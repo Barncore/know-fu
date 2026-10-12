@@ -33,6 +33,16 @@
       "type": "string",
       "minLength": 1
     },
+    "project": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional. The calling project folder, as the launcher passed it (KB_PROJECT)."
+    },
+    "agent": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional. The agent the engine worked for (KB_ACTOR), or unspecified."
+    },
     "record_refs": {
       "type": "array",
       "items": {

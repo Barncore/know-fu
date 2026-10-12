@@ -132,6 +132,12 @@ export class Evaluation {
     conditions = ["no_kb", "source_passages", "full_kb"],
     options?: EvaluationOptions,
   ) {
+    // Evaluation is administration; libraries without an access policy keep their old rule.
+    await this.store.requireAccess("administer", {
+      whole: true,
+      operation: "kb_evaluate",
+      policyOnly: true,
+    });
     ensure(
       cases?.length && model,
       "VALIDATION_FAILED",
@@ -419,6 +425,11 @@ export class Evaluation {
     };
   }
   async run(id: string) {
+    await this.store.requireAccess("administer", {
+      whole: true,
+      operation: "kb_evaluate",
+      policyOnly: true,
+    });
     return withLock(this.dir(id), "run", () => this.runLocked(id));
   }
   private async runLocked(id: string) {
@@ -878,6 +889,11 @@ export class Evaluation {
     }
   }
   async report(id: string) {
+    await this.store.requireAccess("administer", {
+      whole: true,
+      operation: "kb_evaluate",
+      policyOnly: true,
+    });
     const dir = this.dir(id);
     const manifest = await readJson(path.join(dir, "manifest.json"));
     ensure(

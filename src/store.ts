@@ -32,8 +32,15 @@ import {
   subset,
   emptyAssessment,
   STATE,
-  sameProject,
 } from "./core.js";
+import {
+  denial,
+  holds,
+  resolveAccess,
+  type Access,
+  type Need,
+  type WriteCapability,
+} from "./access.js";
 import type {
   RecordData,
   CorpusData,
@@ -225,36 +232,122 @@ export class Store {
     return config;
   }
 
-  async scope(request?: Scope) {
-    const config = await this.config();
-    const binding = config.project_bindings.find((binding) =>
-      sameProject(binding.project_id, this.project),
-    );
+  /**
+   * What the calling folder may do, from its binding, a binding of a folder that contains it,
+   * or the library's any-folder default. Refuses a folder with no access at all.
+   */
+  async access(): Promise<Access> {
+    return this.resolve(await this.config());
+  }
+  private resolve(config: CorpusData) {
+    const access = resolveAccess(config, this.project);
     // Name the identity that failed: a binding is an exact string, so a path written differently is the usual cause.
-    ensure(binding, "SCOPE_DENIED", "Project is not bound to this corpus", {
-      project: this.project,
-    });
-    const permitted = {
-      read_modules: binding.read_modules,
-      write_modules: binding.write_modules,
-      source_refs: config.default_scope.source_refs,
-    };
-    return request ? subset(request, permitted) : permitted;
+    if (!access) throw denial(null, config, this.project, "read");
+    return access;
   }
 
-  async requireFullScope(write = false) {
-    const scope = await this.scope(),
-      config = await this.config();
-    ensure(
-      !scope.source_refs.length &&
-        config.modules.every(
-          (m) =>
-            scope.read_modules.includes(m.module_id) &&
-            (!write || scope.write_modules.includes(m.module_id)),
-        ),
-      "SCOPE_DENIED",
-      "This whole-library operation requires unrestricted corpus-wide access",
+  /** A refusal for this caller that says what it can do and where the refused work is done. */
+  async deny(
+    need: Need,
+    options: { module?: string; whole?: boolean; operation?: string } = {},
+  ) {
+    const config = await this.config();
+    return denial(
+      resolveAccess(config, this.project),
+      config,
+      this.project,
+      need,
+      options,
     );
+  }
+
+  /**
+   * The caller's permitted scope for one capability, narrowed to `request` when given.
+   * `write_modules` holds the modules where the caller holds that capability; the default,
+   * author, is what a binding's `write_modules` has always meant.
+   */
+  async scope(request?: Scope, capability: WriteCapability = "author") {
+    const config = await this.config();
+    const access = this.resolve(config);
+    const permitted = {
+      read_modules: access.read,
+      write_modules: access[capability],
+      source_refs: config.default_scope.source_refs,
+    };
+    if (!request) return permitted;
+    const unread = request.read_modules.find(
+      (m) => !permitted.read_modules.includes(m),
+    );
+    // The request may come from a stored job, plan or manifest rather than the caller, so a
+    // refusal names a module only when the caller can read it.
+    if (unread !== undefined) throw await this.deny("read");
+    const unwritable = request.write_modules.find(
+      (m) => !permitted.write_modules.includes(m),
+    );
+    if (unwritable !== undefined)
+      throw await this.deny(
+        capability,
+        permitted.read_modules.includes(unwritable)
+          ? { module: unwritable }
+          : {},
+      );
+    return subset(request, permitted);
+  }
+
+  /**
+   * Checks a requirement before an operation starts. `policyOnly` marks a rule that
+   * libraries without an access policy never had; they skip it and behave as before.
+   */
+  async requireAccess(
+    need: Need,
+    options: {
+      module?: string;
+      whole?: boolean;
+      operation?: string;
+      policyOnly?: boolean;
+    } = {},
+  ) {
+    const config = await this.config();
+    const access = this.resolve(config);
+    if (options.policyOnly && !access.policy) return access;
+    const modules = options.whole
+      ? "all"
+      : options.module
+        ? [options.module]
+        : "any";
+    if (!holds(access, need, modules, config))
+      throw await this.deny(need, options);
+    return access;
+  }
+
+  /**
+   * Whole-library operations. "read" (verify, export, formats) needs every module readable
+   * with no source restriction, and with an access policy also administer on every module.
+   * "administer" (restore, resuming an old purge) needs administer on every module.
+   */
+  async requireFullScope(need: "read" | "administer" = "read") {
+    const config = await this.config(),
+      access = this.resolve(config),
+      scope = await this.scope(
+        undefined,
+        need === "administer" ? "administer" : "author",
+      );
+    const every = (modules: string[]) =>
+      config.modules.every((m) => modules.includes(m.module_id));
+    if (
+      scope.source_refs.length ||
+      !every(access.read) ||
+      ((need === "administer" || access.policy) && !every(access.administer))
+    ) {
+      const error = await this.deny(
+        need === "administer" || access.policy ? "administer" : "read",
+        { whole: true },
+      );
+      error.message =
+        "This whole-library operation requires unrestricted corpus-wide access. " +
+        error.message;
+      throw error;
+    }
     return scope;
   }
 
@@ -265,6 +358,16 @@ export class Store {
       "SCOPE_DENIED",
       "Existing record or its evidence is outside the caller's writable/readable scope",
     );
+  }
+
+  /** Who is calling, for receipts: the real folder, the agent, and how access was found. */
+  async caller() {
+    const access = await this.access();
+    return {
+      project: this.project,
+      agent: agentName(),
+      access_via: access.via,
+    };
   }
 
   // A purge can delete the records needed for its own authorization check.
@@ -556,6 +659,7 @@ export class Store {
     release: string | null = null,
     outcome = "completed",
     eventId = uid("event-"),
+    caller: { project?: string; agent?: string } = {},
   ) {
     if (await exists(this.p(`audit/events/${eventId}.json`))) {
       await this.renderAudit();
@@ -569,6 +673,9 @@ export class Store {
       operation,
       description,
       actor: "know-fu",
+      // The real calling folder and agent, so a later reader can tell who did what.
+      project: caller.project ?? this.project,
+      agent: caller.agent ?? agentName(),
       record_refs: affected,
       before_release: null,
       after_release: release,
@@ -692,6 +799,7 @@ export class Store {
         current,
         "completed",
         journal.event_id,
+        journal.caller,
       );
     }
     await fs.rm(this.p("publication.json"), { force: true });
@@ -699,9 +807,10 @@ export class Store {
   async compile(
     proposal: ProposalData,
     existingStaged: RecordData[] = [],
+    capability: WriteCapability = "author",
   ): Promise<Materialized> {
     await validate("proposal", proposal);
-    const scope = await this.scope(proposal.scope_policy);
+    const scope = await this.scope(proposal.scope_policy, capability);
     ensure(
       (await this.current()) === proposal.base_release,
       "REVISION_CONFLICT",
@@ -1222,6 +1331,7 @@ export class Store {
     scope: Scope,
     receipts: string[] = [],
     omitIds: string[] = [],
+    capability: WriteCapability = "author",
   ) {
     return withLock(this.root, "publish", async () => {
       await this.recover();
@@ -1235,7 +1345,7 @@ export class Store {
       await this.validateRecords(
         records,
         bodies,
-        await this.scope(scope),
+        await this.scope(scope, capability),
         base,
       );
       for (const r of records) {
@@ -1313,7 +1423,14 @@ export class Store {
       const event_id = uid("event-");
       await atomic(
         this.p("publication.json"),
-        json({ release, changed_refs: records.map(ref), event_id, impacts }),
+        json({
+          release,
+          changed_refs: records.map(ref),
+          event_id,
+          impacts,
+          // Recovery may run in another folder's session; the audit event names the publisher.
+          caller: { project: this.project, agent: agentName() },
+        }),
       );
       await immutable(
         this.p(`releases/${release.release_id}.json`),

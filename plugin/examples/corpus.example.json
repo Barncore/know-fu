@@ -6,5 +6,6 @@
   "modules": [{"module_id":"research","title":"Research","description":"Specialized source-grounded knowledge."}],
   "domains": [{"domain_id":"audio","title":"Audio"}],
   "default_scope": {"read_modules":["research"],"write_modules":["research"],"source_refs":[]},
-  "project_bindings": [{"project_id":"C:/Research","read_modules":["research"],"write_modules":["research"]}]
+  "project_bindings": [{"project_id":"C:/Research","read_modules":["research"],"write_modules":["research"]}],
+  "access": {"home_project":"C:/Research","any_project":{"read_modules":["research"],"save_modules":["research"],"author_modules":[]}}
 }

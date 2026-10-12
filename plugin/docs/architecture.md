@@ -149,7 +149,7 @@ Connect searches the same link map. Give it two endpoints and it runs a best-fir
 
 ### kb_file
 
-A filed answer goes through the normal proposal compiler and publishes without an ingestion job. Its provenance method is `filed_answer`, its inputs are the exact revisions it cites, and its sources are theirs, so it can never count as an extra source. When any cited revision changes, knowledge impact marks it pending like any other dependent account.
+A filed answer goes through the normal proposal compiler and publishes without an ingestion job. Filing needs the save capability, which a library's `access` setting can give to every folder, so answers can be kept from the project where they were worked out. Its provenance method is `filed_answer`, its inputs are the exact revisions it cites, and its sources are theirs, so it can never count as an extra source. When any cited revision changes, knowledge impact marks it pending like any other dependent account.
 
 ## Ideas
 
@@ -196,6 +196,10 @@ Search runs through QMD's SDK in a reusable local worker that closes its databas
 
 ## Scope and recovery
 
-One library can hold several maintenance modules and domain tags. Project bindings decide which modules a calling project may read or write. These are checks inside the application, not an operating-system security boundary against someone with direct file access. Cross-domain use stays scoped rather than blending everything into universal advice.
+One library can hold several maintenance modules and domain tags. The calling folder (`KB_PROJECT`, the chat's folder) decides what a call may do, per module, in four capabilities: read; save (`kb_file`, and `kb_idea` writes); author (ingestion, notes, proposals, jobs); and administer (configuration, lifecycle, import, restore, whole-library verify and export, evaluation). `src/access.ts` holds the one table of what each tool call needs, and every write also checks inside its own operation.
+
+A folder gets its capabilities from, in order: its own binding in `project_bindings`; with an `access` setting, the binding of the closest folder that contains it; with an `access` setting, the library's default for folders without a binding (`access.any_project`), which never administers; otherwise nothing. A binding's `write_modules` means save, author and administer unless the optional `save_modules`, `author_modules` and `administer_modules` split them. `access.home_project` is the library's home folder, where ingestion and administration happen by default. Libraries without an `access` setting keep the older rules: exact folder matching, and nothing for an unbound folder.
+
+Refusals keep the code `SCOPE_DENIED` and say what the folder can do, how it got that, and where the refused work is done, naming the home folder but never another folder's binding. `kb_status` shows the full configuration only to a folder that administers every module, and gives every caller an `access` block describing its own access. Retrieval receipts and audit events record the real calling folder and agent; the engine never substitutes another identity. These are checks inside the application, not an operating-system security boundary against someone with direct file access. Read access also lets material leave the library: an answer read in a chat can end up in that chat's files, where a later purge can't reach it. Cross-domain use stays scoped rather than blending everything into universal advice.
 
 Keep the library together with its deletion ledger, which lives under the state folder's `ledgers/` (by default the engine's `.runtime/ledgers/`). The ledger sits outside the library on purpose: restoring an old library can't quietly bring back knowledge you purged. It blocks whole ids, and also exact historical revisions (`blocked_refs`): when an account was revised to independent material before its source was purged, the current revision stays, and the earlier source-derived revisions are deleted and refused. And the generated wiki and search index are not a backup. [Setup](setup.md) covers the rest.

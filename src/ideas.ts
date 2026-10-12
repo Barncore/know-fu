@@ -14,6 +14,7 @@ import {
 } from "./core.js";
 import type { ProposalData, RecordData, Ref, Scope } from "./core.js";
 import { parseRef } from "./filing.js";
+import { denial, resolveAccess } from "./access.js";
 import { summary } from "./navigation.js";
 import {
   decisiveResult,
@@ -251,7 +252,10 @@ export class Ideas {
     const authorization = this.authorize(input);
     const plan = await this.store.withReadSession(async () => {
       const index = await LibraryIndex.open(this.store, {});
-      const scope = await this.store.scope();
+      const scope = await this.store.scope(undefined, "save");
+      // Refuse at the first unwritable module, before later checks, as before the access split.
+      const config = await this.store.config();
+      const access = resolveAccess(config, this.store.project);
       const items = drafts.map((draft, i) => {
         const where = drafts.length > 1 ? `Idea ${i + 1}` : "Idea";
         const statement = text(draft.statement);
@@ -291,11 +295,11 @@ export class Ideas {
           "VALIDATION_FAILED",
           `${where}: its premises span several modules; name the module it belongs to`,
         );
-        ensure(
-          scope.write_modules.includes(module),
-          "SCOPE_DENIED",
-          "This project cannot write to that module",
-        );
+        if (!scope.write_modules.includes(module))
+          throw denial(access, config, this.store.project, "save", {
+            module,
+            operation: "kb_idea propose",
+          });
         const domains = draft.domains?.length
           ? draft.domains
           : input.domains?.length
@@ -359,7 +363,7 @@ export class Ideas {
       },
       items: plan.items,
     } as unknown as ProposalData;
-    const compiled = await this.store.compile(proposal);
+    const compiled = await this.store.compile(proposal, [], "save");
     for (const r of compiled.records) r.provenance.method = "idea";
     if (input.dry_run)
       return {
@@ -376,6 +380,9 @@ export class Ideas {
         .join("; ")
         .slice(0, 300)}`,
       proposal.scope_policy,
+      [],
+      [],
+      "save",
     );
     const briefing = [
       `Recorded ${compiled.records.length} idea${compiled.records.length > 1 ? "s" : ""} in release ${published.release_id}. They stay out of recall except purpose invent.`,
@@ -404,7 +411,7 @@ export class Ideas {
     const authorization = this.authorize(input);
     const plan = await this.store.withReadSession(async () => {
       const index = await LibraryIndex.open(this.store, {});
-      const scope = await this.store.scope();
+      const scope = await this.store.scope(undefined, "save");
       const raw = typeof input.idea === "string" ? input.idea.trim() : null;
       const reference =
         raw && !raw.includes("@")
@@ -416,11 +423,11 @@ export class Ideas {
         "VALIDATION_FAILED",
         `${key(reference)} is not the current revision of an idea in your scope`,
       );
-      ensure(
-        scope.write_modules.includes(idea.maintenance_module),
-        "SCOPE_DENIED",
-        "This project cannot write to that idea's module",
-      );
+      if (!scope.write_modules.includes(idea.maintenance_module))
+        throw await this.store.deny("save", {
+          module: idea.maintenance_module,
+          operation: `kb_idea ${action}`,
+        });
       const old = idea.payload as IdeaPayload;
       const p: IdeaPayload = structuredClone(old);
       // Any new revision counts as looking at the idea again, so premises move to their
@@ -609,7 +616,7 @@ export class Ideas {
         },
       ],
     } as unknown as ProposalData;
-    const compiled = await this.store.compile(proposal);
+    const compiled = await this.store.compile(proposal, [], "save");
     const record = compiled.records[0];
     record.provenance.method = "idea";
     if (input.dry_run)
@@ -624,6 +631,9 @@ export class Ideas {
       plan.index.current,
       `Idea ${action}: ${record.title}`.slice(0, 300),
       proposal.scope_policy,
+      [],
+      [],
+      "save",
     );
     const p = record.payload as IdeaPayload;
     return {

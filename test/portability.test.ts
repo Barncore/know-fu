@@ -45,29 +45,124 @@ test("WSL media honors the selected distribution and avoids shell interpretation
 test("plugin configuration records chosen paths and refuses to overwrite another configuration", async () => {
   const dir = path.join(APP, "test-output", uid("setup-"));
   await fs.mkdir(dir, { recursive: true });
-  const file = path.join(dir, "mcp.json"),
-    args = [
+  const settings = path.join(dir, "config.json"),
+    launcher = path.join(dir, "mcp.json"),
+    args = (state: string) => [
       path.join(APP, "scripts/configure-plugin.mjs"),
-      "--corpus",
-      path.join(dir, "corpus"),
+      "--agent",
+      "codex",
+      "--library",
+      path.join(dir, "library"),
       "--state",
-      path.join(dir, "state"),
+      state,
       "--media",
       "native",
+      "--config",
+      settings,
       "--output",
-      file,
+      launcher,
     ];
-  const first = spawnSync(process.execPath, args, { encoding: "utf8" });
+  const first = spawnSync(process.execPath, args(path.join(dir, "state")), {
+    encoding: "utf8",
+  });
   assert.equal(first.status, 0, first.stderr);
-  const config = await readJson(file);
-  assert.equal(
-    config.mcpServers["know-fu"].env.KB_STATE_DIR,
-    path.join(dir, "state"),
+  const config = await readJson(settings);
+  assert.equal(config.agents.codex.state, path.join(dir, "state"));
+  assert.equal(config.agents.codex.engine, APP);
+  assert.equal(config.deliberate_use, true);
+  const server = (await readJson(launcher)).mcpServers["know-fu"];
+  assert.equal(server.args[0], path.join(APP, "plugin/scripts/launch.mjs"));
+  assert.equal(server.env.KB_ACTOR, "codex");
+  assert.equal(server.env.KNOW_FU_CONFIG, settings);
+  const before = [await fs.readFile(settings), await fs.readFile(launcher)];
+  // A rerun refuses the existing launcher, and a different path refuses the existing section; neither writes.
+  for (const state of [path.join(dir, "state"), path.join(dir, "other")]) {
+    const again = spawnSync(process.execPath, args(state), {
+      encoding: "utf8",
+    });
+    assert.notEqual(again.status, 0);
+    assert.deepEqual(
+      [await fs.readFile(settings), await fs.readFile(launcher)],
+      before,
+    );
+  }
+});
+test("the launcher reports a missing setup through kb_status instead of failing silently", () => {
+  const messages = [
+    {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: { protocolVersion: "2025-06-18" },
+    },
+    { jsonrpc: "2.0", id: 2, method: "tools/list" },
+    {
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/call",
+      params: { name: "kb_status", arguments: {} },
+    },
+  ];
+  const run = spawnSync(
+    process.execPath,
+    [path.join(APP, "plugin/scripts/launch.mjs")],
+    {
+      encoding: "utf8",
+      input: messages.map((m) => JSON.stringify(m)).join("\n") + "\n",
+      env: {
+        ...process.env,
+        KB_ACTOR: "claude",
+        KNOW_FU_CONFIG: path.join(
+          APP,
+          "test-output",
+          uid("absent-"),
+          "config.json",
+        ),
+      },
+    },
   );
-  const bytes = await fs.readFile(file);
-  const second = spawnSync(process.execPath, args, { encoding: "utf8" });
-  assert.notEqual(second.status, 0);
-  assert.deepEqual(await fs.readFile(file), bytes);
+  const replies = run.stdout
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.deepEqual(
+    replies[1].result.tools.map((t: any) => t.name),
+    ["kb_status"],
+  );
+  assert.equal(replies[2].result.isError, true);
+  assert.match(replies[2].result.content[0].text, /^KNOWFU_NOT_CONFIGURED/);
+});
+test("the gate keeps Know Fu's tools closed until the user invokes the skill in that chat", () => {
+  const gate = path.join(APP, "plugin/scripts/gate.mjs"),
+    session = uid("gate-test-"),
+    env = {
+      ...process.env,
+      KNOW_FU_CONFIG: path.join(
+        APP,
+        "test-output",
+        uid("absent-"),
+        "config.json",
+      ),
+    };
+  const hook = (mode: string, event: object) =>
+    spawnSync(process.execPath, [gate, mode], {
+      encoding: "utf8",
+      input: JSON.stringify({ session_id: session, ...event }),
+      env,
+    });
+  const call = { tool_name: "mcp__plugin_know-fu_know-fu__kb_status" };
+  const closed = JSON.parse(hook("tool", call).stdout);
+  assert.equal(closed.hookSpecificOutput.permissionDecision, "deny");
+  // Mentioning the command later in a prompt isn't an invocation.
+  hook("prompt", { prompt: "what does /know-fu:know-fu do?" });
+  assert.equal(
+    JSON.parse(hook("tool", call).stdout).hookSpecificOutput.permissionDecision,
+    "deny",
+  );
+  hook("prompt", {
+    prompt: "/know-fu:know-fu what does the library say about X?",
+  });
+  assert.equal(hook("tool", call).stdout, "");
 });
 test("runtime state root selects the deletion ledger without changing the corpus location", () => {
   const state = path.join(APP, "test-output", uid("state-"));

@@ -9,6 +9,14 @@ export interface AuditEventData {
   description: string;
   actor: string;
   /**
+   * Optional. The calling project folder, as the launcher passed it (KB_PROJECT).
+   */
+  project?: string;
+  /**
+   * Optional. The agent the engine worked for (KB_ACTOR), or unspecified.
+   */
+  agent?: string;
+  /**
    * @minItems 0
    */
   record_refs: {

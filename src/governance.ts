@@ -16,23 +16,82 @@ import {
   withLock,
   sameProject,
 } from "./core.js";
-import type { Ref, RecordData } from "./core.js";
+import type { Ref, RecordData, CorpusData } from "./core.js";
+import { sameFolder } from "./access.js";
+const BINDING_LISTS = [
+  "read_modules",
+  "write_modules",
+  "save_modules",
+  "author_modules",
+  "administer_modules",
+] as const;
+
+/**
+ * Checks an access policy before it replaces the library's: the home folder has its own
+ * binding, the any-folder modules exist, and saving or ingesting there needs reading too.
+ */
+function accessPolicy(input: any, config: CorpusData) {
+  ensure(
+    input &&
+      typeof input.home_project === "string" &&
+      input.home_project.trim(),
+    "VALIDATION_FAILED",
+    "An access policy names the library's home folder (home_project)",
+  );
+  ensure(
+    config.project_bindings.some((b) =>
+      sameFolder(b.project_id, input.home_project),
+    ),
+    "VALIDATION_FAILED",
+    "The home folder needs its own binding; add it with binding in the same call or first",
+    { home_project: input.home_project },
+  );
+  const policy: NonNullable<CorpusData["access"]> = {
+    home_project: input.home_project,
+  };
+  const any = input.any_project;
+  if (any) {
+    const lists = ["read_modules", "save_modules", "author_modules"] as const;
+    ensure(
+      lists.every(
+        (list) =>
+          Array.isArray(any[list]) &&
+          any[list].every((m: unknown) =>
+            config.modules.some((x) => x.module_id === m),
+          ),
+      ) &&
+        [...any.save_modules, ...any.author_modules].every((m: string) =>
+          any.read_modules.includes(m),
+        ),
+      "SCOPE_DENIED",
+      "Any-folder modules must exist, and saving or ingesting there needs reading too",
+    );
+    policy.any_project = {
+      read_modules: [...any.read_modules],
+      save_modules: [...any.save_modules],
+      author_modules: [...any.author_modules],
+    };
+  }
+  return policy;
+}
+
 export class Governance {
   constructor(public store: Store) {}
   async configure(input: any) {
     return withLock(this.store.root, "publish", async () => {
-      const config = await this.store.config(),
-        scope = await this.store.scope();
+      const config = await this.store.config();
+      const known = (m: string) =>
+        config.modules.some((x) => x.module_id === m);
       ensure(
         input.authorization?.trim(),
         "AUTHORIZATION_REQUIRED",
         "Configuration changes require the user task authorizing this scope",
       );
-      ensure(
-        config.modules.every((m) => scope.write_modules.includes(m.module_id)),
-        "SCOPE_DENIED",
-        "Library configuration requires the owning project with all modules writable",
-      );
+      // Administer on every module: for a binding without capability lists, write on every module, as before.
+      const access = await this.store.requireAccess("administer", {
+        whole: true,
+        operation: "kb_maintain configure",
+      });
       if (input.module) {
         ensure(
           /^[a-z][a-z0-9_-]*$/.test(input.module.module_id),
@@ -45,11 +104,13 @@ export class Governance {
           "Module already exists",
         );
         config.modules.push(input.module);
+        // The binding that makes this caller an administrator gains the module in every list it
+        // has, so it keeps administering every module. The any-folder default never gains one.
         const binding = config.project_bindings.find((b) =>
-          sameProject(b.project_id, this.store.project),
+          sameProject(b.project_id, access.binding!),
         )!;
-        binding.read_modules.push(input.module.module_id);
-        binding.write_modules.push(input.module.module_id);
+        for (const list of BINDING_LISTS)
+          binding[list]?.push(input.module.module_id);
       }
       for (const d of input.domains ?? [])
         if (!config.domains.some((x) => x.domain_id === d.domain_id))
@@ -57,21 +118,35 @@ export class Governance {
       if (input.binding) {
         const b = input.binding;
         ensure(
-          [...b.read_modules, ...b.write_modules].every((m) =>
-            config.modules.some((x) => x.module_id === m),
-          ) && b.write_modules.every((m: string) => b.read_modules.includes(m)),
+          Array.isArray(b.read_modules) && Array.isArray(b.write_modules),
+          "VALIDATION_FAILED",
+          "A binding names project_id, read_modules and write_modules",
+        );
+        ensure(
+          BINDING_LISTS.every((list) =>
+            (b[list] ?? []).every((m: string) => known(m)),
+          ) &&
+            BINDING_LISTS.slice(1).every((list) =>
+              (b[list] ?? []).every((m: string) => b.read_modules.includes(m)),
+            ),
           "SCOPE_DENIED",
           "Binding modules must exist and writes require reads",
         );
         ensure(
           !config.project_bindings.some((x) =>
-            sameProject(x.project_id, b.project_id),
+            (config.access ? sameFolder : sameProject)(
+              x.project_id,
+              b.project_id,
+            ),
           ),
           "REVISION_CONFLICT",
           "Project already bound; edit requires an explicit replacement plan",
         );
         config.project_bindings.push(b);
       }
+      if (input.access === null) delete config.access;
+      else if (input.access !== undefined)
+        config.access = accessPolicy(input.access, config);
       const dimensions = await readJson(this.store.p("dimensions.json")).catch(
         () => ({}),
       );

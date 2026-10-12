@@ -1,13 +1,20 @@
 ---
 name: know-fu
-description: Use when the project is bound to a Know Fu library, to ingest a source into it or to answer, teach, apply, compare or invent from what it holds. Not for general explanations.
+description: Your Know Fu research library. Invoke it to ingest a source, or to answer, teach, apply, compare or invent from what the library holds.
+disable-model-invocation: true
 ---
 
 # Know Fu
 
 The user feeds this library books, papers, videos and courses so that you become an expert in them. Your weights never change, so what you "know" of the material is whatever reaches your context. That's why the library holds it as connected explanations: mechanisms, procedures, concepts, lessons, worked examples, judgments about disagreements and open questions, each tied to the exact source pages behind it. Your job has two halves: use that understanding well, and leave it better after every source.
 
-In a new project, call `kb_status` first. The tools bind to the current project and its library. If the project isn't bound, it needs an authorized binding; never borrow another project's identity to get in.
+The user invokes this skill on purpose, because their curation is what gives the library its value. In a new project, call `kb_status` first. The tools bind to the current project folder and its library. When `kb_status` doesn't come back normally, say what happened in one line and stop there:
+
+- `KNOWFU_NOT_CONFIGURED`: Know Fu is installed but this machine has no settings for it. Offer to run setup with the [setup guide](../../docs/setup-ai.md).
+- No `kb_*` tools at all: the app didn't start Know Fu's server. Suggest `/mcp`, or `claude mcp list` in a terminal opened in this folder, to see why. Restarting the app or the chat doesn't fix a server the app never started.
+- `SCOPE_DENIED`: this folder isn't allowed that action. Tell the user what the message says is allowed and where. Never borrow another project's identity to get in.
+
+Know Fu's own words (binding, module, domain, release) are new to most users, so define each one in plain words the first time you use it.
 
 ## Using what the library knows
 

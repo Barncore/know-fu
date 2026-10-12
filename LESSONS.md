@@ -2,6 +2,22 @@
 
 Things this project learned the hard way, newest first. Each one says what happened and what to do differently.
 
+## 2026-10-13 - An idle Node process doesn't give memory back on its own
+
+Dropping the engine's recall index left private memory exactly where it was, because an idle process allocates nothing, so V8 never collects. A plain forced `gc()` shrank V8's heap from 57 to 19 MB and still returned nothing to Windows. Only the `last-resort` collection gave memory back to the operating system. When a long-lived process should shrink while idle, measure the operating system's view of it (private bytes), not the heap, and ask for the collection that returns memory.
+
+## 2026-10-13 - Check in every app that will run it
+
+Claude Code's terminal command and its desktop app load plugins by different routes. The terminal read the installed plugin and its saved options; the desktop app passed the same plugin as a bare folder under another name, so the options never arrived and Know Fu's server was left out without an error. Three desktop chats failed while `claude mcp list` reported "connected" and headless terminal checks passed. The 12 October lesson below asked the running program where it reads from, which was right, but only one of the two programs was asked. Check in a new chat in each app the user will run, and keep a launch independent of anything one host stores on the plugin's behalf.
+
+## 2026-10-13 - Leftovers from tests make false leads
+
+A stub-engine test on 12 October left a "needs auth" mark for Know Fu in Claude Code's cache. The next day it looked like the cause of the desktop failure, and clearing it cost a test round before it was ruled out. Before a test that registers anything with a host, snapshot the host's settings and caches, and compare after cleanup; Codex's hook test on 13 October did this, and its report still lists the trees it missed.
+
+## 2026-10-13 - A version number names one set of files
+
+The plugin's files changed after 1.2.0 was installed, but the number stayed 1.2.0. The installed copy, which hosts key by version, kept the old files, and two installs under one number held different code. Bump the version with every plugin change; `npm run check:package` now refuses the same version with different plugin files.
+
 ## 2026-10-12 - Two agents can name one folder two ways
 
 The pilot library was bound to its folder with backslashes, the way Codex passes it, and Claude Code's first call was refused: Claude Code passes the same folder with forward slashes. The error didn't say which project it had received, so the cause took a code change to see. Compare identities that the outside world spells in more than one way in a normalized form, and make every refusal name the value it refused.

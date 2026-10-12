@@ -2,6 +2,10 @@
 
 Everything here is a small local measurement, not a capacity guarantee for whatever library you throw at it. Unless a section says otherwise, the numbers come from Windows 11 on a Ryzen 9 7950X with 32 GB RAM and only an integrated GPU, running regular FalkorDB in Ubuntu WSL2 and QMD 2.8.3 forced to the CPU.
 
+## 2026-10-13: memory per open chat (0.3.0)
+
+Every chat where the plugin is on runs its own engine. A probe started `dist/mcp.js` the way the plugin does, called `kb_status` and then `kb_recall` against a copy of a small test library, and read each process's Windows working set: 67 MB after start, 69 MB after `kb_status`, and after the recall 59 to 88 MB for the engine plus about 165 MB for the QMD search worker it forks. The worker closes after 60 seconds idle (`src/qmd-search.ts`). Three Codex engines that had sat idle for an hour held 28 MB working set and 35 to 73 MB private memory each, lower because Windows trims idle processes. The first recall took 8.5 s, which includes building the index and starting the worker; the next took 2.7 s. With 1,525 synthetic accounts, a used engine held 235 MB working set during recalls and 104 MB working set, 116 MB private once idle; idle release (`KB_IDLE_RELEASE_MINUTES`, default 10) took it to 64 MB and 75 MB, and the next recall rebuilt the index in about 0.65 s against 0.03 s warm. Setup's [what it costs to run](../plugin/docs/setup.md#what-it-costs-to-run) turns these into per-chat costs.
+
 ## 2026-10-05: recall, brief and connect (1.2.0)
 
 `kb_recall`, `kb_brief` and `kb_connect` share one in-memory index per process. It's built the first time one of them is called, from the published release, and cached by the store's session signature, the release and the scope. A new publication or a scope change rebuilds it. The index holds BM25 over titles, summaries and bodies, the link map with its labels and weights, and the visibility and reliance rules. It needs neither FalkorDB nor QMD. Recall only calls QMD's semantic search when keyword coverage of the query is below 0.7, or keyword search finds fewer than five accounts.

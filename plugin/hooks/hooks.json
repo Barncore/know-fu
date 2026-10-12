@@ -1,0 +1,28 @@
+{
+  "description": "Opens Know Fu's tools in a chat only after the user invokes /know-fu:know-fu there.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/gate.mjs\" prompt",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "mcp__plugin_know-fu_know-fu__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/gate.mjs\" tool",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -21,7 +21,7 @@ This folder is the adapter for Know Fu, for both Codex and Claude Code: the skil
 
 The schemas in here are verified copies of the engine's contracts. They explain the data model, but they don't replace the engine. [engine-contracts.json](engine-contracts.json) records their versions and hashes.
 
-To see where things really are, ask `kb_status` in a running chat; it reports the actual engine and library paths. On disk, Codex's `.mcp.json` points at the engine's `dist/mcp.js` and sets the library through `KB_CORPUS`, and its absolute paths belong to one machine. Claude Code's manifest starts `dist/mcp.js` from the engine folder set in the plugin's options, which also hold the library and state paths. The engine repository's `README.md`, `docs/VALIDATION.md` and `docs/PERFORMANCE.md` cover its dependencies, checks and measured limits.
+To see where things really are, ask `kb_status` in a running chat; it reports the actual engine and library paths. On disk, both agents start the same launcher, `scripts/launch.mjs` in this folder, which reads Know Fu's own settings file, `~/.know-fu/config.json`, with a section per agent: the engine folder, library, state folder and media tools. Claude Code's manifest starts it from the plugin; Codex's machine-local `.mcp.json` starts it by absolute path. The settings live outside Claude Code's plugin options because the Claude desktop app loads plugins in a way that never passes those options on; [setup](docs/setup.md#how-each-agent-runs-the-engine) explains. The engine repository's `README.md`, `docs/VALIDATION.md` and `docs/PERFORMANCE.md` cover its dependencies, checks and measured limits.
 
 ## Keeping it together
 

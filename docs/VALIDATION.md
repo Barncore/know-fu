@@ -4,6 +4,39 @@ The local development installation is Windows with CPU QMD. Until 12 October 202
 
 Entries run newest first. Each one says what was shown and what wasn't. Older entries are kept as written.
 
+## 2026-10-13: access from any folder and idle memory release
+
+Shown by `test/access.test.ts` (16 tests) and the rest of the suite, 176 tests in all, with `KB_PDFTOTEXT` set to Poppler's: an unbound folder reads under the default and its retrieval receipts name the real folder; it saves answers and ideas when the library allows that and is refused, with the home folder named, when it doesn't; ingest is refused outside the home folder and works at home and below it; a folder's own binding beats the default, so a fenced folder can't read the personal module, in subfolders too; administering stays with the home folder even where every folder reads every module; `kb_status` hides other folders' bindings from non-administrators; binding lists split saving, authoring and administering; `kb_maintain configure` sets, checks and removes the setting and keeps new modules private; `create-library.mjs` defaults to on, on, off; and a library without `access` gives the same allow and deny decisions as before. An independent reviewer, given only the diff and the requirements, compared old and new engines over 8 callers by 32 calls on a legacy library: the only differences were the status redaction and a refusal-order change, which was then fixed.
+
+Idle release, measured with a probe that starts `dist/mcp.js` as the plugin does, on a synthetic library of 1,525 accounts: after four recalls and a brief, an idle engine held 104 MB working set and 116 MB private; ten seconds after release, 64 MB and 75 MB; the next recall rebuilt the index in 647 ms, against 34 ms warm. With release off, the engine stayed at 104 and 116 MB. On a four-record library release made no measurable difference.
+
+Not shown: real Claude Code or Codex chats against a library with an `access` setting; two engines writing one library at once (D23, which matters more now that every folder may save); `kb_evaluate run` and `kb_lifecycle execute` from a non-administering folder, whose checks were exercised through `report`, `plan` and the shared tool gate; idle release on macOS, Linux, or over hours.
+
+## 2026-10-13: the Claude desktop app, a settings-file launcher, the gate and memory
+
+Shown with the desktop app's own bundled Claude Code (2.1.295), started headless in the pilot folder, reading the MCP servers each run reported at startup:
+
+| Run | Know Fu tools |
+|---|---|
+| Installed plugin, plain, and with each of the desktop's launch flags (`--setting-sources`, its `--settings` with the blocked-server list, and an SDK-style start with `--await-initialize`) | 16 |
+| Installed copy switched off for the run, the cache copy passed as a folder (`--plugin-dir`) | 0, plugin and skill loaded |
+| Same, with the options copied under `pluginConfigs["know-fu@inline"]` | 16 |
+
+The desktop's log (`%LOCALAPPDATA%\Claude\logs\main.log`) shows it passing installed plugins to Claude Code itself: "Passing 12 plugin(s) to SDK (skills: 1, remote: 6, local: 5)". A plugin passed as a folder is named `<name>@inline`, so options saved for `know-fu@know-fu` never reached it, `${user_config.engine_dir}` stayed unfilled, and the server was dropped. That explains all three failed desktop chats in the setup trial. A stale "needs auth" mark in `~/.claude/mcp-needs-auth-cache.json`, left by a 12 October stub test, was ruled out: a chat started after it was cleared still had no tools. This corrects the 12 October entry below: the `claude` command reads this marketplace in place, but the desktop app runs the cached copy.
+
+The fix, shown the same way, with the repository's `plugin/` passed as a folder and the installed copy off:
+
+- With a settings file, the launcher started the engine and the session listed all 16 tools.
+- With no settings file, it listed one `kb_status` tool, which answered `KNOWFU_NOT_CONFIGURED` and named the problem.
+- Not invoked: a prompt asking for `kb_status` got the gate's denial, with its reason, and the tool didn't run.
+- Invoked with `/know-fu:know-fu`: `kb_status` ran and reported `know-fu-pilot-claude` with the chat's folder as the project.
+
+Memory, measured on Windows 11 with a probe that starts the engine as the plugin does: 67 MB working set after start, 69 MB after `kb_status`, and after a `kb_recall` 59 to 88 MB plus a search worker of about 165 MB. Three Codex engines idle for an hour held 28 MB working set each and 35 to 73 MB private. A stand-in host showed the engine and worker exiting within 5 seconds both when it closed the connection and when it was killed.
+
+Codex, from Codex's own tests on 13 October with codex-cli 0.162.0-alpha.17.2: trusted plugin and user `PreToolUse` hooks recorded no callbacks while an MCP tool ran, so no Codex gate ships; `allow_implicit_invocation: false` kept a skill from loading on an ordinary prompt while explicit invocation worked; Codex runs its installed copy, picks up same-version changes only after `codex plugin add`, and accepted a lower version; `request_user_input` is refused outside Plan mode while `request_user_input_async` delivered questions; a localhost HTTP MCP server can serve several chats with each chat's folder passed in a header.
+
+Not shown: a real desktop chat with 0.3.0 installed (pending the reinstall), Codex running the new launcher, and the gate's transcript check on its own (the invoked run may have opened the gate from the prompt).
+
 ## 2026-10-12: Claude Code install
 
 Shown on this machine: `claude plugin marketplace add` and `claude plugin install know-fu@know-fu` succeeded on Claude Code 2.1.296, and the installed copy sits in `~/.claude/plugins/cache/know-fu/know-fu/1.2.0/` with only the plugin folder's contents. That copy was taken, wrongly, to be what sessions run; the stub check below shows otherwise. `claude plugin validate` passes on the fixed manifest. Started the way the manifest now starts it (`node <engine folder>/dist/mcp.js` with the plugin's environment, a throwaway library and state folder, and the specialist tools off), the engine answered an MCP `initialize` and listed its 11 everyday tools.

@@ -47,15 +47,16 @@ Three things sit outside that total:
 
 | Location | What it holds |
 |---|---|
-| `plugin/.mcp.json` | Codex's generated machine-local launcher: Node, engine path, library, state, media mode, `KB_ACTOR=codex` and optional project identity. Ignored by Git |
-| `plugin/.claude-plugin/plugin.json` | Claude Code's launcher, committed: it runs `dist/mcp.js` from the engine folder set in the plugin's options, with `KB_ACTOR=claude` and the session's project folder, and takes the library, state and media settings from the same options |
-| Claude Code's plugin options | `engine_dir`, `library_dir`, `state_dir`, `media_runtime`, `wsl_distro` and `advanced_tools`, kept in your Claude Code settings |
+| `~/.know-fu/config.json` | Know Fu's settings: for each agent, the engine folder, library, state folder, media tools and specialist tools, plus `deliberate_use`. Written by `scripts/configure-plugin.mjs`; read by the launcher when a chat starts. `KNOW_FU_CONFIG` points elsewhere |
+| `plugin/.claude-plugin/plugin.json` | Claude Code's launch, committed: `node <plugin>/scripts/launch.mjs` with `KB_ACTOR=claude` and the session's folder |
+| `plugin/hooks/hooks.json` | Claude Code's gate, committed: Know Fu's tools stay closed in a chat until the user invokes `/know-fu:know-fu` |
+| `plugin/.mcp.json` | Codex's machine-local launch: `node <engine>/plugin/scripts/launch.mjs` with `KB_ACTOR=codex`. Ignored by Git |
 | `<state>/config.json` | The converter environment's Python, Poppler's `pdftotext`, and optional speech and evaluation settings. See [the runtime example](../examples/runtime.example.json) |
 | `<corpus>/corpus.json` | Library identity, domains and modules, and allowed projects. Created by `init` |
 | `<corpus>/dimensions.json` | Applicability dimensions and their units |
 | `<state>/ledgers/` | The deletion history. Back it up and keep it with the library |
 
-The engine reads these environment variables, which the launchers set:
+The engine reads these environment variables. The launcher sets them from Know Fu's settings file, and a variable that's already set wins:
 
 | Variable | Meaning |
 |---|---|
@@ -67,6 +68,7 @@ The engine reads these environment variables, which the launchers set:
 | `KB_WSL_DISTRO` | Which WSL distribution, when media runs in WSL |
 | `KB_ADVANCED_TOOLS` | `1`, `true` or `yes` lists the five specialist tools as well as the 11 everyday ones |
 | `KB_PDFTOTEXT` | Poppler's `pdftotext`, when `config.json` doesn't name it |
+| `KNOW_FU_CONFIG` | Where the launcher and the gate look for Know Fu's settings, instead of `~/.know-fu/config.json` |
 
 Neither `KB_CORPUS` nor `KB_STATE_DIR` moves an existing installation's data, so changing one points the engine somewhere new rather than migrating anything. `kb_status` tells you where the engine, state and library actually are.
 
@@ -76,25 +78,46 @@ Until 12 October 2026 the engine copied the library into a FalkorDB server. An o
 
 ## The library
 
-`scripts/create-library.mjs` creates a library: one `research` module, your domains, one bound project folder, the deletion ledger and `<state>/config.json`. `node scripts/create-library.mjs --help` lists its options. It wraps `node dist/cli.js init`, which takes a corpus file shaped like [corpus.example.json](../examples/corpus.example.json). `init` creates the ledger and audit state the library needs, which is why copying a corpus JSON by hand doesn't work. A restore uses the matching existing ledger, never a fresh `init`.
+`scripts/create-library.mjs` creates a library: one `research` module, your domains, the home folder (`--home`) bound with every capability, the access other folders get (`--read-from-any-folder` and `--save-from-any-folder` on, `--ingest-from-any-folder` off, each with a `--no-` form for the first two), the deletion ledger and `<state>/config.json`. `node scripts/create-library.mjs --help` lists its options. It wraps `node dist/cli.js init`, which takes a corpus file shaped like [corpus.example.json](../examples/corpus.example.json). `init` creates the ledger and audit state the library needs, which is why copying a corpus JSON by hand doesn't work. A restore uses the matching existing ledger, never a fresh `init`.
 
 The library id picks the search namespace and the deletion history, so two libraries need two ids. For a personal library, use one module and separate topics with domains. Invent's bridges can only cross what a project is allowed to read, and moving records between modules later is its own operation, so a second module is only for material that has to stay apart, such as a client's.
 
-A project is bound by its folder path. Claude Code passes the session's folder with forward slashes (`C:/Research`), and Codex passes its working directory with backslashes (`C:\Research`). Windows paths compare the same however they're written, slashes and letter case included. If you hit a scope error, fix the binding; never borrow another project's identity to get past it. `SCOPE_DENIED` names the project the engine received. After `init`, authorized module, domain and binding changes go through `kb_maintain configure`, described in [operations](../skills/know-fu/references/operations.md).
+A chat's folder is its identity. Claude Code passes the session's folder with forward slashes (`C:/Research`), and Codex passes its working directory with backslashes (`C:\Research`); Windows paths compare the same however they're written, slashes and letter case included. The library's `access` setting names the home folder and says what folders without a binding of their own may read, save and author; a folder's own binding always wins, and with the setting a binding also covers the folders inside it. A library without an `access` setting works as before 0.3.0: only bound folders, matched exactly. If you hit a scope error, its message says what the folder can do and where to go; never borrow another folder's identity to get past it. After `init`, authorized module, domain, binding and access changes go through `kb_maintain configure`, described in [operations](../skills/know-fu/references/operations.md#configuring-modules-and-bindings). An older engine refuses a `corpus.json` that uses the `access` setting or the new binding lists, so move engine and plugin forward together.
 
 Five specialist tools (`kb_lifecycle`, `kb_evaluate`, `kb_propose`, `kb_change`, `kb_retrieve`) stay out of everyday sessions to save context. `KB_ADVANCED_TOOLS` lists them, and the CLI always has them.
 
 ## How each agent runs the engine
 
+Both agents start the same launcher, `plugin/scripts/launch.mjs`. It reads the agent's section of `~/.know-fu/config.json` (a section named after `KB_ACTOR` overrides shared top-level values), sets the engine's variables, and imports `<engine>/dist/mcp.js` into its own process, so it adds no memory of its own. The chat's folder becomes `KB_PROJECT`. Without usable settings it still answers, with one `kb_status` tool that returns `KNOWFU_NOT_CONFIGURED` and names the problem, so a missing setup shows up as a message rather than as missing tools.
+
 ### Claude Code
 
-Claude Code keeps a copy of `plugin/` in its plugin cache (`~/.claude/plugins/cache/know-fu/know-fu/<version>/`). With this marketplace, which is a local git checkout, Claude Code 2.1.296 still reads the plugin from the checkout itself: `CLAUDE_PLUGIN_ROOT` is the checkout's `plugin/` folder, and the skill loads from there. Another local plugin on the development machine has run from its cached copy, though, so the manifest starts the engine from the `engine_dir` option rather than from a path relative to the plugin. It runs `node <engine_dir>/dist/mcp.js` with `KB_ACTOR=claude`, and passes the session's project folder as `KB_PROJECT`. Node has to be on PATH for Claude Code, at version 24.14.
+The Claude desktop app and the `claude` command load plugins differently. The command reads the installed plugin, `know-fu@know-fu`. The desktop app passes installed plugins to Claude Code itself, as plugin folders taken from the plugin cache (`~/.claude/plugins/cache/know-fu/know-fu/<version>/`), and a plugin passed as a folder gets a different name, `know-fu@inline`. Plugin options saved for `know-fu@know-fu` don't reach that copy. Until 0.3.0 the launch depended on those options, so the desktop app quietly left Know Fu's server out while the terminal worked. That's why the settings now live in Know Fu's own file, and why the manifest may not use plugin options at all (`npm run check:package` enforces it).
 
-A pull and rebuild of this checkout reaches the engine, the skill and its guides at the next session, or after `/reload-plugins`. `claude plugin update know-fu@know-fu` says whether your version reads the plugin in place. If it ever reports a cached copy instead, a change to the skill or guides needs a version bump and that update. A one-command install from GitHub doesn't work yet: Claude Code would copy only the plugin folder, and the engine's native modules and Python converters need building where they run.
+The command reads this marketplace's `plugin/` folder in place (seen with 2.1.296), so it picks up plugin changes at the next chat. The desktop app runs the cached copy, so a change to the skill, its guides, the launcher or the gate reaches it only with a new version number, `claude plugin marketplace update know-fu` and `claude plugin update know-fu@know-fu`. The engine is read from the checkout named in the settings, so a pull and rebuild reaches it at the next chat. Node has to be on PATH at version 24.14. A one-command install from GitHub doesn't work yet: the engine's native modules and Python converters need building where they run.
+
+Use is deliberate. The skill sets `disable-model-invocation: true`, so only the user's `/know-fu:know-fu` loads it. The engine's tools are listed in every chat where the plugin is on, though, so `plugin/hooks/hooks.json` adds a gate: a `PreToolUse` hook on Know Fu's tools denies the call, with the reason, until the chat shows the user invoked the skill (the prompt itself, or the invocation recorded in the chat's transcript). If the gate itself fails, it denies rather than letting calls through. `"deliberate_use": false` in the settings file turns it off.
 
 ### Codex
 
-`scripts/configure-plugin.mjs` writes Codex's launcher, `plugin/.mcp.json`, with `KB_ACTOR=codex`. It doesn't move data or install services, and it refuses to overwrite a launcher that exists. Without `--project`, Codex's working directory is the project identity. `scripts/install-plugin.mjs` copies the configured plugin into the local plugin-source folder, and that's all it does: it doesn't register a marketplace or install anything else. Codex's own local plugin workflow registers or refreshes it. A generic [MCP example](../examples/mcp.example.json) is included for reference.
+`scripts/configure-plugin.mjs --agent codex` writes the `codex` settings section and Codex's launch, `plugin/.mcp.json`, which runs this checkout's launcher by absolute path with `KB_ACTOR=codex`. It refuses to overwrite either without `--replace`. Without `--project`, Codex's working directory is the project identity; in a git worktree that's the worktree checkout, and a chat with no project still has a working folder of its own. `scripts/install-plugin.mjs` copies the configured plugin into the local plugin-source folder, and Codex's own plugin workflow (`codex plugin add`) installs it. Codex runs the installed copy from its cache, so changed plugin files reach it only through that step, even at the same version; it accepts a lower version number too.
+
+The skill is manual-only in Codex through `skills/know-fu/agents/openai.yaml` (`allow_implicit_invocation: false`). Codex documents hooks that can deny a tool call, but in tests on 13 October with codex-cli 0.162.0-alpha.17.2 trusted hooks recorded no callbacks at all, so Know Fu ships no Codex gate and its tools stay callable without the skill there. A generic [MCP example](../examples/mcp.example.json) is included for reference.
+
+## What it costs to run
+
+Every open chat where the plugin is on runs its own engine, whether or not Know Fu is used in it; Claude Code and Codex never share one. Measured on Windows 11 on 12 and 13 October 2026:
+
+| State | Memory |
+|---|---|
+| Engine just started | about 67 MB working set |
+| Engine idle for an hour (Windows trims idle processes) | 28 MB working set, 35 to 73 MB private |
+| Search helper while a recall runs | about 165 MB more, closed after 60 seconds idle |
+| Engine after recalls over a 1,525-account library, idle | 104 MB working set, 116 MB private, until idle release; then 64 MB and 75 MB |
+
+An engine with no calls for `KB_IDLE_RELEASE_MINUTES` (default 10; `0` or `off` turns it off) drops its recall index and file cache and hands the memory back; the next recall rebuilds the index, which took about 0.65 seconds for that library. On a library of a few records release makes no measurable difference, because most of an idle engine is code and runtime.
+
+So five open chats cost roughly 175 to 350 MB, plus a short spike while one searches. The Claude desktop app's log shows a 30-minute idle timeout set on each session, and Codex documents unloading a chat after 30 minutes without activity; an unloaded or archived Codex chat's engine stops. Neither timeout was timed. With a stand-in host, the engine and its search helper exited within 5 seconds both when the host closed the connection and when it was killed. Compared with a chat itself (a Claude Code session process held 700 to 820 MB), Know Fu adds under a tenth.
 
 ## Transcription and evaluation
 

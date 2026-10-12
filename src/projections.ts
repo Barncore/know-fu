@@ -69,6 +69,11 @@ export class Projections {
     );
   }
   async build(options: { semantic?: boolean } = {}) {
+    // Rebuilding views needs some write access; libraries without an access policy keep their old rule.
+    await this.store.requireAccess("write", {
+      operation: "kb_maintain reindex",
+      policyOnly: true,
+    });
     return withLock(this.store.root, "projection", async () => {
       this.closeSearch();
       const release = await this.store.release();
