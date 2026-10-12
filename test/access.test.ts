@@ -123,6 +123,16 @@ test("an unbound folder reads under the default, and its receipt names the real 
     record_ref: { id: "knowledge:handling", revision: 1 },
   });
   assert.equal(read.record.id, "knowledge:handling");
+  // Progressive reading and the packet route write receipts that name the folder too.
+  const catalogue: any = await elsewhere.call("kb_read", { kind: "catalogue" });
+  const packet: any = await elsewhere.call("kb_retrieve", {
+    query: "lantern valve",
+  });
+  for (const id of [catalogue.request_id, packet.request_id])
+    assert.equal(
+      (await readJson(f.store.p(`retrieval-receipts/${id}.json`))).project,
+      ELSEWHERE,
+    );
 });
 
 test("an unbound folder saves answers and ideas when the library allows it", async () => {
@@ -188,6 +198,11 @@ test("saving from an unbound folder is refused when the library doesn't allow it
   await assert.rejects(
     () => f.system(ELSEWHERE).call("kb_idea", idea),
     denied(new RegExp(HOME)),
+  );
+  // Rebuilding views needs some write access too.
+  await assert.rejects(
+    () => f.system(ELSEWHERE).call("kb_maintain", { action: "reindex" }),
+    denied(/Rebuilding the library's views/),
   );
   assert.equal(await f.store.current(), before);
   // Reading still works.
