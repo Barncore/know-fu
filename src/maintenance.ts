@@ -135,7 +135,7 @@ export class Maintenance {
     return { path: target, manifest: bundle };
   }
   async restoreBundle(bundlePath: string, target: string) {
-    await this.store.requireFullScope(true);
+    await this.store.requireFullScope("administer");
     const bundle = await readJson(path.join(bundlePath, "bundle.json"));
     ensure(
       !(await exists(path.join(target, "corpus.json"))),
@@ -242,6 +242,10 @@ export class Maintenance {
     };
   }
   async previewBulk(proposal: any) {
+    await this.store.requireAccess("author", {
+      operation: "kb_maintain preview_bulk",
+      policyOnly: true,
+    });
     const plan = {
       plan_id: uid("bulk-"),
       base_release: await this.store.current(),
@@ -299,12 +303,13 @@ export class Maintenance {
       "REVISION_CONFLICT",
       "Use restore for the same corpus",
     );
-    const scope = await this.store.scope();
-    ensure(
-      scope.write_modules.includes(module),
-      "SCOPE_DENIED",
-      "Import module is not writable",
-    );
+    // Importing is administration: for a binding without capability lists, write access, as before.
+    const scope = await this.store.scope(undefined, "administer");
+    if (!scope.write_modules.includes(module))
+      throw await this.store.deny("administer", {
+        module,
+        operation: "kb_maintain import",
+      });
     const current = await this.store.current(),
       release = await readJson(
         path.join(bundlePath, `releases/${bundle.release_id}.json`),
@@ -446,6 +451,9 @@ export class Maintenance {
       current,
       "Imported explicitly selected portable research bundle; original revisions retained as separate archived identities with origin mapping",
       scope,
+      [],
+      [],
+      "administer",
     );
     await immutable(
       this.store.p(

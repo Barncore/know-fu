@@ -251,7 +251,8 @@ export class Ideas {
     const authorization = this.authorize(input);
     const plan = await this.store.withReadSession(async () => {
       const index = await LibraryIndex.open(this.store, {});
-      const scope = await this.store.scope();
+      const scope = await this.store.scope(undefined, "save");
+      const denied: string[] = [];
       const items = drafts.map((draft, i) => {
         const where = drafts.length > 1 ? `Idea ${i + 1}` : "Idea";
         const statement = text(draft.statement);
@@ -291,11 +292,7 @@ export class Ideas {
           "VALIDATION_FAILED",
           `${where}: its premises span several modules; name the module it belongs to`,
         );
-        ensure(
-          scope.write_modules.includes(module),
-          "SCOPE_DENIED",
-          "This project cannot write to that module",
-        );
+        if (!scope.write_modules.includes(module)) denied.push(module);
         const domains = draft.domains?.length
           ? draft.domains
           : input.domains?.length
@@ -344,6 +341,11 @@ export class Ideas {
           payload,
         };
       });
+      if (denied.length)
+        throw await this.store.deny("save", {
+          module: denied[0],
+          operation: "kb_idea propose",
+        });
       return { index, scope, items, base: index.current };
     });
     const modules = [...new Set(plan.items.map((i) => i.maintenance_module))];
@@ -359,7 +361,7 @@ export class Ideas {
       },
       items: plan.items,
     } as unknown as ProposalData;
-    const compiled = await this.store.compile(proposal);
+    const compiled = await this.store.compile(proposal, [], "save");
     for (const r of compiled.records) r.provenance.method = "idea";
     if (input.dry_run)
       return {
@@ -376,6 +378,9 @@ export class Ideas {
         .join("; ")
         .slice(0, 300)}`,
       proposal.scope_policy,
+      [],
+      [],
+      "save",
     );
     const briefing = [
       `Recorded ${compiled.records.length} idea${compiled.records.length > 1 ? "s" : ""} in release ${published.release_id}. They stay out of recall except purpose invent.`,
@@ -404,7 +409,7 @@ export class Ideas {
     const authorization = this.authorize(input);
     const plan = await this.store.withReadSession(async () => {
       const index = await LibraryIndex.open(this.store, {});
-      const scope = await this.store.scope();
+      const scope = await this.store.scope(undefined, "save");
       const raw = typeof input.idea === "string" ? input.idea.trim() : null;
       const reference =
         raw && !raw.includes("@")
@@ -416,11 +421,11 @@ export class Ideas {
         "VALIDATION_FAILED",
         `${key(reference)} is not the current revision of an idea in your scope`,
       );
-      ensure(
-        scope.write_modules.includes(idea.maintenance_module),
-        "SCOPE_DENIED",
-        "This project cannot write to that idea's module",
-      );
+      if (!scope.write_modules.includes(idea.maintenance_module))
+        throw await this.store.deny("save", {
+          module: idea.maintenance_module,
+          operation: `kb_idea ${action}`,
+        });
       const old = idea.payload as IdeaPayload;
       const p: IdeaPayload = structuredClone(old);
       // Any new revision counts as looking at the idea again, so premises move to their
@@ -609,7 +614,7 @@ export class Ideas {
         },
       ],
     } as unknown as ProposalData;
-    const compiled = await this.store.compile(proposal);
+    const compiled = await this.store.compile(proposal, [], "save");
     const record = compiled.records[0];
     record.provenance.method = "idea";
     if (input.dry_run)
@@ -624,6 +629,9 @@ export class Ideas {
       plan.index.current,
       `Idea ${action}: ${record.title}`.slice(0, 300),
       proposal.scope_policy,
+      [],
+      [],
+      "save",
     );
     const p = record.payload as IdeaPayload;
     return {

@@ -16,6 +16,7 @@ import { Maintenance } from "./maintenance.js";
 import { Evaluation } from "./evaluation.js";
 import { Governance } from "./governance.js";
 import { SourceWorkflow } from "./source-workflow.js";
+import { accessSummary, holds, redactedConfig, requirement } from "./access.js";
 import {
   ensure,
   readJson,
@@ -102,20 +103,35 @@ export class KnowledgeSystem {
     this.evaluation = new Evaluation(store, this.retrieval);
   }
   async call(name: string, p: any = {}) {
-    await this.store.scope();
+    // Refuses a folder with no access at all, as the binding check always has.
+    const access = await this.store.access();
+    // With an access policy, check the capability this call exercises before it runs, so a
+    // refusal says what this folder can do and where the refused work is done. Without one,
+    // every rule stays where it was: inside each operation.
+    const rule = requirement(name, p);
+    if (access.policy && rule)
+      await this.store.requireAccess(rule.need, {
+        whole: rule.whole,
+        operation: rule.operation,
+      });
     switch (name) {
-      case "kb_status":
+      case "kb_status": {
+        const config = await this.store.config();
+        const administers = holds(access, "administer", "all", config);
         return {
           project: this.store.project,
           engine: APP,
           state_path: STATE,
           corpus_path: this.store.root,
-          corpus: await this.store.config(),
+          // Other projects' bindings are for a folder that administers every module.
+          corpus: administers ? config : redactedConfig(config, access),
           current_release: await this.store.current(),
           scope: await this.store.scope(),
+          access: accessSummary(access, config),
           views: await this.projections.receipt(),
           job: p.job_id ? await this.jobs.next(p.job_id) : null,
         };
+      }
       case "kb_ingest":
         return this.jobs.ingest(p);
       case "kb_job":

@@ -213,11 +213,11 @@ export class Jobs {
     scope?: Scope;
   }) {
     const scope = await this.store.scope(input.scope);
-    ensure(
-      scope.write_modules.includes(input.module),
-      "SCOPE_DENIED",
-      "No write permission for source module",
-    );
+    if (!scope.write_modules.includes(input.module))
+      throw await this.store.deny("author", {
+        module: input.module,
+        operation: "kb_ingest",
+      });
     ensure(
       input.paths.length,
       "VALIDATION_FAILED",

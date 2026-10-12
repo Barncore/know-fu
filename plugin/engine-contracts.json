@@ -6,12 +6,12 @@
     {
       "source": "contracts/schemas/audit-event.schema.json",
       "bundled": "contracts/schemas/audit-event.schema.json",
-      "sha256": "59dff665d774826a4977bad33abf47245bd19e2135c94fee274a7031123f9894"
+      "sha256": "6e583ef5a926792e4cb9ea011b68c44341301e04295055debf4b11616fce9be2"
     },
     {
       "source": "contracts/schemas/corpus.schema.json",
       "bundled": "contracts/schemas/corpus.schema.json",
-      "sha256": "bffa0b5a2732ac0de4368db95d7267f998797fbdca5c71e65ab24e820ae21231"
+      "sha256": "edbe2af7384ae4f5d059b032f00fd779c9a67c1625e5e41b12fd5f0adc87cb68"
     },
     {
       "source": "contracts/schemas/evaluation-case.schema.json",
