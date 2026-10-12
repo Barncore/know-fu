@@ -11,14 +11,9 @@ import { Maintenance } from "../src/maintenance.js";
 import { Governance } from "../src/governance.js";
 import { Evaluation } from "../src/evaluation.js";
 import { LibraryIndex } from "../src/library-index.js";
-import { resolveAccess } from "../src/access.js";
-import {
-  atomic,
-  json,
-  projectContains,
-  readJson,
-  sameProject,
-} from "../src/core.js";
+import { folderContains, resolveAccess, sameFolder } from "../src/access.js";
+import { Projections } from "../src/projections.js";
+import { atomic, json, readJson, sameProject } from "../src/core.js";
 import type { CorpusData } from "../src/core.js";
 
 const HOME = "C:/Library/Home";
@@ -91,14 +86,21 @@ async function library(
 }
 
 test("project folders contain their subfolders, compared like bindings", () => {
-  assert(projectContains("C:/Library/Home", "c:\\library\\home\\notes"));
-  assert(projectContains("P:\\", "P:/anything"));
-  assert(projectContains("/home/a", "/home/a/b"));
-  assert(!projectContains("C:/Library/Home", "C:/Library/Home"));
-  assert(!projectContains("C:/Library/Home", "C:/Library/Homework"));
-  assert(!projectContains("/home/a", "/home/ab"));
-  assert(!projectContains("specification_review", "specification_review/x"));
-  assert(!projectContains("C:/Library", "/Library/x"));
+  assert(folderContains("C:/Library/Home", "c:\\library\\home\\notes"));
+  assert(folderContains("P:\\", "P:/anything"));
+  assert(folderContains("/home/a", "/home/a/b"));
+  assert(folderContains("/home/a/", "/home/a//b/"));
+  assert(folderContains("\\\\?\\C:\\Library", "C:/Library/Home"));
+  assert(!folderContains("C:/Library/Home", "C:/Library/Home"));
+  assert(!folderContains("/home/a/", "/home/a"));
+  assert(!folderContains("C:/Library/Home", "C:/Library/Homework"));
+  assert(!folderContains("/home/a", "/home/ab"));
+  assert(!folderContains("specification_review", "specification_review/x"));
+  assert(!folderContains("C:/Library", "/Library/x"));
+  // With a policy, spellings of one folder are one folder.
+  assert(sameFolder("/home/nic/acme/", "/home/nic/acme"));
+  assert(sameFolder("\\\\?\\P:\\a", "p:/a"));
+  assert(!sameFolder("/home/a/Research", "/home/a/research"));
 });
 
 test("an unbound folder reads under the default, and its receipt names the real folder", async () => {
@@ -205,6 +207,10 @@ test("saving from an unbound folder is refused when the library doesn't allow it
     () => f.system(ELSEWHERE).call("kb_maintain", { action: "reindex" }),
     denied(/Rebuilding the library's views/),
   );
+  await assert.rejects(
+    () => new Projections(f.as(ELSEWHERE)).build(),
+    denied(/Rebuilding the library's views/),
+  );
   assert.equal(await f.store.current(), before);
   // Reading still works.
   const listed: any = await f
@@ -255,6 +261,11 @@ test("ingest is refused outside the home folder with a message naming it, and wo
       }),
     denied(new RegExp(HOME)),
   );
+  // A fenced folder asking about that job learns nothing about the module it lives in.
+  await assert.rejects(
+    () => f.system(CLIENT).call("kb_status", { job_id: home.job.job_id }),
+    (e: any) => denied()(e) && !/workshop/.test(e.message),
+  );
 });
 
 test("a folder's own binding beats the any-folder default: a fenced folder can't read the personal module", async () => {
@@ -276,7 +287,9 @@ test("a folder's own binding beats the any-folder default: a fenced folder can't
             source_refs: [],
           },
         }),
-      denied(/own binding limits it/),
+      (e: any) =>
+        denied(/Reading that part of the library/)(e) &&
+        !/workshop/.test(e.message),
     );
     const recall: any = await f
       .system(project)
@@ -389,6 +402,16 @@ test("a legacy corpus.json without an access setting behaves exactly as before",
       new Governance(writer).configure({
         authorization: "Add a domain",
         domains: [{ domain_id: "extra", title: "Extra" }],
+      }),
+    { code: "SCOPE_DENIED" },
+  );
+  // An idea aimed at a module the folder can't write is refused first, as before,
+  // even when a later field is also wrong.
+  await assert.rejects(
+    () =>
+      new KnowledgeSystem(reader).call("kb_idea", {
+        ...idea,
+        originality: { level: "99", why: "x" },
       }),
     { code: "SCOPE_DENIED" },
   );
@@ -630,6 +653,11 @@ test("idle release drops the recall index and file cache, and the next call rebu
   assert.equal(idleReleaseMs({ KB_IDLE_RELEASE_MINUTES: "0" }), 0);
   assert.equal(idleReleaseMs({ KB_IDLE_RELEASE_MINUTES: "off" }), 0);
   assert.equal(idleReleaseMs({ KB_IDLE_RELEASE_MINUTES: "soon" }), 600000);
+  // setTimeout can't wait longer than 2^31 - 1 ms; a longer wait would fire at once.
+  assert.equal(
+    idleReleaseMs({ KB_IDLE_RELEASE_MINUTES: "40000" }),
+    2 ** 31 - 1,
+  );
   const f = await published("access-idle");
   const system = new KnowledgeSystem(f.store, { idleReleaseMs: 40 });
   const query = { query: "may I move the lantern with an amber badge" };
@@ -744,4 +772,62 @@ test("create-library takes the access choices as flags, defaulting to the decide
       .access.home_project,
     "C:/Library/Home",
   );
+});
+
+test("with an access setting, spellings of a folder match its binding; legacy matching stays exact", async () => {
+  const f = await library("access-spelling");
+  const config = await f.store.config();
+  config.project_bindings.push({
+    project_id: "/home/nic/clients/acme/",
+    read_modules: ["client"],
+    write_modules: ["client"],
+  });
+  await atomic(f.store.p("corpus.json"), json(config));
+  for (const project of [
+    "/home/nic/clients/acme",
+    "/home/nic/clients/acme/",
+    "/home/nic/clients//acme/src",
+  ])
+    assert.deepEqual((await f.as(project).access()).read, ["client"], project);
+  // A legacy library compares the same spellings exactly, as before.
+  delete config.access;
+  await atomic(f.store.p("corpus.json"), json(config));
+  await assert.rejects(
+    () => f.as("/home/nic/clients/acme").access(),
+    denied(/Project is not bound/),
+  );
+});
+
+test("an interrupted publication's audit event names the folder that published, not the one that recovered it", async () => {
+  const f = await library("access-recover");
+  process.env.KB_TEST_FAULT = "after_pointer";
+  try {
+    await assert.rejects(
+      () =>
+        f.system(ELSEWHERE).call("kb_file", {
+          title: "When a lantern may move",
+          answer_markdown: answer,
+          cites,
+          authorization: "File this answer",
+        }),
+      { code: "SIMULATED_CRASH" },
+    );
+  } finally {
+    delete process.env.KB_TEST_FAULT;
+  }
+  const crashed = await f.store.current();
+  await f.system(HOME).call("kb_file", {
+    title: "A second filed answer",
+    answer_markdown: answer,
+    cites,
+    authorization: "File this answer",
+  });
+  const events = (await fs.readFile(f.store.p("audit/events.jsonl"), "utf8"))
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  const recovered = events.find(
+    (e) => e.operation === "publish" && e.after_release === crashed,
+  );
+  assert.equal(recovered.project, ELSEWHERE);
 });

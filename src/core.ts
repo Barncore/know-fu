@@ -313,28 +313,6 @@ export function sameProject(a: string, b: string) {
   return projectKey(a) === projectKey(b);
 }
 
-/**
- * Whether `child` is a folder inside `parent`, never the folder itself. Windows paths compare
- * normalized like `sameProject`; POSIX paths compare exactly; identities that aren't absolute
- * paths contain nothing.
- */
-export function projectContains(parent: string, child: string) {
-  if (windowsPath.test(parent) && windowsPath.test(child)) {
-    const outer = projectKey(parent),
-      inner = projectKey(child);
-    return (
-      inner !== outer &&
-      inner.startsWith(outer.endsWith("\\") ? outer : outer + "\\")
-    );
-  }
-  if (parent.startsWith("/") && child.startsWith("/")) {
-    const outer = path.posix.normalize(parent).replace(/\/+$/, ""),
-      inner = path.posix.normalize(child).replace(/\/+$/, "");
-    return inner !== outer && inner.startsWith(outer + "/");
-  }
-  return false;
-}
-
 export function recordRefs(r: RecordData) {
   return uniqueRefs([
     ...r.provenance.source_refs,

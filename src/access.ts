@@ -1,5 +1,40 @@
-import { KBError, projectContains, projectKey, sameProject } from "./core.js";
+import path from "node:path";
+import { KBError, projectKey, sameProject } from "./core.js";
 import type { CorpusData } from "./core.js";
+
+/**
+ * A folder's identity in a library with an access setting. Like `projectKey`, and also: POSIX
+ * paths lose doubled and trailing slashes, and Windows paths lose a `\\?\` prefix. With an
+ * any-folder default, a spelling that misses its binding would fall through to the default
+ * rather than be refused, so these compare looser than legacy bindings do.
+ */
+function folderKey(id: string) {
+  const plain = id.replace(/^\\\\\?\\(?=[a-zA-Z]:)/, "");
+  if (plain.startsWith("/") && !plain.startsWith("//"))
+    return path.posix.normalize(plain).replace(/(.)\/+$/, "$1");
+  return projectKey(plain);
+}
+
+/** Whether two identities name the same folder, compared as `folderKey` does. */
+export function sameFolder(a: string, b: string) {
+  return folderKey(a) === folderKey(b);
+}
+
+/** Whether `child` is a folder inside `parent`, never the folder itself. Identities that aren't absolute paths contain nothing. */
+export function folderContains(parent: string, child: string) {
+  const outer = folderKey(parent),
+    inner = folderKey(child);
+  const separator = /^(?:[a-z]:\\|\\\\)/.test(outer)
+    ? "\\"
+    : outer.startsWith("/")
+      ? "/"
+      : null;
+  return (
+    separator !== null &&
+    inner !== outer &&
+    inner.startsWith(outer.endsWith(separator) ? outer : outer + separator)
+  );
+}
 
 /**
  * What a caller may do with a library, held per module:
@@ -60,9 +95,9 @@ export function resolveAccess(
     policy: Boolean(policy),
     home: policy?.home_project ?? null,
   };
-  const own = config.project_bindings.find((b) =>
-    sameProject(b.project_id, project),
-  );
+  // Legacy libraries keep exact matching; with a policy, spellings of one folder match.
+  const same = policy ? sameFolder : sameProject;
+  const own = config.project_bindings.find((b) => same(b.project_id, project));
   if (own)
     return {
       ...base,
@@ -72,10 +107,10 @@ export function resolveAccess(
     };
   if (policy) {
     const outer = config.project_bindings
-      .filter((b) => projectContains(b.project_id, project))
+      .filter((b) => folderContains(b.project_id, project))
       .sort(
         (a, b) =>
-          projectKey(b.project_id).length - projectKey(a.project_id).length,
+          folderKey(b.project_id).length - folderKey(a.project_id).length,
       )[0];
     if (outer)
       return {
@@ -128,7 +163,10 @@ function doing(need: Need, module?: string, whole?: boolean) {
   const named = module ? `"${module}"` : null;
   switch (need) {
     case "read":
-      return named ? `Reading module ${named}` : "Reading the library";
+      // Without a module name, the refusal can't reveal a module the caller can't read.
+      return named
+        ? `Reading module ${named}`
+        : "Reading that part of the library";
     case "save":
       return `Saving answers and ideas${named ? ` into module ${named}` : ""}`;
     case "author":
@@ -208,28 +246,14 @@ export function denial(
     : "Project is not bound to this corpus.";
   const able = describeAccess(access, config, project);
   const atHome =
-    access?.binding && home ? sameProject(access.binding, home) : false;
-  // A fenced folder is refused something any unbound folder may do; say why.
-  const any = config.access?.any_project;
-  const elsewhere =
-    any && need !== "administer" && need !== "write"
-      ? any[`${need}_modules`]
-      : [];
-  const fenced =
-    !!access &&
-    access.via !== "any_project" &&
-    (options.module
-      ? elsewhere.includes(options.module)
-      : elsewhere.length > 0 && !options.whole);
+    access?.binding && home ? sameFolder(access.binding, home) : false;
   let next: string;
   if (!access)
     next = home
       ? `Use the library from its home folder, ${home}, or bind this folder there with kb_maintain configure.`
       : "Use a bound folder, or have the library's administrator bind this one with kb_maintain configure.";
   else if (home && !atHome)
-    next = fenced
-      ? `${DO[need]} from the library's home folder, ${home}. Folders without a binding may do this, but this folder's own binding limits it.`
-      : `${DO[need]} from the library's home folder, ${home}.`;
+    next = `${DO[need]} from the library's home folder, ${home}.`;
   else if (home)
     next = `This is the library's home folder; its binding doesn't allow this here. Change the binding with kb_maintain configure if it should.`;
   else

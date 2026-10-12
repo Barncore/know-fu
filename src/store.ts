@@ -278,12 +278,19 @@ export class Store {
     const unread = request.read_modules.find(
       (m) => !permitted.read_modules.includes(m),
     );
-    if (unread !== undefined) throw await this.deny("read", { module: unread });
+    // The request may come from a stored job, plan or manifest rather than the caller, so a
+    // refusal names a module only when the caller can read it.
+    if (unread !== undefined) throw await this.deny("read");
     const unwritable = request.write_modules.find(
       (m) => !permitted.write_modules.includes(m),
     );
     if (unwritable !== undefined)
-      throw await this.deny(capability, { module: unwritable });
+      throw await this.deny(
+        capability,
+        permitted.read_modules.includes(unwritable)
+          ? { module: unwritable }
+          : {},
+      );
     return subset(request, permitted);
   }
 
@@ -652,6 +659,7 @@ export class Store {
     release: string | null = null,
     outcome = "completed",
     eventId = uid("event-"),
+    caller: { project?: string; agent?: string } = {},
   ) {
     if (await exists(this.p(`audit/events/${eventId}.json`))) {
       await this.renderAudit();
@@ -666,8 +674,8 @@ export class Store {
       description,
       actor: "know-fu",
       // The real calling folder and agent, so a later reader can tell who did what.
-      project: this.project,
-      agent: agentName(),
+      project: caller.project ?? this.project,
+      agent: caller.agent ?? agentName(),
       record_refs: affected,
       before_release: null,
       after_release: release,
@@ -791,6 +799,7 @@ export class Store {
         current,
         "completed",
         journal.event_id,
+        journal.caller,
       );
     }
     await fs.rm(this.p("publication.json"), { force: true });
@@ -1414,7 +1423,14 @@ export class Store {
       const event_id = uid("event-");
       await atomic(
         this.p("publication.json"),
-        json({ release, changed_refs: records.map(ref), event_id, impacts }),
+        json({
+          release,
+          changed_refs: records.map(ref),
+          event_id,
+          impacts,
+          // Recovery may run in another folder's session; the audit event names the publisher.
+          caller: { project: this.project, agent: agentName() },
+        }),
       );
       await immutable(
         this.p(`releases/${release.release_id}.json`),

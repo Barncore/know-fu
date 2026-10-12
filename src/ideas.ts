@@ -14,6 +14,7 @@ import {
 } from "./core.js";
 import type { ProposalData, RecordData, Ref, Scope } from "./core.js";
 import { parseRef } from "./filing.js";
+import { denial, resolveAccess } from "./access.js";
 import { summary } from "./navigation.js";
 import {
   decisiveResult,
@@ -252,7 +253,9 @@ export class Ideas {
     const plan = await this.store.withReadSession(async () => {
       const index = await LibraryIndex.open(this.store, {});
       const scope = await this.store.scope(undefined, "save");
-      const denied: string[] = [];
+      // Refuse at the first unwritable module, before later checks, as before the access split.
+      const config = await this.store.config();
+      const access = resolveAccess(config, this.store.project);
       const items = drafts.map((draft, i) => {
         const where = drafts.length > 1 ? `Idea ${i + 1}` : "Idea";
         const statement = text(draft.statement);
@@ -292,7 +295,11 @@ export class Ideas {
           "VALIDATION_FAILED",
           `${where}: its premises span several modules; name the module it belongs to`,
         );
-        if (!scope.write_modules.includes(module)) denied.push(module);
+        if (!scope.write_modules.includes(module))
+          throw denial(access, config, this.store.project, "save", {
+            module,
+            operation: "kb_idea propose",
+          });
         const domains = draft.domains?.length
           ? draft.domains
           : input.domains?.length
@@ -341,11 +348,6 @@ export class Ideas {
           payload,
         };
       });
-      if (denied.length)
-        throw await this.store.deny("save", {
-          module: denied[0],
-          operation: "kb_idea propose",
-        });
       return { index, scope, items, base: index.current };
     });
     const modules = [...new Set(plan.items.map((i) => i.maintenance_module))];

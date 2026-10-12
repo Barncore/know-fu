@@ -93,8 +93,9 @@ export function idleReleaseMs(env: NodeJS.ProcessEnv = process.env) {
   const raw = String(env.KB_IDLE_RELEASE_MINUTES ?? "").trim();
   if (/^(0+(\.0*)?|off|never|false|no)$/i.test(raw)) return 0;
   const minutes = Number(raw);
+  // setTimeout fires at once past 2^31 - 1 ms (about 24.8 days), so longer waits are capped.
   return raw && Number.isFinite(minutes) && minutes > 0
-    ? Math.round(minutes * 60000)
+    ? Math.min(Math.round(minutes * 60000), 2 ** 31 - 1)
     : 600000;
 }
 let collector: ((options?: unknown) => void) | null | undefined;

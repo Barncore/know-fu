@@ -17,6 +17,7 @@ import {
   sameProject,
 } from "./core.js";
 import type { Ref, RecordData, CorpusData } from "./core.js";
+import { sameFolder } from "./access.js";
 const BINDING_LISTS = [
   "read_modules",
   "write_modules",
@@ -39,7 +40,7 @@ function accessPolicy(input: any, config: CorpusData) {
   );
   ensure(
     config.project_bindings.some((b) =>
-      sameProject(b.project_id, input.home_project),
+      sameFolder(b.project_id, input.home_project),
     ),
     "VALIDATION_FAILED",
     "The home folder needs its own binding; add it with binding in the same call or first",
@@ -133,7 +134,10 @@ export class Governance {
         );
         ensure(
           !config.project_bindings.some((x) =>
-            sameProject(x.project_id, b.project_id),
+            (config.access ? sameFolder : sameProject)(
+              x.project_id,
+              b.project_id,
+            ),
           ),
           "REVISION_CONFLICT",
           "Project already bound; edit requires an explicit replacement plan",
