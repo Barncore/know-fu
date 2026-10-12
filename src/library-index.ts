@@ -111,6 +111,16 @@ export class LibraryIndex {
     readonly live: Map<string, RecordData>,
   ) {}
 
+  /** How many snapshots are held for a store; idle release empties this. */
+  static cached(store: Store) {
+    return cache.get(store)?.size ?? 0;
+  }
+
+  /** Drops every snapshot held for a store, so the next call builds a fresh one. */
+  static forget(store: Store) {
+    cache.delete(store);
+  }
+
   static async open(
     store: Store,
     request: { scope?: Scope; release_id?: string },

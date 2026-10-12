@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs/promises";
 import { published } from "./helpers.js";
 import { Store } from "../src/store.js";
-import { KnowledgeSystem } from "../src/api.js";
+import { KnowledgeSystem, idleReleaseMs } from "../src/api.js";
 import { Filing } from "../src/filing.js";
 import { Jobs } from "../src/jobs.js";
 import { Lifecycle } from "../src/lifecycle.js";
 import { Maintenance } from "../src/maintenance.js";
 import { Governance } from "../src/governance.js";
+import { LibraryIndex } from "../src/library-index.js";
 import { resolveAccess } from "../src/access.js";
 import {
   atomic,
@@ -591,6 +592,41 @@ test("kb_maintain configure sets, checks and removes the access policy", async (
   ).configure({ authorization: "Close it again", access: null });
   assert.equal((await f.store.config()).access, undefined);
   await assert.rejects(() => elsewhere.access(), denied());
+});
+
+test("idle release drops the recall index and file cache, and the next call rebuilds them", async () => {
+  assert.equal(idleReleaseMs({}), 600000);
+  assert.equal(idleReleaseMs({ KB_IDLE_RELEASE_MINUTES: "2.5" }), 150000);
+  assert.equal(idleReleaseMs({ KB_IDLE_RELEASE_MINUTES: "0" }), 0);
+  assert.equal(idleReleaseMs({ KB_IDLE_RELEASE_MINUTES: "off" }), 0);
+  assert.equal(idleReleaseMs({ KB_IDLE_RELEASE_MINUTES: "soon" }), 600000);
+  const f = await published("access-idle");
+  const system = new KnowledgeSystem(f.store, { idleReleaseMs: 40 });
+  const query = { query: "may I move the lantern with an amber badge" };
+  const first: any = await system.call("kb_recall", query);
+  assert.equal(LibraryIndex.cached(f.store), 1);
+  assert(f.store.cacheStats().entries > 0);
+  // Never while a call is running.
+  const running = system.call("kb_recall", query);
+  assert.equal(system.releaseMemory(), false);
+  await running;
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  assert.equal(system.releases, 1);
+  assert.equal(LibraryIndex.cached(f.store), 0);
+  assert.equal(f.store.cacheStats().entries, 0);
+  const again: any = await system.call("kb_recall", query);
+  assert.equal(LibraryIndex.cached(f.store), 1);
+  assert.deepEqual(
+    again.items.map((i: any) => i.record_ref),
+    first.items.map((i: any) => i.record_ref),
+  );
+  // Without a release period, nothing is scheduled.
+  const store = new Store(f.store.root, f.store.project, f.store.ledgerRoot);
+  const quiet = new KnowledgeSystem(store);
+  await quiet.call("kb_recall", query);
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.equal(quiet.releases, 0);
+  assert.equal(LibraryIndex.cached(store), 1);
 });
 
 test("access resolution picks the folder's own binding, then the closest containing one, then the default", () => {

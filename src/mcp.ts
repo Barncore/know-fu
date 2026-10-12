@@ -3,7 +3,12 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import path from "node:path";
 import { Store } from "./store.js";
-import { KnowledgeSystem, descriptions, exposedTools } from "./api.js";
+import {
+  KnowledgeSystem,
+  descriptions,
+  exposedTools,
+  idleReleaseMs,
+} from "./api.js";
 import { APP, ENGINE_VERSION } from "./core.js";
 import { presentResult } from "./present.js";
 const system = new KnowledgeSystem(
@@ -11,6 +16,8 @@ const system = new KnowledgeSystem(
     process.env.KB_CORPUS ?? path.resolve(APP, "../knowledge-library"),
     process.env.KB_PROJECT ?? process.cwd(),
   ),
+  // Each chat runs its own engine for the chat's lifetime; an idle one gives its caches back.
+  { idleReleaseMs: idleReleaseMs() },
 );
 const server = new McpServer({ name: "know-fu", version: ENGINE_VERSION });
 for (const name of exposedTools())

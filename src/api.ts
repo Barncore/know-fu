@@ -1,5 +1,7 @@
 import * as fs from "node:fs/promises";
 import path from "node:path";
+import v8 from "node:v8";
+import vm from "node:vm";
 import { Store } from "./store.js";
 import { Jobs } from "./jobs.js";
 import { Retrieval } from "./retrieval.js";
@@ -16,6 +18,7 @@ import { Maintenance } from "./maintenance.js";
 import { Evaluation } from "./evaluation.js";
 import { Governance } from "./governance.js";
 import { SourceWorkflow } from "./source-workflow.js";
+import { LibraryIndex } from "./library-index.js";
 import { accessSummary, holds, redactedConfig, requirement } from "./access.js";
 import {
   ensure,
@@ -81,6 +84,41 @@ export function exposedTools(env: NodeJS.ProcessEnv = process.env) {
     (name) => advanced || !ADVANCED_TOOLS.includes(name),
   );
 }
+/**
+ * How long an MCP engine waits after its last tool call before dropping its in-memory recall
+ * index and file cache: `KB_IDLE_RELEASE_MINUTES` (decimals allowed), default 10, and 0 or
+ * `off` never releases. The next call rebuilds what it needs.
+ */
+export function idleReleaseMs(env: NodeJS.ProcessEnv = process.env) {
+  const raw = String(env.KB_IDLE_RELEASE_MINUTES ?? "").trim();
+  if (/^(0+(\.0*)?|off|never|false|no)$/i.test(raw)) return 0;
+  const minutes = Number(raw);
+  return raw && Number.isFinite(minutes) && minutes > 0
+    ? Math.round(minutes * 60000)
+    : 600000;
+}
+let collector: ((options?: unknown) => void) | null | undefined;
+/**
+ * Runs a full garbage collection, so memory dropped by idle release goes back to the
+ * system. An idle engine allocates nothing, so V8 would otherwise never collect it.
+ * Uses `--expose-gc` when the launcher set it, or turns it on for this process.
+ */
+export function collectGarbage() {
+  if (collector === undefined)
+    try {
+      if (typeof (globalThis as any).gc !== "function")
+        v8.setFlagsFromString("--expose-gc");
+      collector = (globalThis as any).gc ?? vm.runInNewContext("gc");
+    } catch {
+      collector = null;
+    }
+  collector?.({
+    type: "major",
+    execution: "sync",
+    flavor: "last-resort",
+  } as any);
+  return Boolean(collector);
+}
 export class KnowledgeSystem {
   jobs: Jobs;
   projections: Projections;
@@ -91,7 +129,14 @@ export class KnowledgeSystem {
   lifecycle: Lifecycle;
   maintenance: Maintenance;
   evaluation: Evaluation;
-  constructor(public store: Store) {
+  private active = 0;
+  private idle?: NodeJS.Timeout;
+  /** How many times idle release has run, for status and tests. */
+  releases = 0;
+  constructor(
+    public store: Store,
+    private options: { idleReleaseMs?: number } = {},
+  ) {
     this.jobs = new Jobs(store);
     this.projections = new Projections(store);
     this.retrieval = new Retrieval(store, this.projections);
@@ -102,7 +147,39 @@ export class KnowledgeSystem {
     this.maintenance = new Maintenance(store, this.projections);
     this.evaluation = new Evaluation(store, this.retrieval);
   }
+  /**
+   * Drops what a used engine holds in memory between calls: the recall index snapshots, the
+   * verified file cache and the search worker. Nothing canonical lives there, so the next call
+   * rebuilds what it needs from the library. Never runs while a call is in progress.
+   */
+  releaseMemory() {
+    if (this.active) return false;
+    LibraryIndex.forget(this.store);
+    this.store.clearReadCache();
+    this.projections.closeSearch();
+    this.releases++;
+    collectGarbage();
+    return true;
+  }
+  private scheduleRelease() {
+    clearTimeout(this.idle);
+    const wait = this.options.idleReleaseMs ?? 0;
+    if (!wait || this.active) return;
+    this.idle = setTimeout(() => this.releaseMemory(), wait);
+    // An idle timer must never keep the engine running after its host goes away.
+    this.idle.unref();
+  }
   async call(name: string, p: any = {}) {
+    this.active++;
+    clearTimeout(this.idle);
+    try {
+      return await this.dispatch(name, p);
+    } finally {
+      this.active--;
+      this.scheduleRelease();
+    }
+  }
+  private async dispatch(name: string, p: any) {
     // Refuses a folder with no access at all, as the binding check always has.
     const access = await this.store.access();
     // With an access policy, check the capability this call exercises before it runs, so a
