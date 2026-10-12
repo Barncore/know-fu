@@ -4,6 +4,14 @@ The local development installation is Windows with CPU QMD. Until 12 October 202
 
 Entries run newest first. Each one says what was shown and what wasn't. Older entries are kept as written.
 
+## 2026-10-13: access from any folder and idle memory release
+
+Shown by `test/access.test.ts` (16 tests) and the rest of the suite, 176 tests in all, with `KB_PDFTOTEXT` set to Poppler's: an unbound folder reads under the default and its retrieval receipts name the real folder; it saves answers and ideas when the library allows that and is refused, with the home folder named, when it doesn't; ingest is refused outside the home folder and works at home and below it; a folder's own binding beats the default, so a fenced folder can't read the personal module, in subfolders too; administering stays with the home folder even where every folder reads every module; `kb_status` hides other folders' bindings from non-administrators; binding lists split saving, authoring and administering; `kb_maintain configure` sets, checks and removes the setting and keeps new modules private; `create-library.mjs` defaults to on, on, off; and a library without `access` gives the same allow and deny decisions as before. An independent reviewer, given only the diff and the requirements, compared old and new engines over 8 callers by 32 calls on a legacy library: the only differences were the status redaction and a refusal-order change, which was then fixed.
+
+Idle release, measured with a probe that starts `dist/mcp.js` as the plugin does, on a synthetic library of 1,525 accounts: after four recalls and a brief, an idle engine held 104 MB working set and 116 MB private; ten seconds after release, 64 MB and 75 MB; the next recall rebuilt the index in 647 ms, against 34 ms warm. With release off, the engine stayed at 104 and 116 MB. On a four-record library release made no measurable difference.
+
+Not shown: real Claude Code or Codex chats against a library with an `access` setting; two engines writing one library at once (D23, which matters more now that every folder may save); `kb_evaluate run` and `kb_lifecycle execute` from a non-administering folder, whose checks were exercised through `report`, `plan` and the shared tool gate; idle release on macOS, Linux, or over hours.
+
 ## 2026-10-13: the Claude desktop app, a settings-file launcher, the gate and memory
 
 Shown with the desktop app's own bundled Claude Code (2.1.295), started headless in the pilot folder, reading the MCP servers each run reported at startup:
@@ -14,7 +22,7 @@ Shown with the desktop app's own bundled Claude Code (2.1.295), started headless
 | Installed copy switched off for the run, the cache copy passed as a folder (`--plugin-dir`) | 0, plugin and skill loaded |
 | Same, with the options copied under `pluginConfigs["know-fu@inline"]` | 16 |
 
-The desktop's log (`%LOCALAPPDATA%Claudelogsmain.log`) shows it passing installed plugins to Claude Code itself: "Passing 12 plugin(s) to SDK (skills: 1, remote: 6, local: 5)". A plugin passed as a folder is named `<name>@inline`, so options saved for `know-fu@know-fu` never reached it, `${user_config.engine_dir}` stayed unfilled, and the server was dropped. That explains all three failed desktop chats in the setup trial. A stale "needs auth" mark in `~/.claude/mcp-needs-auth-cache.json`, left by a 12 October stub test, was ruled out: a chat started after it was cleared still had no tools. This corrects the 12 October entry below: the `claude` command reads this marketplace in place, but the desktop app runs the cached copy.
+The desktop's log (`%LOCALAPPDATA%\Claude\logs\main.log`) shows it passing installed plugins to Claude Code itself: "Passing 12 plugin(s) to SDK (skills: 1, remote: 6, local: 5)". A plugin passed as a folder is named `<name>@inline`, so options saved for `know-fu@know-fu` never reached it, `${user_config.engine_dir}` stayed unfilled, and the server was dropped. That explains all three failed desktop chats in the setup trial. A stale "needs auth" mark in `~/.claude/mcp-needs-auth-cache.json`, left by a 12 October stub test, was ruled out: a chat started after it was cleared still had no tools. This corrects the 12 October entry below: the `claude` command reads this marketplace in place, but the desktop app runs the cached copy.
 
 The fix, shown the same way, with the repository's `plugin/` passed as a folder and the installed copy off:
 

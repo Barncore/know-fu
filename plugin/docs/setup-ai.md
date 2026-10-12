@@ -26,12 +26,21 @@ Then tell the person, in a few lines, what's there, what's missing, and what the
 
 ## Phase 2: Ask for the choices
 
-Ask these four in one batch (one `AskUserQuestion` call fits them all):
+First explain, in two sentences, the idea the next questions rest on: every chat runs in a folder, the one picked when the chat starts, and Know Fu uses that folder to decide what the chat may do with the library. The library's home folder is where sources get ingested and the library is looked after; other folders get what the person allows below.
+
+Then ask two batches. The first (one `AskUserQuestion` call fits it):
 
 1. **Storage.** Where the library and its state folder go. Recommend one folder per library that holds `library` and `state`, on a local drive with room and backups, outside the code checkout and outside sync folders like OneDrive or Dropbox. The state folder holds the deletion ledger, which gets backed up with the library.
-2. **Project folder.** The folder they'll open their agent in when they use the library. The library is bound to that folder, and any other folder gets `SCOPE_DENIED`. For a library with one purpose, recommend the folder that holds it. If they want the library wherever they already work, recommend that workspace.
+2. **Home folder.** The folder they'll open a chat in to feed the library and look after it. Chats in it, or in any folder inside it, can do everything. Recommend the storage folder from question 1, so the library, its state and its home sit together.
 3. **Media tools.** Where FFmpeg runs: `native` (on PATH) or `wsl`. It only matters for video and audio. Say which one is installed already.
 4. **Specialist tools.** Off lists the 11 everyday tools. On also lists `kb_lifecycle` (archive, withdraw, purge), `kb_propose`, `kb_change`, `kb_retrieve` (the older comparison routes) and `kb_evaluate`, for about 550 more tokens per session. Recommend off unless they plan purges or maintenance.
+
+The second batch sets what chats in other folders may do:
+
+1. **Read from any folder.** Yes (recommended) lets a chat in any project ask the library questions. No keeps the library to its home folder.
+2. **Save answers and ideas from any folder.** Yes (recommended) lets a chat in any project keep a worked answer or an idea in the library, when the person asks for it. It needs reading from any folder.
+3. **Ingest from any folder.** No (recommended) keeps ingestion in the home folder. Say why in one line: a chat in another project carries that project's instructions into how notes get written, and a chat misled by a web page or a repository could add to the library. Yes needs reading from any folder.
+4. **Automatic use.** Off (recommended) means Know Fu runs only when they type `/know-fu:know-fu` (`$know-fu:know-fu` in Codex). On lets Claude Code use the library unprompted; Codex can't enforce either way yet.
 
 Ask these too when they apply:
 
@@ -71,10 +80,12 @@ Done when `npm test` runs the 3 Python tests and they pass. They convert a real 
 Run the library script with the phase 2 answers:
 
 ```text
-node scripts/create-library.mjs --library <library folder> --state <state folder> --project <project folder> --id <library id> --agent claude --python <engine>/.venv/Scripts/python.exe --pdftotext <Poppler's pdftotext>
+node scripts/create-library.mjs --library <library folder> --state <state folder> --home <home folder> --id <library id> --agent claude --python <engine>/.venv/Scripts/python.exe --pdftotext <Poppler's pdftotext>
 ```
 
-Use `--agent codex` for Codex, and add one `--domain id=Title` for each topic. The id has to be unique to this library, for example `trading-research`. The script creates the library with one `research` module bound to the project folder, writes the deletion ledger, and writes `<state>/config.json` with the converter and Poppler paths. It refuses a `pdftotext` that isn't Poppler's, and it refuses to touch a library or config that already exists, so it can't overwrite an install.
+Use `--agent codex` for Codex, and add one `--domain id=Title` for each topic. The id has to be unique to this library, for example `trading-research`. The defaults match the recommended answers: reading and saving from any folder on, ingesting from any folder off. Add `--no-read-from-any-folder`, `--no-save-from-any-folder` or `--ingest-from-any-folder` to match other answers; the script refuses saving or ingesting from anywhere without reading from anywhere. It creates the library with one `research` module, binds the home folder with every capability, records the other folders' access, writes the deletion ledger, and writes `<state>/config.json` with the converter and Poppler paths. It refuses a `pdftotext` that isn't Poppler's, and it refuses to touch a library or config that already exists, so it can't overwrite an install.
+
+The person can change the other-folder choices later from a chat in the home folder, with `kb_maintain configure` ([operations](../skills/know-fu/references/operations.md#configuring-modules-and-bindings)). The same place fences a client project to a module of its own.
 
 To bring back a library from a backup, don't use this script. A restore needs the matching deletion ledger, never a fresh library.
 

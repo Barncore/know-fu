@@ -2,6 +2,10 @@
 
 Things this project learned the hard way, newest first. Each one says what happened and what to do differently.
 
+## 2026-10-13 - An idle Node process doesn't give memory back on its own
+
+Dropping the engine's recall index left private memory exactly where it was, because an idle process allocates nothing, so V8 never collects. A plain forced `gc()` shrank V8's heap from 57 to 19 MB and still returned nothing to Windows. Only the `last-resort` collection gave memory back to the operating system. When a long-lived process should shrink while idle, measure the operating system's view of it (private bytes), not the heap, and ask for the collection that returns memory.
+
 ## 2026-10-13 - Check in every app that will run it
 
 Claude Code's terminal command and its desktop app load plugins by different routes. The terminal read the installed plugin and its saved options; the desktop app passed the same plugin as a bare folder under another name, so the options never arrived and Know Fu's server was left out without an error. Three desktop chats failed while `claude mcp list` reported "connected" and headless terminal checks passed. The 12 October lesson below asked the running program where it reads from, which was right, but only one of the two programs was asked. Check in a new chat in each app the user will run, and keep a launch independent of anything one host stores on the plugin's behalf.

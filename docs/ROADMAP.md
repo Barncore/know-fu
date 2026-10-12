@@ -60,7 +60,7 @@ All five are written up in [NORTH_STAR.md](NORTH_STAR.md#decisions-on-5-october-
 ## Decided on 13 October 2026
 
 - D30: Use is deliberate, for reads as well as writes: a manual-only skill in both agents, plus a gate on Claude Code's tool calls. No per-call permission prompts. Codex has no working gate yet, because its hooks didn't run in tests.
-- D31: A personal library's default access is read from anywhere, save answers and ideas from anywhere when asked, and ingest only from the home folder, each a setup choice, with a folder's own binding beating the default.
+- D31: A personal library's default access is read from anywhere, save answers and ideas from anywhere when asked, and ingest only from the home folder, each a setup choice, with a folder's own binding beating the default. Built in 0.3.1. Because every open chat may now save, two writers at once (D23) is no longer a corner case; test it before the release.
 - D32: Settings live in Know Fu's own file, `~/.know-fu/config.json`, not in a host's plugin options.
 - D33: Versions restart at 0.3.0; any plugin change bumps the version, enforced by `npm run check:package`. See [NORTH_STAR.md](NORTH_STAR.md#decisions-on-13-october-2026).
 

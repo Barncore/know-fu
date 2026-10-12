@@ -97,7 +97,7 @@ Clone the repository, open it in your coding assistant and say:
 
 > Read AGENTS.md and plugin/docs/setup-ai.md, then walk me through setting up Know Fu on this machine.
 
-The [setup walkthrough](plugin/docs/setup-ai.md) has your AI check what's installed, ask you a few choices with its question tool (where the library lives, which folder you'll work in, media tools, specialist tools), then build, install and check everything in order. It takes about 3 GB of disk for books and papers; [setup](plugin/docs/setup.md#how-big-it-is) breaks that down.
+The [setup walkthrough](plugin/docs/setup-ai.md) has your AI check what's installed, ask you a few choices with its question tool (where the library lives, its home folder, whether chats in your other projects may read it and save answers to it, media tools, specialist tools), then build, install and check everything in order. It takes about 3 GB of disk for books and papers; [setup](plugin/docs/setup.md#how-big-it-is) breaks that down.
 
 ### Pick your agent
 

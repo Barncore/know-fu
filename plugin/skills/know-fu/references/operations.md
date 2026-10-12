@@ -16,11 +16,17 @@ There's no graph server to start or check. The links live in the records, and ev
 
 ## Scope and authority
 
-Whole-library `verify`, `export` and `formats` need unrestricted read access to every module, and `restore` also needs write authority over the whole library. A scoped caller gets `SCOPE_DENIED`, because these commands never produce partial backups. Exact reads only expose the ancestry of published releases. Ordinary edits leave archive, withdrawal and supersession state alone. Lifecycle execution and purge resumption check the caller's current permissions again, rather than trusting what was true when the plan was made.
+In a library with an `access` setting, whole-library `verify`, `export`, `formats`, `restore` and evaluation need administer on every module, which normally means the home folder. In a library without one, `verify`, `export` and `formats` need unrestricted read access to every module, and `restore` also needs write authority over the whole library. A scoped caller gets `SCOPE_DENIED`, because these commands never produce partial backups. Exact reads only expose the ancestry of published releases. Ordinary edits leave archive, withdrawal and supersession state alone. Lifecycle execution and purge resumption check the caller's current permissions again, rather than trusting what was true when the plan was made.
 
 ## Configuring modules and bindings
 
-`kb_maintain {action:"configure"}` takes `module {module_id, title, description}`, `domains [{domain_id, title}]`, an optional `binding {project_id, read_modules, write_modules}`, optional `dimensions {name: {type, unit}}`, and the real task `authorization`. The owning project has to be able to write every module. Only bind a new project when the user asks. A condition dimension's meaning never changes, so when its unit or meaning changes, give it a new name.
+`kb_maintain {action:"configure"}` takes `module {module_id, title, description}`, `domains [{domain_id, title}]`, an optional `binding {project_id, read_modules, write_modules, save_modules?, author_modules?, administer_modules?}`, an optional `access {home_project, any_project?: {read_modules, save_modules, author_modules}}` (or `access: null`), optional `dimensions {name: {type, unit}}`, and the real task `authorization`. Configure runs from a folder that administers every module, normally the home folder. Only bind a new project, or change access, when the user asks. A condition dimension's meaning never changes, so when its unit or meaning changes, give it a new name.
+
+`access` replaces the library's whole setting for folders without a binding: what they may read, save (`kb_file`, `kb_idea` writes) and author (ingest, write notes). It never lets them administer, and `access: null` goes back to bound folders only. A new module is added only to the configuring folder's binding, so it never becomes readable from other folders by itself.
+
+To fence a client project, bind its folder to its own module with `administer_modules: []`, for example `{project_id, read_modules: ["acme"], write_modules: ["acme"], administer_modules: []}`. Its own binding beats the setting for other folders, covers the folders inside it, and keeps it out of the personal module. Without `administer_modules: []`, a binding administers the modules it writes, so the client folder could purge or import there.
+
+A refusal (`SCOPE_DENIED`) says what this folder can do and where the refused work belongs, naming the home folder. Pass that on to the user rather than retrying.
 
 ## Archive, withdrawal and purge
 
