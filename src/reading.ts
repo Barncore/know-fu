@@ -428,6 +428,8 @@ export class Reading {
     await atomic(
       this.store.p(`retrieval-receipts/${result.request_id}.json`),
       json({
+        // The real calling folder and agent, never a stand-in.
+        ...(await this.store.caller()),
         interface_version: result.interface_version,
         request_id: result.request_id,
         kind,

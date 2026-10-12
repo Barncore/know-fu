@@ -109,7 +109,7 @@ export class Filing {
         );
         records.push(record);
       }
-      const scope = await this.store.scope();
+      const scope = await this.store.scope(undefined, "save");
       const modules = [...new Set(records.map((r) => r.maintenance_module))];
       const module =
         input.module ?? (modules.length === 1 ? modules[0] : undefined);
@@ -118,11 +118,8 @@ export class Filing {
         "VALIDATION_FAILED",
         "Cited records span several modules; name the module this answer belongs to",
       );
-      ensure(
-        scope.write_modules.includes(module),
-        "SCOPE_DENIED",
-        "This project cannot write to that module",
-      );
+      if (!scope.write_modules.includes(module))
+        throw await this.store.deny("save", { module, operation: "kb_file" });
       const sources: Ref[] = [];
       for (const r of records) {
         sources.push(...r.provenance.source_refs);
@@ -205,7 +202,7 @@ export class Filing {
         } as any,
       ],
     } as ProposalData;
-    const compiled = await this.store.compile(proposal);
+    const compiled = await this.store.compile(proposal, [], "save");
     const record = compiled.records[0];
     record.provenance.method = "filed_answer";
     if (input.dry_run)
@@ -221,6 +218,9 @@ export class Filing {
       plan.base,
       `Filed answer: ${input.title.trim()}`,
       proposal.scope_policy,
+      [],
+      [],
+      "save",
     );
     return {
       status: "published",

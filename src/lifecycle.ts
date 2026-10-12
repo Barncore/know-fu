@@ -44,12 +44,12 @@ export class Lifecycle {
       // The previous attempt may already have removed canonical metadata.
       // Legacy recovery inventories lacked this snapshot; only a full owner may resume those.
       if (inventory.required_scope)
-        await this.store.scope(inventory.required_scope);
-      else await this.store.requireFullScope(true);
+        await this.store.scope(inventory.required_scope, "administer");
+      else await this.store.requireFullScope("administer");
       return;
     }
     const records = await this.store.records(),
-      scope = await this.store.scope();
+      scope = await this.store.scope(undefined, "administer");
     const targets = new Set(p.targets.map((r) => r.id));
     const touched =
       p.action === "purge"
@@ -76,7 +76,8 @@ export class Lifecycle {
     targets: Ref[],
     reason: string,
   ) {
-    const scope = await this.store.scope(),
+    // Lifecycle changes are administration: for a binding without capability lists, write access, as before.
+    const scope = await this.store.scope(undefined, "administer"),
       records = await this.store.records(),
       release = await this.store.current();
     ensure(release, "VALIDATION_FAILED", "No release");
@@ -88,11 +89,11 @@ export class Lifecycle {
     for (const t of targets) {
       const r = records.get(t.id);
       ensure(r && key(r) === key(t), "PLAN_STALE", "Target revision changed");
-      ensure(
-        scope.write_modules.includes(r.maintenance_module),
-        "SCOPE_DENIED",
-        "Lifecycle target is outside writable modules",
-      );
+      if (!scope.write_modules.includes(r.maintenance_module))
+        // No module name: the target may sit in a module this folder can't read.
+        throw await this.store.deny("administer", {
+          operation: "kb_lifecycle",
+        });
       await this.store.requireWritable(r, scope);
     }
     // Historical revisions matter for purge: an account revised to independent material
@@ -268,7 +269,10 @@ export class Lifecycle {
       bodies,
       p.base_release,
       `${p.action}: ${p.reason}`,
-      await this.store.scope(),
+      await this.store.scope(undefined, "administer"),
+      [],
+      [],
+      "administer",
     );
     p.state = "complete";
     await atomic(file, json(p));
