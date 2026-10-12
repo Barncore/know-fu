@@ -9,6 +9,7 @@ import { Jobs } from "../src/jobs.js";
 import { Lifecycle } from "../src/lifecycle.js";
 import { Maintenance } from "../src/maintenance.js";
 import { Governance } from "../src/governance.js";
+import { Evaluation } from "../src/evaluation.js";
 import { LibraryIndex } from "../src/library-index.js";
 import { resolveAccess } from "../src/access.js";
 import {
@@ -391,6 +392,11 @@ test("a legacy corpus.json without an access setting behaves exactly as before",
       }),
     { code: "SCOPE_DENIED" },
   );
+  // Evaluation keeps its old rule: a bound reader isn't refused by an administer check.
+  await assert.rejects(
+    () => new Evaluation(reader, {} as any).report("eval-missing"),
+    (e: any) => e.code !== "SCOPE_DENIED",
+  );
   // The full owner still sees the whole configuration.
   const owner: any = await new KnowledgeSystem(f.store).call("kb_status");
   assert.deepEqual(owner.corpus, await f.store.config());
@@ -463,7 +469,16 @@ test("administering stays with the home folder, even where any folder may read e
       ),
     { code: "SCOPE_DENIED" },
   );
+  await assert.rejects(
+    () => new Evaluation(f.as(ELSEWHERE), {} as any).report("eval-missing"),
+    { code: "SCOPE_DENIED" },
+  );
   assert((await new Maintenance(f.as(HOME)).exportBundle()).manifest);
+  // The home folder passes the gate and fails later, on the missing run.
+  await assert.rejects(
+    () => new Evaluation(f.as(HOME), {} as any).report("eval-missing"),
+    (e: any) => e.code !== "SCOPE_DENIED",
+  );
 });
 
 test("binding capability lists split saving, authoring and administering", async () => {

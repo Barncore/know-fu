@@ -90,8 +90,8 @@ export class Lifecycle {
       const r = records.get(t.id);
       ensure(r && key(r) === key(t), "PLAN_STALE", "Target revision changed");
       if (!scope.write_modules.includes(r.maintenance_module))
+        // No module name: the target may sit in a module this folder can't read.
         throw await this.store.deny("administer", {
-          module: r.maintenance_module,
           operation: "kb_lifecycle",
         });
       await this.store.requireWritable(r, scope);
