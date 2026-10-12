@@ -57,6 +57,13 @@ All five are written up in [NORTH_STAR.md](NORTH_STAR.md#decisions-on-5-october-
 
 - D26: FalkorDB is gone, with its WSL2 service, setup scripts, client and client patch. Nothing answered from it, and on Windows it was the only reason to install WSL2. The older `kb_retrieve` routes now find linked records from the canonical records, so they still work as a comparison baseline. See [NORTH_STAR.md](NORTH_STAR.md#decisions-on-12-october-2026).
 
+## Decided on 13 October 2026
+
+- D30: Use is deliberate, for reads as well as writes: a manual-only skill in both agents, plus a gate on Claude Code's tool calls. No per-call permission prompts. Codex has no working gate yet, because its hooks didn't run in tests.
+- D31: A personal library's default access is read from anywhere, save answers and ideas from anywhere when asked, and ingest only from the home folder, each a setup choice, with a folder's own binding beating the default.
+- D32: Settings live in Know Fu's own file, `~/.know-fu/config.json`, not in a host's plugin options.
+- D33: Versions restart at 0.3.0; any plugin change bumps the version, enforced by `npm run check:package`. See [NORTH_STAR.md](NORTH_STAR.md#decisions-on-13-october-2026).
+
 ## Waiting on the owner
 
 Fable 5.1 reviewed the whole project on 6 October 2026 ([the audit](#where-these-came-from)), and this is the list of what's left to decide, merged with the owner's own open questions. It's grouped by when the answer is needed, and inside each group the ones I'd approve without hesitation come first and the uncertain or consequential ones last. When the owner decides one, its heading says so and it's added to a "Decided on" list, and if it means building something, it gets a task number. Its D number stays the same.
@@ -340,6 +347,10 @@ Beyond `kb_connect`'s chains and bridges, the invent slate (task 22) and the gap
 #### 16. Keep the evaluation harness, stop growing it
 
 The version 3 evaluator is Codex-specific and heavy. Use the lighter blind A/B method in VALIDATION for retrieval changes, and save the full harness for formal acceptance gates.
+
+#### 27. One shared engine per machine
+
+Every open chat runs its own engine today (35 to 70 MB idle, setup's [what it costs to run](../plugin/docs/setup.md#what-it-costs-to-run)). One engine that every chat connects to would keep memory flat however many chats are open, and would make one writer at a time automatic, since every write would pass through one process (D23). Codex showed on 13 October that a localhost HTTP MCP server can serve several chats with each chat's folder in a header. The costs: a background service to install, keep running and secure, which is the kind of service D26 removed. Worth it only if memory or concurrent writing becomes a real problem.
 
 ### Parked by the owner
 

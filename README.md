@@ -101,7 +101,7 @@ The [setup walkthrough](plugin/docs/setup-ai.md) has your AI check what's instal
 
 ### Pick your agent
 
-Know Fu runs with Codex or Claude Code, from the same `plugin/` folder and the same skill. Codex installs through a generated local launcher (`scripts/configure-plugin.mjs`); Claude Code installs by adding this checkout as a local plugin marketplace and filling in the engine, library and state folders it asks for. Both need the engine built first, and the [setup walkthrough](plugin/docs/setup-ai.md) has the steps for each. Every record notes which agent wrote it, so you can compare their work, and two agents can share one library as long as only one writes at a time.
+Know Fu runs with Codex or Claude Code, from the same `plugin/` folder and the same skill. Claude Code installs by adding this checkout as a local plugin marketplace; Codex installs through a machine-local launcher. Both read Know Fu's settings from one file, `~/.know-fu/config.json`, which `scripts/configure-plugin.mjs` writes with a section per agent. Both need the engine built first, and the [setup walkthrough](plugin/docs/setup-ai.md) has the steps for each. Know Fu only runs when you invoke it (`/know-fu:know-fu` in Claude Code, `$know-fu:know-fu` in Codex). Every record notes which agent wrote it, so you can compare their work, and two agents can share one library as long as only one writes at a time.
 
 The [setup reference](plugin/docs/setup.md) separates what the system actually needs from choices one installation happened to make: where the library and runtime state live, native or WSL media tools, and API or local transcription. The [decision matrix](plugin/docs/setup-choices.md) lays out the options.
 

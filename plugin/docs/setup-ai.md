@@ -7,7 +7,7 @@ You're an AI agent helping someone install Know Fu. This page is the whole proce
 Ask each batch of choices with your agent's question tool, so the person picks an answer instead of typing paths:
 
 - Claude Code: `AskUserQuestion`. It takes up to four questions per call, each with two to four options. Put your recommendation first and add "(Recommended)" to its label. The person can always type their own answer instead.
-- Codex: `request_user_input`, which takes the same shape of questions (a header, the question, options with descriptions). It has been seen working in Codex's Plan mode. Outside Plan mode, ask in a short numbered list.
+- Codex: in Plan mode, `request_user_input`, which takes the same shape of questions (a header, the question, options with descriptions). A normal chat refuses it; there, `request_user_input_async` shows the same questions and returns at once, so wait for the person's reply before acting on any answer. If neither is offered, ask in a short numbered list.
 - Any other agent: a short numbered list, recommendation first.
 
 Put the real resolved paths, sizes and costs in each option's description, because those are what the person decides from. A default is a recommendation, not consent: wait for the answer before you create anything.
@@ -20,7 +20,7 @@ This phase changes nothing. Find out what's already there, using read-only comma
 - Node (`node -v`, which needs 24.14.x) and either uv (`uv --version`) or a Python 3.12. Some version managers update themselves when you ask them to list versions: the Windows Python install manager's `py list` does. `uv python list --only-installed` is read-only.
 - Poppler's `pdftotext`. On Windows, Git for Windows puts Xpdf's `pdftotext` on PATH, and it often comes first. Run `pdftotext -v` on each copy you find: Poppler's output names Poppler, and Know Fu's PDF intake needs that one.
 - FFmpeg and FFprobe, only if they'll ingest video or audio: on PATH, or inside a WSL distribution.
-- Whether Know Fu is already installed (`claude plugin list` for Claude Code, Codex's plugin list for Codex) and whether a library already exists. If one exists, don't create a new one over it. If an older install ran FalkorDB, follow [upgrading from a FalkorDB setup](setup.md#upgrading-from-a-falkordb-setup).
+- Whether Know Fu is already installed (`claude plugin list` for Claude Code, Codex's plugin list for Codex), whether `~/.know-fu/config.json` exists (Know Fu's settings file, which may already hold another agent's section), and whether a library already exists. If one exists, don't create a new one over it. If an older install ran FalkorDB, follow [upgrading from a FalkorDB setup](setup.md#upgrading-from-a-falkordb-setup).
 
 Then tell the person, in a few lines, what's there, what's missing, and what the install will download.
 
@@ -39,7 +39,7 @@ Ask these too when they apply:
 - **Transcription**, only if they'll ingest video or audio: a hosted API with a spending allowance per job, or transcripts they make elsewhere and ingest as text.
 - **Topics.** If they already know them, these become the library's domains (`--domain id=Title`). Otherwise use `general`, and add domains later with `kb_maintain configure`.
 
-Write the answers into a setup note on their machine, outside the repository: the paths, the library id, and each choice. Credentials never go in it.
+Write the answers into `START_HERE.md` beside the library and state folders, outside the repository: the paths, the library id, and each choice. Phase 7 turns it into the handover note. Credentials never go in it.
 
 ## Phase 3: Build the engine
 
@@ -80,40 +80,44 @@ To bring back a library from a backup, don't use this script. A restore needs th
 
 ## Phase 6: Connect the agent
 
+Know Fu keeps its settings in its own file, `~/.know-fu/config.json`, with one section per agent. The plugin's launcher reads it each time a chat starts. It doesn't use Claude Code's plugin options, because the Claude desktop app loads plugins in a way that never passes those options on ([how each agent runs the engine](setup.md#how-each-agent-runs-the-engine)).
+
 ### Claude Code
 
-1. Install the plugin from a terminal. Claude Code's desktop Code tab doesn't offer `/plugin install`.
+1. Install the plugin, from a terminal or with your own shell tool. The desktop Code tab has no `/plugin install` box.
 
    ```text
    claude plugin marketplace add <engine folder>
-   claude plugin install know-fu@know-fu --config engine_dir=<engine folder>
+   claude plugin install know-fu@know-fu
    ```
 
-2. Enter the plugin settings from phase 2. Write them to a JSON file with your file-writing tool, as an object of strings (`"true"` and `"false"`, not booleans). Inside JSON, a Windows backslash is written `\\`. Then feed the file in:
+2. Write the settings with the phase 2 answers:
 
    ```text
-   claude plugin configure know-fu@know-fu --values-stdin < know-fu-settings.json
+   node scripts/configure-plugin.mjs --agent claude --library <library folder> --state <state folder> --media native
    ```
 
-   The keys are `library_dir`, `state_dir`, `media_runtime` (`native` or `wsl`), `advanced_tools`, and `wsl_distro` if media runs in WSL. Feed it from a file: the same JSON piped from `printf` in Git Bash was refused. The person can instead type them into Claude Code's own dialog with `/plugin configure know-fu@know-fu` in a terminal session. Run `claude plugin configure know-fu@know-fu` with no input to check that every required option says "set".
+   Add `--specialist-tools` if they chose them, and use `--media wsl --distro <name>` for WSL. It writes the `claude` section of `~/.know-fu/config.json`, recording this checkout as the engine. It refuses to change a section that's already there unless you add `--replace`.
 
-3. Check it. From the project folder, `claude mcp list` should show `plugin:know-fu:know-fu` as connected. Then start a new session in the project folder and call `kb_status`. It should report the library, the state folder and a scope with read and write modules. If it says `SCOPE_DENIED`, its `details.project` is the folder the engine received. Open the session in the bound folder instead, or, from a session in the bound folder, add a binding for the new one with `kb_maintain configure`. Windows paths match however they're written (slashes, letter case), so a mismatch means a different folder.
+3. Ask whether the read-only tools should run without a permission prompt each time. If yes, show them the change, then add these to `permissions.allow` in `~/.claude/settings.json`: `mcp__plugin_know-fu_know-fu__kb_status`, `mcp__plugin_know-fu_know-fu__kb_brief`, `mcp__plugin_know-fu_know-fu__kb_recall`, `mcp__plugin_know-fu_know-fu__kb_connect` and `mcp__plugin_know-fu_know-fu__kb_read`. The tools that write keep asking.
 
-Claude Code reads this plugin from the checkout and starts the engine from `engine_dir`, so a pull and rebuild reaches both at the next session, or after `/reload-plugins`. `claude plugin update know-fu@know-fu` says whether your version reads the plugin in place; [setup](setup.md#claude-code) covers the other case.
+4. Check it in every app they'll use, because each app starts the engine its own way. Start a new chat whose folder is the home folder: in the desktop app, pick that folder when starting the session; in a terminal, run `claude` from inside it. Type `/know-fu:know-fu check the library status`. `kb_status` should name the library, the state folder and the chat's folder. `claude mcp list` saying "connected" isn't enough: on 12 October it passed while the desktop app left the server out. If `kb_status` answers `KNOWFU_NOT_CONFIGURED`, its message names what's wrong with the settings file.
+
+Know Fu runs only when the person types `/know-fu:know-fu`. The skill never loads on its own, and a gate in the plugin turns away Know Fu tool calls in any chat where they haven't invoked it. If they ask for Claude to use the library unprompted, `--allow-automatic-use` in step 2 turns the gate off.
 
 ### Codex
 
-1. Write Codex's launcher with the phase 2 answers:
+1. Write the settings and Codex's launcher:
 
    ```text
-   node scripts/configure-plugin.mjs --corpus <library folder> --state <state folder> --media native --project <project folder> --advanced-tools
+   node scripts/configure-plugin.mjs --agent codex --library <library folder> --state <state folder> --media native
    ```
 
-   Leave out `--advanced-tools` if they chose off, and use `--media wsl --distro <name>` for WSL. It writes `plugin/.mcp.json`, which is machine-local and ignored by Git, and it refuses to overwrite one that exists. On an existing install, that refusal is your cue to look at the file and change it on purpose.
+   The flags match Claude Code's. It writes the `codex` section of `~/.know-fu/config.json` and a machine-local `plugin/.mcp.json` (ignored by Git) that starts the launcher with `KB_ACTOR=codex`. Add `--project <folder>` only if the chat's own folder shouldn't be its identity. It refuses to overwrite either file without `--replace`; on an existing install, that refusal is your cue to look at the file and change it on purpose.
 
-2. Run `node scripts/install-plugin.mjs` to copy the configured plugin into Codex's local plugin-source folder, then register or refresh it through Codex's own plugin workflow. This changes the person's Codex setup, so confirm it with them first and back up the current plugin and its cache.
+2. Run `node scripts/install-plugin.mjs`, then register or refresh the plugin through Codex's own plugin workflow (`codex plugin add`). Codex runs its installed copy, so a change reaches it only after this step, even at the same version. This changes the person's Codex setup, so confirm it with them first and back up the current plugin and its cache.
 
-3. Check it. Restart Codex in the project folder and call `kb_status`, looking for the same things as for Claude Code.
+3. Check it: start a new Codex chat in the home folder, invoke `$know-fu:know-fu` (or pick it in the skill picker) and ask for the status. The skill is manual-only in Codex too, through `skills/know-fu/agents/openai.yaml`. Codex's hooks didn't run in tests on 13 October, so in Codex the tools themselves stay callable without the skill; say so when you hand over.
 
 ## Phase 7: Prove it, then hand over
 
@@ -125,8 +129,9 @@ Then tell the person:
 - Where each part lives and how big it is: the engine, the converters, the library, the state folder and the model caches.
 - What costs money. Only hosted transcription does, and only when they authorize it per job.
 - How to back up: the library together with the state folder's `ledgers`, using the export workflow, never a live sync folder.
-- How updates reach them: pull, rebuild, and start a new session.
+- What it costs to run. Each open chat where the plugin is on runs its own engine, about 35 to 70 MB, plus a search helper of about 165 MB while it's searching, which closes after a minute idle. Both apps let an idle chat go after about 30 minutes, which ends its engine ([what it costs to run](setup.md#what-it-costs-to-run)).
+- How updates reach them. After a pull and rebuild, the next chat runs the new engine. A change to the plugin itself (the skill, its guides, the launcher) comes with a new version number, and reaches Claude Code after `claude plugin marketplace update know-fu` and `claude plugin update know-fu@know-fu`, or Codex after its reinstall.
 
-Update the setup note. If the setup exposed a bug or a missing step, fix the docs and the change log too. If they asked for an adapter that doesn't exist yet, that's a follow-up task, not a quiet switch to some other paid service.
+Put all of that in `START_HERE.md`, starting with how to use it: open a chat in the home folder and begin with `/know-fu:know-fu` (`$know-fu:know-fu` in Codex). If the setup exposed a bug or a missing step, fix the docs and the change log too. If they asked for an adapter that doesn't exist yet, that's a follow-up task, not a quiet switch to some other paid service.
 
 Write commands for this person's platform and paths. Don't bake one user's home folder, drive letter or Linux distribution into a recipe meant for everyone. And never weaken the source, scope, publication, uncertain-charge or deletion-ledger checks to get an install over the line. Those checks are the product.

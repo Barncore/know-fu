@@ -95,6 +95,16 @@ The owner dropped FalkorDB. By then nothing answered from it: recall, brief, con
 
 The owner's plan for operational memory, if it's built, is a separate plugin with its own store, which can point at Know Fu records by id. Memory Graph, which the owner named for it, can run without a server, so that doesn't need FalkorDB either.
 
+## Decisions on 13 October 2026
+
+The owner set how Know Fu is used, after playing a first-time user through the Claude Code setup.
+
+Use is deliberate. The library's value comes from the owner's curation, so Know Fu runs only when the user invokes it, for reading as well as writing. The skill is manual-only in both agents, and in Claude Code a gate keeps the tools closed in a chat until the user has invoked the skill. Per-call permission prompts were rejected as a flow-breaker.
+
+A personal library's default access is: read from any project folder, save answers and ideas from any folder when the user asks, and ingest only from the library's home folder. Setup offers each part as a choice. Writes stay in one place because ingesting from anywhere lets a session misled by a web page write to the library, mixes each project's own instructions into how notes get written, and makes two writers at once likely while that's untested. Loosening later is a config change; tightening later doesn't undo what already got in.
+
+Know Fu keeps its settings in its own file, `~/.know-fu/config.json`, rather than in a host's plugin options, because the Claude desktop app loads plugins by a route that drops those options. Versions restart at 0.3.0, since Know Fu isn't release-ready, and every plugin change carries a new version number.
+
 ## One knowledge system, several ways in
 
 ```mermaid
