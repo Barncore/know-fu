@@ -27,15 +27,15 @@ export function renderReadingResponse(value: any): string {
   collect(result.candidates, "candidate");
   collect(result.necessary_reading, "necessary reading");
   collect(result.graph_candidates, "optional graph candidate");
-  for (const topic of result.topics ?? [])
-    collect(topic.primers, `primer for ${topic.topic}`);
+  for (const domain of result.domains ?? [])
+    collect(domain.primers, `primer for ${domain.domain}`);
   const lines = [
     `Know Fu reading presentation 1.0.0 | canonical interface ${result.interface_version}`,
     `Request ${result.request_id}; operation ${result.kind}; release ${result.release_id}; current release ${result.current_release}.`,
     `Purpose: ${result.purpose}. Requirements: ${result.purpose_requirements.join("; ")}.`,
     `Status: ${result.reading_status}. ${result.completeness}`,
     "References below use id@revision. Tool input uses record_ref={id,revision} or record_refs=[{id,revision}]. Shared scopes and assessments are printed once, in full, below.",
-    ["discovery", "topic", "catalogue"].includes(result.kind)
+    ["discovery", "domain", "catalogue"].includes(result.kind)
       ? "These are orientation choices. Necessary reading applies when relying on the associated candidate; select the relevant accounts, then resolve their returned material context."
       : "Resolve necessary reading for the accounts used in your answer. Provenance references are available for verification; they are not all automatic full-text reading requirements.",
   ];
@@ -109,11 +109,13 @@ export function renderReadingResponse(value: any): string {
     "contents",
   ])
     delete remainder[field];
-  if (remainder.topics)
-    remainder.topics = remainder.topics.map(({ primers, ...topic }: any) => ({
-      ...topic,
-      primer_refs: (primers ?? []).map((c: any) => c.record_ref),
-    }));
+  if (remainder.domains)
+    remainder.domains = remainder.domains.map(
+      ({ primers, ...domain }: any) => ({
+        ...domain,
+        primer_refs: (primers ?? []).map((c: any) => c.record_ref),
+      }),
+    );
   lines.push(`\nReading metadata: ${JSON.stringify(remainder)}`);
   if (value !== result) {
     const { result: _result, ...envelope } = value;

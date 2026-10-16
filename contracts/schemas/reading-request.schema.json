@@ -13,7 +13,7 @@
     "kind": {
       "enum": [
         "catalogue",
-        "topic",
+        "domain",
         "account",
         "accounts",
         "sections",
@@ -114,7 +114,7 @@
         "minLength": 1
       }
     },
-    "topic": {
+    "domain": {
       "type": "string",
       "minLength": 1
     },
@@ -210,14 +210,14 @@
         "properties": {
           "kind": {
             "enum": [
-              "topic"
+              "domain"
             ]
           }
         }
       },
       "then": {
         "required": [
-          "topic"
+          "domain"
         ]
       }
     },

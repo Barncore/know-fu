@@ -30,7 +30,7 @@ export type Condition =
 export interface ReadingData {
   interface_version: "1.0.0";
   request_id: string;
-  kind: "discovery" | "catalogue" | "topic" | "account" | "accounts" | "sections" | "context";
+  kind: "discovery" | "catalogue" | "domain" | "account" | "accounts" | "sections" | "context";
   release_id: string;
   current_release: string;
   purpose: "explain" | "teach" | "apply" | "compare" | "invent" | "synthesize" | "investigate";
@@ -109,8 +109,8 @@ export interface ReadingData {
     id: string;
     revision: number;
   }[];
-  topics: {
-    topic: string;
+  domains: {
+    domain: string;
     title: string;
     accounts: number;
     primer_count: number;

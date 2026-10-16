@@ -46,7 +46,7 @@ Ask these too when they apply:
 
 - **Which agent**, if they use more than one. Each agent can have its own library. Two agents can share one library only if they take turns writing, because two writers at once hasn't been tested.
 - **Transcription**, only if they'll ingest video or audio: a hosted API with a spending allowance per job, or transcripts they make elsewhere and ingest as text.
-- **Topics.** If they already know them, these become the library's domains (`--domain id=Title`). Otherwise use `general`, and add domains later with `kb_maintain configure`.
+- **Domains.** The broad subject areas the library will hold, such as Audio or Trading. If they already know them, add each with `--domain id=Title`. Otherwise use `general`, and add domains later with `kb_maintain configure`.
 
 Write the answers into `START_HERE.md` beside the library and state folders, outside the repository: the paths, the library id, and each choice. Phase 7 turns it into the handover note. Credentials never go in it.
 
@@ -83,7 +83,7 @@ Run the library script with the phase 2 answers:
 node scripts/create-library.mjs --library <library folder> --state <state folder> --home <home folder> --id <library id> --agent claude --python <engine>/.venv/Scripts/python.exe --pdftotext <Poppler's pdftotext>
 ```
 
-Use `--agent codex` for Codex, and add one `--domain id=Title` for each topic. The id has to be unique to this library, for example `trading-research`. The defaults match the recommended answers: reading and saving from any folder on, ingesting from any folder off. Add `--no-read-from-any-folder`, `--no-save-from-any-folder` or `--ingest-from-any-folder` to match other answers; the script refuses saving or ingesting from anywhere without reading from anywhere. It creates the library with one `research` module, binds the home folder with every capability, records the other folders' access, writes the deletion ledger, and writes `<state>/config.json` with the converter and Poppler paths. It refuses a `pdftotext` that isn't Poppler's, and it refuses to touch a library or config that already exists, so it can't overwrite an install.
+Use `--agent codex` for Codex, and add one `--domain id=Title` for each domain. The id has to be unique to this library, for example `trading-research`. The defaults match the recommended answers: reading and saving from any folder on, ingesting from any folder off. Add `--no-read-from-any-folder`, `--no-save-from-any-folder` or `--ingest-from-any-folder` to match other answers; the script refuses saving or ingesting from anywhere without reading from anywhere. It creates the library with one `research` module, binds the home folder with every capability, records the other folders' access, writes the deletion ledger, and writes `<state>/config.json` with the converter and Poppler paths. It refuses a `pdftotext` that isn't Poppler's, and it refuses to touch a library or config that already exists, so it can't overwrite an install.
 
 The person can change the other-folder choices later from a chat in the home folder, with `kb_maintain configure` ([operations](../skills/know-fu/references/operations.md#configuring-modules-and-bindings)). The same place fences a client project to a module of its own.
 

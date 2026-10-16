@@ -5,7 +5,7 @@ export type ReadingRequestData = {
 } & {
   interface_version?: "1.0.0";
   mode?: "progressive";
-  kind?: "catalogue" | "topic" | "account" | "accounts" | "sections" | "context";
+  kind?: "catalogue" | "domain" | "account" | "accounts" | "sections" | "context";
   query?: string;
   purpose?: "explain" | "teach" | "apply" | "compare" | "invent" | "synthesize" | "investigate";
   scope?: {
@@ -33,7 +33,7 @@ export type ReadingRequestData = {
     };
   };
   domains?: string[];
-  topic?: string;
+  domain?: string;
   record_ref?: {
     id: string;
     revision: number;

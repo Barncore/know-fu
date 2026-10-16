@@ -26,14 +26,14 @@ import type { ReadingContext } from "./research-view.js";
 
 export type ReadingRequest = {
   kind?:
-    "catalogue" | "topic" | "account" | "accounts" | "sections" | "context";
+    "catalogue" | "domain" | "account" | "accounts" | "sections" | "context";
   query?: string;
   purpose?: Purpose;
   scope?: Scope;
   release_id?: string;
   context?: ReadingContext;
   domains?: string[];
-  topic?: string;
+  domain?: string;
   record_ref?: Ref;
   record_refs?: Ref[];
   section_id?: string;
@@ -66,7 +66,7 @@ export class Reading {
     ensure(
       [
         "catalogue",
-        "topic",
+        "domain",
         "account",
         "accounts",
         "sections",
@@ -110,7 +110,7 @@ export class Reading {
       necessary_reading: [],
       relationships: [],
       traceable_support: [],
-      topics: [],
+      domains: [],
       sections: [],
       content: null,
       route: ["canonical"],
@@ -137,7 +137,7 @@ export class Reading {
     };
     if (kind === "catalogue") {
       const config = await this.store.config();
-      const topics = [
+      const domains = [
         ...new Set(usable.filter(isAccount).flatMap((r) => r.scope.domains)),
       ]
         .sort()
@@ -146,7 +146,7 @@ export class Reading {
             (r) => isAccount(r) && r.scope.domains.includes(id),
           );
           return {
-            topic: id,
+            domain: id,
             title: config.domains.find((d) => d.domain_id === id)?.title ?? id,
             accounts: members.length,
             primer_count: members.filter(
@@ -158,23 +158,23 @@ export class Reading {
               .map((r) =>
                 view.card(
                   r,
-                  "Authored topic primer; inspect freshness and material context; topic lookup lists further primers",
+                  "Authored domain primer; inspect freshness and material context; domain lookup lists further primers",
                 ),
               ),
           };
         });
-      result.topics = topics.slice(offset, offset + limit);
-      result.pagination.total = topics.length;
+      result.domains = domains.slice(offset, offset + limit);
+      result.pagination.total = domains.length;
       result.pagination.next_offset =
-        offset + limit < topics.length ? offset + limit : null;
-    } else if (kind === "topic") {
+        offset + limit < domains.length ? offset + limit : null;
+    } else if (kind === "domain") {
       ensure(
-        typeof input.topic === "string" && input.topic,
+        typeof input.domain === "string" && input.domain,
         "VALIDATION_FAILED",
-        "A topic is required",
+        "A domain is required",
       );
       const members = usable.filter(
-        (r) => isAccount(r) && r.scope.domains.includes(input.topic!),
+        (r) => isAccount(r) && r.scope.domains.includes(input.domain!),
       );
       members.sort(
         (a, b) =>

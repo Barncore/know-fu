@@ -356,22 +356,22 @@ test("summary and body search hits share one candidate identity and reading is a
   );
 });
 
-test("catalogues and topic pagination filter inaccessible metadata before counts and summaries", async () => {
+test("catalogues and domain pagination filter inaccessible metadata before counts and summaries", async () => {
   const f = await published("progressive-scope");
   const scope = { ...f.scope, source_refs: [exact("source:courier")] };
   const reading = new Reading(f.store, noIndex);
   const catalogue = await reading.read({ kind: "catalogue", scope });
-  assert.equal(catalogue.topics.length, 1);
-  assert.equal(catalogue.topics[0].accounts, 2);
-  const topic = await reading.read({
-    kind: "topic",
-    topic: "fictional_workshop",
+  assert.equal(catalogue.domains.length, 1);
+  assert.equal(catalogue.domains[0].accounts, 2);
+  const domainPage = await reading.read({
+    kind: "domain",
+    domain: "fictional_workshop",
     scope,
     limit: 1,
   });
-  assert.equal(topic.pagination.total, 2);
-  assert.equal(topic.pagination.next_offset, 1);
-  assert(!JSON.stringify(topic).includes("knowledge:handling"));
+  assert.equal(domainPage.pagination.total, 2);
+  assert.equal(domainPage.pagination.next_offset, 1);
+  assert(!JSON.stringify(domainPage).includes("knowledge:handling"));
   assert(!JSON.stringify(catalogue).includes("Valve disagreement"));
   await assert.rejects(
     reading.read({
@@ -512,8 +512,19 @@ test("pinned reads surface a newly published qualification and exact historical 
   assert.equal(premise.candidates[0].freshness, "historical");
   const catalogue = await reader.read({ kind: "catalogue" });
   assert.equal(
-    catalogue.topics[0].primers[0].freshness,
+    catalogue.domains[0].primers[0].freshness,
     "pending_reassessment",
+  );
+});
+
+test("kb_read names the new kind when an older skill asks for a topic", async () => {
+  const f = await published("progressive-renamed-kind");
+  await assert.rejects(
+    new KnowledgeSystem(f.store).call("kb_read", {
+      kind: "topic",
+      topic: "fictional_workshop",
+    }),
+    /kind "topic" is now "domain"/,
   );
 });
 
@@ -536,7 +547,7 @@ test("retired judgments are not returned as current material guidance", async ()
   );
 });
 
-test("projection navigation has authored summaries, meaningful topic links and distinct search levels", async () => {
+test("projection navigation has authored summaries, meaningful domain links and distinct search levels", async () => {
   const f = await published("progressive-projection"),
     projections = new Projections(f.store);
   projections.qmd = async () =>
@@ -548,7 +559,7 @@ test("projection navigation has authored summaries, meaningful topic links and d
     "utf8",
   );
   assert.match(index, /Distinguish author-specific meanings/);
-  assert.match(index, /_topics\//);
+  assert.match(index, /_domains\//);
   const catalogue = await readJson(
     f.store.p(`views/${release}/catalogue.json`),
   );
@@ -565,16 +576,16 @@ test("projection navigation has authored summaries, meaningful topic links and d
     (r: any) => r.record_ref.id === "knowledge:handling",
   ) as any[];
   assert.deepEqual(entries.map((r) => r.level).sort(), ["account", "summary"]);
-  const topic = await fs.readFile(
+  const domainPage = await fs.readFile(
     f.store.p(
-      `views/${release}/wiki/_topics/${hash("fictional_workshop").slice(0, 24)}.md`,
+      `views/${release}/wiki/_domains/${hash("fictional_workshop").slice(0, 24)}.md`,
     ),
     "utf8",
   );
-  assert.match(topic, /challenges/);
-  assert.match(topic, /incompatible|disagree/);
-  for (const match of topic.matchAll(/\]\(([^)]+)\)/g))
-    await fs.access(f.store.p(`views/${release}/wiki/_topics/${match[1]}`));
+  assert.match(domainPage, /challenges/);
+  assert.match(domainPage, /incompatible|disagree/);
+  for (const match of domainPage.matchAll(/\]\(([^)]+)\)/g))
+    await fs.access(f.store.p(`views/${release}/wiki/_domains/${match[1]}`));
   assert.equal((await projections.receipt()).wiki.state, "ready");
 });
 

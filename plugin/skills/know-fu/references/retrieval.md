@@ -23,7 +23,7 @@ Pick the purpose that matches the task. It shifts the ranking (forms that fit th
 | `teach` | 9,000 | primers, teaching sequences, worked examples, near misses, lessons, concepts | prerequisites, "Foundations first", decision trees | Prerequisites, a coherent sequence, a worked case, a likely misunderstanding |
 | `apply` | 7,000 | procedures, applications, worked examples, near misses | decision trees | Required inputs, decision steps, failed preconditions, what the result allows |
 | `compare` | 8,000 | syntheses, judgments, explanations | | Each account's definition, scope and evidence, and what would decide between them |
-| `invent` | 9,000 | mechanisms, questions, syntheses | what each account does in domain-free words, ideas on file, bridges to other topics, loose ends | Supported mechanisms, compatible assumptions, the new inferential step, a test that could reject it |
+| `invent` | 9,000 | mechanisms, questions, syntheses | what each account does in domain-free words, ideas on file, bridges to other domains, loose ends | Supported mechanisms, compatible assumptions, the new inferential step, a test that could reject it |
 | `synthesize` | 12,000 | primers, syntheses, teaching sequences, judgments | | The relevant branches, minority positions and exceptions |
 | `investigate` | 6,000 | questions, judgments | gaps the library's shape suggests | The gap that matters, the decision it could change, the most useful next check |
 
@@ -38,8 +38,8 @@ Stop when the task's requirements are met. Go further only for a reason you coul
 - The question is broad. Raise `budget_tokens` (the default is 6,000 to 12,000 depending on purpose; the maximum is 60,000), or set `depth:"deep"` to include the source pages behind loaded accounts.
 - An exact quotation, table cell or calculation matters. Open the cited passage. For tables, equations and figures, check the original page image through the job's units when the extraction looks ambiguous.
 - Keywords keep missing. Set `semantic:true` to force the semantic index.
-- You're looking for what to research next. `investigate` lists gaps around the loaded accounts that nobody has recorded as a question yet: a challenge no judgment weighs, an account several others build on that rests on one source, and a central mechanism or procedure with no stated limits. `kb_brief` ranks the same suggestions under each topic's recorded questions.
-- You want the shape of a whole topic. `kb_read {kind:"catalogue"}` and `{kind:"topic", topic}` list accounts with summaries. Progressive retrieval (`kb_retrieve {mode:"progressive"}`) and the old packet route (`mode:"packet"`) are still there for comparison, but prefer recall.
+- You're looking for what to research next. `investigate` lists gaps around the loaded accounts that nobody has recorded as a question yet: a challenge no judgment weighs, an account several others build on that rests on one source, and a central mechanism or procedure with no stated limits. `kb_brief` ranks the same suggestions under each domain's recorded questions.
+- You want the shape of a whole domain. `kb_read {kind:"catalogue"}` and `{kind:"domain", domain}` list accounts with summaries. Progressive retrieval (`kb_retrieve {mode:"progressive"}`) and the old packet route (`mode:"packet"`) are still there for comparison, but prefer recall.
 
 Every extra call resends the conversation so far, so a second narrow recall usually beats one huge one.
 
@@ -48,7 +48,7 @@ Every extra call resends the conversation so far, so a second narrow recall usua
 Recall already follows links to decide what to load, but it doesn't show you the path. When the path is the point, use `kb_connect`:
 
 - `kb_connect {from, to}` returns up to three of the strongest chains between two ideas, within four hops. Each hop names the link in its direction ("qualifies", "is a prerequisite for", "weighs"), the record it reaches, and the reason written for that link.
-- `kb_connect {from}` with no target lists ideas two or more hops away. Ideas in other topics come first, as possible bridges; ideas in the same topic that aren't directly linked come second.
+- `kb_connect {from}` with no target lists ideas two or more hops away. Ideas in other domains come first, as possible bridges; ideas in the same domain that aren't directly linked come second.
 - `from` and `to` take a record id, `id@revision`, or a few words. Words resolve to the best-matching account, and the briefing tells you which record it picked. If the default finds nothing, raise `max_hops` (up to 6) or `paths` (up to 8).
 
 Treat a chain as a lead, not a finding. Each hop is a link somebody recorded with a reason, so the chain tells you where to read. It doesn't show that one idea causes the other, or that a mechanism transfers. Before building an argument on a chain, open the accounts along it with `kb_read {kind:"accounts"}` and check that each hop's condition holds for your case. A chain through a broad hub idea is weaker than one through specific accounts. The search already penalizes hubs, but say so when a chain depends on one.
@@ -60,7 +60,7 @@ Treat a chain as a lead, not a finding. Each hop is a link somebody recorded wit
 `kb_recall {purpose:"invent"}` loads the matching accounts, each with a `Does: … · By: …` line: what it does and how, in words with the field's jargon taken out. Those wordings are what let a mechanism from one field answer a problem in another. Around the matches it adds a slate:
 
 - Ideas on file that match the question or rest on the loaded accounts. Refuted ones say why they failed. Don't propose one of those again unless you can say what's different this time.
-- Bridges: accounts in other topics that link to the matches, or that do the same job in other words. They only show with `cross_domain:true`. Without it you get a one-line count of how many exist. Ask the owner whether this session should borrow from other fields. Some inventions want that, and some want to stay inside one field. With `domains` set and `cross_domain` off, invent stays entirely inside those topics.
+- Bridges: accounts in other domains that link to the matches, or that do the same job in other words. They only show with `cross_domain:true`. Without it you get a one-line count of how many exist. Ask the owner whether this session should borrow from other fields. Some inventions want that, and some want to stay inside one field. With `domains` set and `cross_domain` off, invent stays entirely inside those domains.
 - Loose ends: matched accounts the library has barely linked to anything. Unexplored combinations often start there.
 
 Then work through these, in this order:

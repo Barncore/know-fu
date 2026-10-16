@@ -15,7 +15,7 @@
       "enum": [
         "discovery",
         "catalogue",
-        "topic",
+        "domain",
         "account",
         "accounts",
         "sections",
@@ -356,13 +356,13 @@
         ]
       }
     },
-    "topics": {
+    "domains": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "topic": {
+          "domain": {
             "type": "string",
             "minLength": 1
           },
@@ -386,7 +386,7 @@
           }
         },
         "required": [
-          "topic",
+          "domain",
           "title",
           "accounts",
           "primer_count",
@@ -2094,7 +2094,7 @@
     "necessary_reading",
     "relationships",
     "traceable_support",
-    "topics",
+    "domains",
     "sections",
     "content",
     "route",

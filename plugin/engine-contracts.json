@@ -1,5 +1,5 @@
 {
-  "engine_version": "0.3.1",
+  "engine_version": "0.3.2",
   "schema_version": "1.1.0",
   "authority": "Engine contracts and configuration examples; bundled copies are read-only references.",
   "files": [
@@ -51,12 +51,12 @@
     {
       "source": "contracts/schemas/reading-request.schema.json",
       "bundled": "contracts/schemas/reading-request.schema.json",
-      "sha256": "c1bea7834fb9b01de31707b877c05ab8c6c04cfe671837c14cf29a89417bcf54"
+      "sha256": "859c73614778b6213923b39254da947899a0a541f306e2dab6c3aa8678164f83"
     },
     {
       "source": "contracts/schemas/reading.schema.json",
       "bundled": "contracts/schemas/reading.schema.json",
-      "sha256": "7cdfef6d4a1fc838175f5fd7a36ef9cb102b47eedb39123d8c31fa03cfc59095"
+      "sha256": "5cf4977072ec6fbf35f405720988c064e1cbf85c1fc8821b1cc767e001e40764"
     },
     {
       "source": "contracts/schemas/record.schema.json",

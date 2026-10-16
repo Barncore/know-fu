@@ -100,7 +100,7 @@ views/
   receipt.json                      Which views are ready for which release
   <release-id>/
     wiki/_index.md                  Orientation index of active records
-    wiki/_topics/<domain-hash>.md   Topic pages: primers, summaries, typed connections
+    wiki/_domains/<domain-hash>.md  Domain pages: primers, summaries, typed connections
     wiki/_records.md                Every record and piece of evidence
     wiki/<record-id-hash>.md        One generated page per record
     catalogue.json                  Exact identities and navigation summaries
@@ -111,9 +111,9 @@ views/
 
 Jobs can also hold raw API responses and reservations for paid requests, and publication uses short-lived journal and lock files. Treat this listing as a map: the schemas and the engine define the exact structures. Reindexing clears out the view folders of older releases, except one holding a wiki edit that hasn't been imported yet.
 
-The wiki has full record pages, topic pages and an orientation index, built from authored summaries and existing primers. It never generates summaries on the fly, so a missing summary stays visibly missing. Summary and body search documents point at the same record and never count as two sources. These files contain the whole library, which is why scoped tools filter what they reveal before showing any title, count or membership.
+The wiki has full record pages, domain pages and an orientation index, built from authored summaries and existing primers. It never generates summaries on the fly, so a missing summary stays visibly missing. Summary and body search documents point at the same record and never count as two sources. These files contain the whole library, which is why scoped tools filter what they reveal before showing any title, count or membership.
 
-If you want to change a generated page, import the edit with `kb_maintain {action:"wiki_edit"}` and publish it as canonical prose. Rebuilding won't overwrite an edit you haven't imported, and if a later publication has moved on, `wiki_edit` still finds the edit in the older view it was kept in (or the one you name with `view_release`) and tells you which revision it was made against. Topic pages and catalogues can always be rebuilt, and their hashes and release binding stop a same-sized edit from passing as current.
+If you want to change a generated page, import the edit with `kb_maintain {action:"wiki_edit"}` and publish it as canonical prose. Rebuilding won't overwrite an edit you haven't imported, and if a later publication has moved on, `wiki_edit` still finds the edit in the older view it was kept in (or the one you name with `view_release`) and tells you which revision it was made against. Domain pages and catalogues can always be rebuilt, and their hashes and release binding stop a same-sized edit from passing as current.
 
 ## The recall index
 
@@ -131,7 +131,7 @@ Recall ranks with three channels and fuses them by reciprocal rank (k = 60):
 
 Purpose, domain, pending reassessment and filed-answer priors nudge the score. Packing then follows rank order inside the budget, costing each account by the block it will actually render as, and the best match always arrives whole. Each packed account brings its baggage with it: the accounts or passages that qualify or challenge it, and its current judgments. Explain and teach also bring conceptual prerequisites and a foundations-first reading order, and teach and apply render procedures' decision points as trees.
 
-Invent adds a slate after the matches: ideas on file (ranked by words shared with the query plus premises among the loaded accounts), bridges into other topics (accounts within four links of the matches, ordered by PageRank from them, plus accounts whose abstract facets match what the matches do), and loose ends (matched accounts in the topic with at most one link). Bridges only show with `cross_domain:true`; otherwise the briefing gives a count. With `domains` set and `cross_domain` off, candidates outside those topics are dropped before packing. The slate's size is measured after a first packing pass, and only if it doesn't fit are the matches packed again leaving room for it, up to a fifth of the budget. Investigate adds up to three gap suggestions for the loaded accounts, from `gaps.ts`.
+Invent adds a slate after the matches: ideas on file (ranked by words shared with the query plus premises among the loaded accounts), bridges into other domains (accounts within four links of the matches, ordered by PageRank from them, plus accounts whose abstract facets match what the matches do), and loose ends (matched accounts in the same domains with at most one link). Bridges only show with `cross_domain:true`; otherwise the briefing gives a count. With `domains` set and `cross_domain` off, candidates outside those domains are dropped before packing. The slate's size is measured after a first packing pass, and only if it doesn't fit are the matches packed again leaving room for it, up to a fifth of the budget. Investigate adds up to three gap suggestions for the loaded accounts, from `gaps.ts`.
 
 Then comes the guard pass, and it's the part that must never be skipped. Recall hands the loaded matches to the same resolver progressive reading uses, `ResearchView.materialContext`. That resolver follows each account's exact premises and returns what has to travel with it: premises with their own conditions, validity limits or pending reassessment, plus qualifications, challenges and current judgments on any of them, including ones published after a pinned release. Each guard is packed if it fits, or named under "Caveats not loaded" if it doesn't, whatever the rank, graph setting or budget. Premises that only repeat a boundary the loaded accounts already show are left out.
 
@@ -141,11 +141,11 @@ Anything that doesn't fit gets listed rather than silently dropped. The optional
 
 The brief uses the same snapshot to sketch each domain: its newest primer, and whether any account in the domain was published or revised in a later release (in which case the primer may be stale); the most central accounts by global PageRank; unresolved judgments; open questions ranked by impact and effort; and what recent in-scope ingestion reports say they added.
 
-Under each topic's recorded questions, the brief lists up to three it computes from the library's shape (`gapSignals` in `gaps.ts`), marked as not yet recorded: a `challenges` link with no current judgment on either side, an account that two or more others build on (`depends_on`) resting on one source family without a moderate or high evidence level, and a mechanism or procedure with at least two links and no conditions, exclusions, preconditions, failure modes or qualifying links. An open question whose `related` accounts cover the same records suppresses the suggestion. When ideas exist, one line counts them by status and names how many have a changed or lost premise.
+Under each domain's recorded questions, the brief lists up to three it computes from the library's shape (`gapSignals` in `gaps.ts`), marked as not yet recorded: a `challenges` link with no current judgment on either side, an account that two or more others build on (`depends_on`) resting on one source family without a moderate or high evidence level, and a mechanism or procedure with at least two links and no conditions, exclusions, preconditions, failure modes or qualifying links. An open question whose `related` accounts cover the same records suppresses the suggestion. When ideas exist, one line counts them by status and names how many have a changed or lost premise.
 
 ### kb_connect
 
-Connect searches the same link map. Give it two endpoints and it runs a best-first search over simple paths up to `max_hops` (default 4). Each hop costs according to its link weight, plus a small penalty for passing through a highly connected hub, so chains through specific accounts beat chains through some catch-all idea. It returns the strongest distinct chains, with each hop's direction and rationale. Give it one endpoint and it lists accounts two or more hops out, split into other topics and the same topic, each with its strongest chain. Endpoints can be ids or a few words, which resolve to the best keyword match.
+Connect searches the same link map. Give it two endpoints and it runs a best-first search over simple paths up to `max_hops` (default 4). Each hop costs according to its link weight, plus a small penalty for passing through a highly connected hub, so chains through specific accounts beat chains through some catch-all idea. It returns the strongest distinct chains, with each hop's direction and rationale. Give it one endpoint and it lists accounts two or more hops out, split into other domains and the same domain, each with its strongest chain. Endpoints can be ids or a few words, which resolve to the best keyword match.
 
 ### kb_file
 
@@ -164,7 +164,7 @@ Export writes `exports/ideas/ideas-<timestamp>.json` in the `know-fu-ideas-1` fo
 
 ## Progressive reading
 
-`kb_retrieve {mode:"progressive"}` returns orientation candidates, necessary reading and traceable support, and `kb_read` opens catalogues, topics, accounts, batches of up to 12 accounts, sections and material context. The [reading request](../contracts/schemas/reading-request.schema.json) and [response](../contracts/schemas/reading.schema.json) contracts are interface version 1.0.0.
+`kb_retrieve {mode:"progressive"}` returns orientation candidates, necessary reading and traceable support, and `kb_read` opens catalogues, domains, accounts, batches of up to 12 accounts, sections and material context. The [reading request](../contracts/schemas/reading-request.schema.json) and [response](../contracts/schemas/reading.schema.json) contracts are interface version 1.0.0.
 
 These, along with the packet route (`kb_retrieve` with no mode), stay around for comparison; `kb_recall` is the routine route. Why not progressive reading? A comparison on 4 October 2026 found it cost more than the packet in total, because every extra reading turn resends the whole conversation.
 

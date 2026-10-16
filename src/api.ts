@@ -46,9 +46,9 @@ export const descriptions: Record<string, string> = {
   kb_brief:
     "Load what the library knows at the start of research work: per domain, the current primer (with a staleness flag), the most connected core ideas, live disagreements, the questions worth answering next and what recent ingests added. Input: optional domains[], budget_tokens (800-30000, default 3500), scope, release_id.",
   kb_recall:
-    "Answer from the library in one call. Returns a Markdown briefing packed to a token budget: the best-matching explanations in full, the caveats and judgments that must travel with them, sources with page labels, and a list of relevant accounts not loaded. Input: query; optional purpose=explain|teach|apply|compare|invent|synthesize|investigate, budget_tokens (500-60000), depth=brief|standard|deep, domains[], seen[] (ids you already hold), context, scope, release_id, semantic, graph, cross_domain (invent only: show bridges into other topics; with domains set and this off, invent stays inside them).",
+    "Answer from the library in one call. Returns a Markdown briefing packed to a token budget: the best-matching explanations in full, the caveats and judgments that must travel with them, sources with page labels, and a list of relevant accounts not loaded. Input: query; optional purpose=explain|teach|apply|compare|invent|synthesize|investigate, budget_tokens (500-60000), depth=brief|standard|deep, domains[], seen[] (ids you already hold), context, scope, release_id, semantic, graph, cross_domain (invent only: show bridges into other domains; with domains set and this off, invent stays inside them).",
   kb_connect:
-    "Connect the dots. With from and to: the strongest chains of recorded links between two ideas, each hop read in its direction with the reason written for it. With from only: ideas two or more hops away, split into other topics (possible bridges) and the same topic. from/to take a record id, id@revision, or a few words to search for. Optional max_hops (1-6, default 4), paths (1-8, default 3), limit, scope, release_id.",
+    "Connect the dots. With from and to: the strongest chains of recorded links between two ideas, each hop read in its direction with the reason written for it. With from only: ideas two or more hops away, split into other domains (possible bridges) and the same domain. from/to take a record id, id@revision, or a few words to search for. Optional max_hops (1-6, default 4), paths (1-8, default 3), limit, scope, release_id.",
   kb_file:
     "File a worked answer back into the library so later sessions start from it. Publishes a cited synthesis (or lesson/application) that pins the exact revisions it relied on and is flagged for review when they change. Input: title, answer_markdown, cites[] (id@revision or {id,revision}), authorization (the user request), optional question, summary, form, epistemic, domains[], module, conditions[], exclusions[], dry_run.",
   kb_idea:
@@ -56,7 +56,7 @@ export const descriptions: Record<string, string> = {
   kb_retrieve:
     "Discover or retrieve scoped research. mode=progressive returns authored summaries, exact next reads, material qualifications and provenance without loading every source body; supports purpose=explain|teach|apply|compare|invent|synthesize|investigate. mode=packet preserves the legacy evidence packet. Input query; optional domains, scope, semantic, rerank, graph, graph_required, limit, release_id, context. Progressive pagination uses offset; packet expansion uses hops. Open chosen accounts with kb_read.",
   kb_read:
-    "Read scoped research without shell access. kind=catalogue lists topics; topic requires topic; account requires record_ref and optionally section_id; accounts reads 1–12 chosen record_refs together; sections lists hash-bound headings; context requires record_refs and optionally context_offset. Optional release_id, scope, purpose, context, limit, offset. Full-account reads carry material context and exact support. Legacy {record_ref} returns the raw full record. kind=unit with job_id,unit_id,offset,limit reads source text/image (max 32000 chars); a unit counts as read once all of it has been served. Guides: workflow|ingestion|notes|retrieval|operations|books|video. Schemas: proposal|record|job|corpus|reading|reading-request. Reading does not attest ingestion coverage.",
+    "Read scoped research without shell access. kind=catalogue lists domains; domain requires domain; account requires record_ref and optionally section_id; accounts reads 1–12 chosen record_refs together; sections lists hash-bound headings; context requires record_refs and optionally context_offset. Optional release_id, scope, purpose, context, limit, offset. Full-account reads carry material context and exact support. Legacy {record_ref} returns the raw full record. kind=unit with job_id,unit_id,offset,limit reads source text/image (max 32000 chars); a unit counts as read once all of it has been served. Guides: workflow|ingestion|notes|retrieval|operations|books|video. Schemas: proposal|record|job|corpus|reading|reading-request. Reading does not attest ingestion coverage.",
   kb_lifecycle:
     "Plan/execute archive, unarchive, withdraw, reinstate or purge. Planning: mode=plan, action, targets[], reason. Execution: mode=execute, plan_id, authorization={action,targets,user_instruction}; reinstatement also assessments. Authorization must reflect an actual user request.",
   kb_evaluate:
@@ -268,10 +268,16 @@ export class KnowledgeSystem {
           ? this.reading.retrieve(p)
           : this.retrieval.retrieve(p);
       case "kb_read": {
+        // Renamed in 0.3.2. An installed skill older than the engine may still send it.
+        ensure(
+          p.kind !== "topic",
+          "VALIDATION_FAILED",
+          'kb_read kind "topic" is now "domain": send {kind:"domain", domain}',
+        );
         if (
           [
             "catalogue",
-            "topic",
+            "domain",
             "account",
             "accounts",
             "sections",
