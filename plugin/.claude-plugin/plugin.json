@@ -1,7 +1,7 @@
 {
   "name": "know-fu",
   "displayName": "Know Fu",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "A local research library: ingest books, papers and videos, then explain, teach, apply and invent from what it holds.",
   "author": {
     "name": "Know Fu"

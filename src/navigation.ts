@@ -68,7 +68,7 @@ export const purposeRequirements = {
     "Prior attempts, missing links and a discriminating test",
   ],
   synthesize: [
-    "Coverage of relevant topic branches",
+    "Coverage of the subject's relevant branches",
     "Minority positions and exceptions",
     "Connections supported by inspected accounts",
   ],

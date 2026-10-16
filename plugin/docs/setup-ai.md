@@ -46,7 +46,7 @@ Ask these too when they apply:
 
 - **Which agent**, if they use more than one. Each agent can have its own library. Two agents can share one library only if they take turns writing, because two writers at once hasn't been tested.
 - **Transcription**, only if they'll ingest video or audio: a hosted API with a spending allowance per job, or transcripts they make elsewhere and ingest as text.
-- **Domains.** The broad subject areas the library will hold, such as Audio or Trading. If they already know them, add each with `--domain id=Title`. Otherwise use `general`, and add domains later with `kb_maintain configure`.
+- **Domains.** The broad subject areas the library will hold, such as Audio or Trading. If they already know them, add each with `--domain id=Title`. Otherwise use `general` as a placeholder: each ingest asks for a domain when the person doesn't name one.
 
 Write the answers into `START_HERE.md` beside the library and state folders, outside the repository: the paths, the library id, and each choice. Phase 7 turns it into the handover note. Credentials never go in it.
 

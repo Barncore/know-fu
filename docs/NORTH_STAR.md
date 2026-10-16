@@ -36,7 +36,7 @@ The chosen architecture is a machine-oriented research library with full explana
 | Keep evidence, interpretation and invention apart | Inference and creative reasoning from named premises are welcome. A model-written explanation, a repeated derivative source or a successful answer isn't independent corroboration |
 | Treat disagreement as knowledge | Compare definitions, conditions, methods and evidence. Keep unresolved alternatives. Supersede only with a reason and a scope, and never pick a winner by age, popularity or confidence |
 | Keep fidelity, support and applicability separate | A faithful account of an author's claim can still rest on weak evidence, or have unknown relevance to the case in front of you |
-| Make knowledge reachable at several levels | Orientation, topic summaries, complete explanations and original evidence all coexist. Summaries guide reading; the detail stays there for when it matters |
+| Make knowledge reachable at several levels | Orientation, domain primers, complete explanations and original evidence all coexist. Summaries guide reading; the detail stays there for when it matters |
 | Evaluate capability, not plumbing | Check explanation, application, exceptions, synthesis and revision in fresh contexts. Record counts, link counts and a healthy index are infrastructure evidence, not capability |
 | Keep one owner of published meaning | Versioned canonical JSON and authored Markdown bodies are the authority. The wiki and QMD are rebuildable views of a published release, and links are read straight from the records |
 | Keep specialist research portable and scoped | One modular library with enforced module and source boundaries. Domain tags help discovery. Operational and session memory stay separate |
@@ -111,7 +111,7 @@ The owner settled how a library's subjects are organized, before the first real 
 
 A domain is the only subject label, and it's a broad umbrella such as Audio or Trading. Modules stay walls for material that has to stay apart (D9). There's no second label under domains: a book becomes many notes, and each note's subject lives in its own title, summary and prose, its concept links and its other typed links, which search, recall and connect already read. A hand-kept label on every note would be a second copy of what the links say, and it would drift.
 
-The "topic maps" in the reading layers below are pages generated from concept notes: one per major concept, listing what links to it, rebuilt at each reindex like the rest of the wiki. They aren't built yet. Build them when a domain gets too big to browse as one list, which can happen at any time without changing a note.
+The "Domain page and primer" reading layer below, called a "topic map" before this decision, is the wiki's domain page as built since 4 October: each domain's primers, every note in it with its summary, and its connections and disagreements. A concept tagged with two domains shows on both pages under one identity. Pages per major concept, generated from concept notes and listing what links to each, would be a finer layer under the domain page. They aren't built yet. Build them when a domain gets too big to browse as one list, which can happen at any time without changing a note.
 
 Code, tool text and docs call a domain a domain. Version 0.3.2 renamed the places that called it a topic: `kb_read` takes `kind:"domain"` with `domain`, its catalogue returns `domains`, the wiki's domain pages live in `wiki/_domains/`, and `kb_connect` reports `other_domain`.
 
@@ -122,7 +122,7 @@ flowchart TD
     S[Preserved books, papers, videos and evidence] --> R[Reconstruct each source in its own terms]
     R --> I[Integrate and reconsider affected knowledge]
     I --> C[Canonical explanations, relationships, judgments and learning records]
-    C --> W[Wiki: orientation, topic maps and complete articles]
+    C --> W[Wiki: orientation, domain pages and complete articles]
     C --> G[Links in the records: qualified connections and dependencies]
     C --> Q[QMD: exact and semantic discovery]
     C --> K[Recall index: budgeted briefings, briefs and connection chains]
@@ -135,18 +135,18 @@ flowchart TD
     V --> I
 ```
 
-Each part has one job. The wiki is the readable organization of the knowledge. The graph makes specific connections and their conditions addressable. Search finds entry points, including things the topic structure misses. Since 1.2.0, the recall index does most routine answering straight from the canonical records. Codex decides what to read and does the reasoning. No single part supplies the expertise; it comes from all of them working together.
+Each part has one job. The wiki is the readable organization of the knowledge. The graph makes specific connections and their conditions addressable. Search finds entry points, including things the domain structure misses. Since 1.2.0, the recall index does most routine answering straight from the canonical records. Codex decides what to read and does the reasoning. No single part supplies the expertise; it comes from all of them working together.
 
 The reading layers look like this:
 
 | Layer | What's in it | Why it exists |
 |---|---|---|
-| Library orientation | The topics available, short descriptions, scope, links to primers | Find the right area without loading the whole library |
-| Topic map and primer | Essential distinctions, an overview, the important tensions, relevant questions, links with summaries | See the shape of a topic and choose what to read next |
+| Library orientation | The domains available, short descriptions, scope, links to primers | Find the right area without loading the whole library |
+| Domain page and primer | Essential distinctions, an overview, the important tensions, relevant questions, links with summaries | See the shape of a domain and choose what to read next |
 | Complete accounts | Mechanisms, procedures, syntheses, per-source positions, worked examples, teaching sequences | Supply enough connected reasoning to understand and apply an idea |
 | Supporting evidence | Exact passages, source pages and frames, calculations, evidence assessments | Settle a detail, an ambiguity or a challenge that matters |
 
-A concept can show up in several topic maps under one identity. Authors with incompatible definitions keep separate meanings. A topic map should explain relationships and disagreements, not just list files by type. The folder structure helps you find things; it isn't the knowledge model.
+A concept can show up on several domain pages under one identity. Authors with incompatible definitions keep separate meanings. A domain page should explain relationships and disagreements, not just list files by type. The folder structure helps you find things; it isn't the knowledge model.
 
 These layers are entry points, not a staircase. A broad teaching request might start with a primer. A precise table lookup should go straight to the account or the evidence. A compound question might start in several places at once and bring the results together.
 

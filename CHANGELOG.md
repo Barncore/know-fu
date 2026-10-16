@@ -4,6 +4,16 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-17 - 0.4.0: the ingest asks for a domain, and releases get tags
+
+Why: the owner wants the user to choose each source's domain, since notes inherit it and their curation gives the library its value. Before this, an ingest with no domain named fell back to `general`. The owner also asked that any release can be gone back to by name.
+
+- The skill's ingestion guide (step 1, Register) has the agent settle the domain before registering. When the user named one, the agent uses it. When they didn't, it asks with the app's question tool, offering the library's existing domains and a proposed broad domain marked "(Recommended)", and the user can type their own. A source that spans two fields can take two, and a new domain is registered with `kb_maintain configure` before `kb_ingest`. Setup-ai's Domains choice now calls `general` a placeholder.
+- Releases: each version that reaches `main` gets a `v<version>` tag. `docs/MAINTENANCE.md` has a new "Going back to an earlier version" section, and `AGENTS.md` has the tagging rule.
+- An audit of the 0.3.2 rename against the code confirmed that every renamed use grouped by `scope.domains`, and that the wiki's `_topics/` pages were keyed by domain from the day they were built (4 October). Nothing keyed by concept was renamed. Follow-ups: `NORTH_STAR.md`'s living reading layers call the second layer "Domain page and primer" (it was "Topic map"), and the 17 October decision now says that layer is the domain page as built, with pages per concept as a possible finer layer later. `docs/IMPLEMENTATION.md` says "domain membership". Two agent-facing strings that said "topic" for a subject now say "explanatory articles" (compile stage) and "the subject's relevant branches" (synthesize).
+- Tests: 177 pass. No engine behaviour changed beyond the two strings.
+- Compatibility: no library format change. The domain question is skill guidance, so the engine doesn't enforce it.
+
 ### 2026-10-17 - 0.3.2: a domain is called a domain everywhere
 
 Why: the schema's subject label is `domains`, but `kb_read`, the wiki, `kb_connect`, recall's invent text and several docs called a domain a "topic". The owner and agents read the two words as two layers, and the owner nearly added a second label to fix a problem that was only naming. The owner decided (NORTH_STAR, 17 October) that the domain is the one subject label, a broad umbrella, and that code, tool text and docs use the schema's word.

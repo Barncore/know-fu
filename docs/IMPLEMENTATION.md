@@ -24,7 +24,7 @@ Engine 1.0.2 passed all 80 existing tests. The first sandboxed run couldn't crea
 - The packet retrieval interface and its evaluator stay, so results can be reproduced and compared. Progressive reading arrived as a separate, versioned interface.
 - Optional graph exploration is separate from the required scope, lifecycle, qualification and prerequisite checks. Turning exploration off never turns caveats off.
 - Provenance references come back without loading their bodies automatically. Exact supporting revisions stay readable, and current restrictions still apply.
-- Scope filtering happens before any title, summary, topic membership or count is shown.
+- Scope filtering happens before any title, summary, domain membership or count is shown.
 - Section locators bind the release, the exact record revision and the body hash. A section is always marked partial, and full-account reads stay available.
 
 Setup, operation, component roles and troubleshooting are in the [README](../README.md) and the [maintenance guide](MAINTENANCE.md). Evidence and limits belong in [VALIDATION.md](VALIDATION.md). At handover, the installed skill described both reading routes and the revised ingestion protocol, with packet retrieval still the routine default. 1.2.0 changed that default to `kb_recall`.

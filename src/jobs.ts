@@ -112,7 +112,7 @@ const guidance: Record<string, string> = {
   reweave:
     "Review affected prose, prerequisites, cases, judgments and primers. Revise, reaffirm with evidence, or mark unresolved. Return resolutions keyed to impacted record IDs.",
   compile:
-    "Create or revise coherent topic articles, appropriate domain primer, worked application and teaching material. Use only warranted forms; no quotas.",
+    "Create or revise coherent explanatory articles, appropriate domain primer, worked application and teaching material. Use only warranted forms; no quotas.",
   check:
     "Resolve structural and locator errors. Record source fidelity review, regression results and independent capability status. Semantic failure blocks affected synthesis; unassessed capability is explicit.",
   publish:
