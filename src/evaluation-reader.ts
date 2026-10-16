@@ -94,7 +94,7 @@ export class EvaluationReader {
         "purpose",
         "context",
         "domains",
-        "topic",
+        "domain",
         "record_ref",
         "record_refs",
         "section_id",
@@ -136,7 +136,7 @@ export class EvaluationReader {
           name === "kb_read" &&
             [
               "catalogue",
-              "topic",
+              "domain",
               "account",
               "accounts",
               "sections",

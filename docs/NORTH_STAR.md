@@ -105,6 +105,16 @@ A personal library's default access is: read from any project folder, save answe
 
 Know Fu keeps its settings in its own file, `~/.know-fu/config.json`, rather than in a host's plugin options, because the Claude desktop app loads plugins by a route that drops those options. Versions restart at 0.3.0, since Know Fu isn't release-ready, and every plugin change carries a new version number.
 
+## Decisions on 17 October 2026
+
+The owner settled how a library's subjects are organized, before the first real ingest.
+
+A domain is the only subject label, and it's a broad umbrella such as Audio or Trading. Modules stay walls for material that has to stay apart (D9). There's no second label under domains: a book becomes many notes, and each note's subject lives in its own title, summary and prose, its concept links and its other typed links, which search, recall and connect already read. A hand-kept label on every note would be a second copy of what the links say, and it would drift.
+
+The "topic maps" in the reading layers below are pages generated from concept notes: one per major concept, listing what links to it, rebuilt at each reindex like the rest of the wiki. They aren't built yet. Build them when a domain gets too big to browse as one list, which can happen at any time without changing a note.
+
+Code, tool text and docs call a domain a domain. Version 0.3.2 renamed the places that called it a topic: `kb_read` takes `kind:"domain"` with `domain`, its catalogue returns `domains`, the wiki's domain pages live in `wiki/_domains/`, and `kb_connect` reports `other_domain`.
+
 ## One knowledge system, several ways in
 
 ```mermaid

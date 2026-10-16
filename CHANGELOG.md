@@ -4,6 +4,17 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-17 - 0.3.2: a domain is called a domain everywhere
+
+Why: the schema's subject label is `domains`, but `kb_read`, the wiki, `kb_connect`, recall's invent text and several docs called a domain a "topic". The owner and agents read the two words as two layers, and the owner nearly added a second label to fix a problem that was only naming. The owner decided (NORTH_STAR, 17 October) that the domain is the one subject label, a broad umbrella, and that code, tool text and docs use the schema's word.
+
+- `kb_read` takes `kind:"domain"` with `domain` (was `kind:"topic"` with `topic`), and its catalogue returns `domains`, each entry with `domain` (was `topics` and `topic`). The evaluation reader takes the same kind. `contracts/schemas/reading-request.schema.json` and `reading.schema.json` change to match; the interface version stays 1.0.0.
+- The wiki writes each domain's page to `wiki/_domains/` (was `wiki/_topics/`), and the index says "Choose a domain". `wiki_edit` still ignores `_topics/` pages in views built before this version.
+- `kb_connect` labels its sections "In other domains" and "In the same domain" and returns `other_domain` (was `other_topic`). Recall's invent slate says "From other domains", and the tool descriptions say domain.
+- Docs: the skill's retrieval guide, architecture, setup and setup-ai, the README and the roadmap say domain where they meant one. Setup-ai's choice is now **Domains**, the broad subject areas the library will hold. Plain-English uses of "topic" for a subject stay. `NORTH_STAR.md` records the decision, and `AGENTS.md` gains the rule that docs and tool text use the schema's names.
+- Tests: the invent and progressive-reading tests use the new names, and a new test checks the old kind's message. 177 tests pass.
+- Compatibility: a caller still sending `kind:"topic"` gets `VALIDATION_FAILED` with a message naming `kind:"domain"`, so an installed skill older than the engine can correct itself. Update the skill and engine together. No stored record changes, and libraries need no migration. The next reindex writes domain pages to `_domains/`.
+
 ### 2026-10-13 - 0.3.1: access from any folder, four capabilities, idle memory release
 
 Why: the owner decided (D31) that a personal library should be readable from any project, accept saved answers and ideas from any project when asked, and take ingestion only in its home folder, each as a setup choice, with a folder's own binding still winning. The engine had one exact-match binding per folder and one write list for everything. Separately, each open chat runs its own engine, and a used engine kept its recall index in memory for the chat's lifetime.

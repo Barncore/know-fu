@@ -14,7 +14,7 @@ Version 1.2.0 changes how knowledge gets used and written, not how it's stored:
 |---|---|---|
 | Answering | `kb_retrieve` packet: every connected body, no budget | `kb_recall`: a ranked, budgeted briefing with caveats carried beside what they qualify. about 6,000-11,000 tokens on the test cases, blind-graded as good as the packet (10 of 10 passed against 9 of 10, on the slightly larger briefings before the audit fixes) |
 | Session start | Nothing loaded | `kb_brief`: primers, central ideas, disagreements, next questions, what recent sources added |
-| Connecting ideas | No explicit chains | `kb_connect`: the strongest chains of links between two ideas, each hop with its reason, or the bridges an idea reaches in other topics |
+| Connecting ideas | No explicit chains | `kb_connect`: the strongest chains of links between two ideas, each hop with its reason, or the bridges an idea reaches in other domains |
 | Weighing support | Assessment fields existed, all `not_assessed`, read by nothing | Levels with reasons and a named basis on each account in recall, side by side in conflicts with each side's independent-source count, never used to rank |
 | Learning from use | Good answers vanished with the chat | `kb_file`: a cited synthesis, ranked below its sources, flagged when they change |
 | Writing knowledge | Hand-written proposal JSON, page text copied into passages | `kb_write` notes; passages built from the extraction; quotes verified; revisions inherit what they don't change |
@@ -140,7 +140,7 @@ Cost-benefit: the book map costs a few thousand tokens, and each chapter reader 
 
 #### D9. One wide module, with domain tags · approved, now in the setup guides
 
-When you set up your real library, put everything in one module and separate topics with domain tags. `cross_domain` bridges can only cross what a project can read, and moving a record to another module later is its own operation. Use a separate module only for material that has to stay apart, such as a client's.
+When you set up your real library, put everything in one module and separate subjects with domain tags. `cross_domain` bridges can only cross what a project can read, and moving a record to another module later is its own operation. Use a separate module only for material that has to stay apart, such as a client's.
 
 Cost-benefit: costs nothing except the option to hide one topic from another project, and gains bridges that can see the whole library, which is where invention compounds. Changing modules later is a per-record operation.
 
@@ -168,7 +168,7 @@ Cost-benefit: no runtime cost. It only matters once others see or use the code, 
 
 The fourth gap signal: concepts that accounts build on or use, but that have no account of their own. That's exactly the list of foundations an advanced book assumed, which answers the wrong-order-books worry directly. About 30 lines in `gaps.ts` with a test.
 
-Cost-benefit: milliseconds and about one line per topic in the brief (around 30 tokens), against a standing answer to "what should I read next". Each foundation you fill strengthens every account built on it, so this one compounds.
+Cost-benefit: milliseconds and about one line per domain in the brief (around 30 tokens), against a standing answer to "what should I read next". Each foundation you fill strengthens every account built on it, so this one compounds.
 
 #### D15. Record a novelty search on every idea · approve
 
@@ -290,7 +290,7 @@ Record, per agent: output tokens per source page against the 1.1.0 paper pilot (
 
 #### 5. Broad synthesis under a budget
 
-The blind comparison (VALIDATION, 2026-10-05) found recall as good as the packet at an eighth of the material, with one soft spot. On the synthesis case, two relevant accounts didn't fit the 12,000-token budget, and the answer left their branch implicit. Try a larger synthesis default, or one-line summaries of every unloaded account in the same topic. Judge the change on new paraphrased synthesis questions, never on the exposed cases. Since the 6 October audit fixes, briefings carry 5-10% less material at the same nominal budget (the old size accounting undercounted), so rerun the blind comparison here too. Done when synthesis answers cover their branches without the budget creeping above about a quarter of the packet's size.
+The blind comparison (VALIDATION, 2026-10-05) found recall as good as the packet at an eighth of the material, with one soft spot. On the synthesis case, two relevant accounts didn't fit the 12,000-token budget, and the answer left their branch implicit. Try a larger synthesis default, or one-line summaries of every unloaded account in the same domain. Judge the change on new paraphrased synthesis questions, never on the exposed cases. Since the 6 October audit fixes, briefings carry 5-10% less material at the same nominal budget (the old size accounting undercounted), so rerun the blind comparison here too. Done when synthesis answers cover their branches without the budget creeping above about a quarter of the packet's size.
 
 #### 26. Find out whether invent actually helps
 

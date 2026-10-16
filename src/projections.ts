@@ -88,6 +88,8 @@ export class Projections {
           if (
             p.includes("/wiki/") &&
             !p.endsWith("/_index.md") &&
+            !p.includes("/wiki/_domains/") &&
+            // Views built before 0.3.2 kept domain pages in _topics.
             !p.includes("/wiki/_topics/") &&
             !p.endsWith("/_records.md") &&
             (await exists(this.store.p(p))) &&
@@ -182,7 +184,7 @@ export class Projections {
       });
       await atomic(this.store.p(cataloguePath), catalogueText);
       fileHashes[cataloguePath] = hash(catalogueText);
-      const topics: string[] = [];
+      const domainLines: string[] = [];
       const link = (r: RecordData, prefix = "../") =>
         `[${r.title}](${prefix}${hash(r.id).slice(0, 24)}.md)`;
       for (const domain of [
@@ -193,7 +195,7 @@ export class Projections {
         );
         const title =
           config.domains.find((d) => d.domain_id === domain)?.title ?? domain;
-        const topicName = hash(domain).slice(0, 24) + ".md";
+        const pageName = hash(domain).slice(0, 24) + ".md";
         const primers = members.filter(
           (r) => (r.payload as any).form === "primer",
         );
@@ -213,24 +215,24 @@ export class Projections {
               object = records.get(p.object.id);
             return `- ${subject ? link(subject) : key(p.subject)} (${key(p.subject)}) **${p.predicate}** ${object ? link(object) : key(p.object)} (${key(p.object)}): ${p.rationale} ([relationship](../${hash(r.id).slice(0, 24)}.md)). Conditions: ${r.scope.conditions.join("; ") || "inspect the account"}.`;
           });
-        const topicText = `# ${title}\n\nRelease: ${release.release_id}\n\n## Primers\n\n${primers.map(describe).join("\n") || "No authored primer yet."}\n\n## Accounts and questions\n\n${members
+        const pageText = `# ${title}\n\nRelease: ${release.release_id}\n\n## Primers\n\n${primers.map(describe).join("\n") || "No authored primer yet."}\n\n## Accounts and questions\n\n${members
           .filter((r) => !primers.includes(r))
           .map(describe)
           .join(
             "\n",
           )}\n\n## Connections and disagreements\n\n${connections.join("\n") || "No explicit relationships yet."}\n`;
-        const topicPath = `views/${release.release_id}/wiki/_topics/${topicName}`;
-        await atomic(this.store.p(topicPath), topicText);
-        fileHashes[topicPath] = hash(topicText);
-        topics.push(
-          `- [${title}](_topics/${topicName}) — ${members.length} accounts${primers.length ? "; " + primers.map((r) => `${link(r, "")}: ${authoredSummary(r) ?? "summary missing"}${pending.has(r.id) ? " (pending reassessment)" : ""}`).join("; ") : "; no authored primer yet"}`,
+        const pagePath = `views/${release.release_id}/wiki/_domains/${pageName}`;
+        await atomic(this.store.p(pagePath), pageText);
+        fileHashes[pagePath] = hash(pageText);
+        domainLines.push(
+          `- [${title}](_domains/${pageName}) — ${members.length} accounts${primers.length ? "; " + primers.map((r) => `${link(r, "")}: ${authoredSummary(r) ?? "summary missing"}${pending.has(r.id) ? " (pending reassessment)" : ""}`).join("; ") : "; no authored primer yet"}`,
         );
       }
       const recordsPath = `views/${release.release_id}/wiki/_records.md`;
       const recordsText = `# All records\n\nSources, evidence, relationships and authored accounts for release ${release.release_id}.\n\n${pages.join("\n")}\n`;
       await atomic(this.store.p(recordsPath), recordsText);
       fileHashes[recordsPath] = hash(recordsText);
-      const index = `# ${config.title}\n\nRelease: ${release.release_id}\n\nChoose a topic, or search directly for a precise question. Summaries guide reading; complete accounts and their material context establish the reasoning.\n\n${topics.join("\n")}\n\n[All records and supporting evidence](_records.md)\n\nThis owner-level projection contains the library's records. Scoped tool access filters metadata before exposure; do not serve these raw files as a scoped catalogue.\n`;
+      const index = `# ${config.title}\n\nRelease: ${release.release_id}\n\nChoose a domain, or search directly for a precise question. Summaries guide reading; complete accounts and their material context establish the reasoning.\n\n${domainLines.join("\n")}\n\n[All records and supporting evidence](_records.md)\n\nThis owner-level projection contains the library's records. Scoped tool access filters metadata before exposure; do not serve these raw files as a scoped catalogue.\n`;
       const indexPath = `views/${release.release_id}/wiki/_index.md`;
       await atomic(this.store.p(indexPath), index);
       fileHashes[indexPath] = hash(index);

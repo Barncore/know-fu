@@ -46,7 +46,7 @@ Then comes the step that makes knowledge compound. The engine lists every older 
 
 Most of the time it's three calls:
 
-- `kb_brief` at the start of a session. It loads each topic's primer, its most connected ideas, live disagreements and the questions worth answering next.
+- `kb_brief` at the start of a session. It loads each domain's primer, its most connected ideas, live disagreements and the questions worth answering next.
 - `kb_recall` for each real question. It returns the best explanations whole, the caveats and judgments that qualify them, and the pages they came from, packed to a token budget.
 - `kb_connect` when the question is how two ideas relate. It shows the chain of links between them, hop by hop, with the reason recorded for each link.
 
@@ -54,7 +54,7 @@ When an answer is worth keeping, `kb_file` publishes it back as a cited synthesi
 
 ### Inventing
 
-Invention is what the library is ultimately for. `kb_recall` with `purpose:"invent"` loads the accounts that match, each with a line saying what it does in words another field could recognize. Then it adds a slate: ideas already on file (failed ones say why), accounts in other topics that could bridge across (only when you ask for that), and loose ends nobody has connected yet.
+Invention is what the library is ultimately for. `kb_recall` with `purpose:"invent"` loads the accounts that match, each with a line saying what it does in words another field could recognize. Then it adds a slate: ideas already on file (failed ones say why), accounts in other domains that could bridge across (only when you ask for that), and loose ends nobody has connected yet.
 
 New ideas go through `kb_idea` into their own lane, behind a set of walls. An idea rests on library accounts, but nothing can ever rest on an idea, and it never shows up when you're explaining, teaching or applying. Its status only moves when a result from your own tools comes in (a backtester, a mastering chain, a prototype), judged by a pass rule you declared before the run, with a count of how many variants were tried. Export hands the whole project, premises and results included, to those tools as JSON.
 
@@ -75,10 +75,10 @@ The canonical records own the meaning. The wiki and the QMD search index are gen
 | Tool | What it does |
 |---|---|
 | `kb_status` | Engine and library paths, current release, scope, job progress |
-| `kb_brief` | Session-start orientation per topic |
+| `kb_brief` | Session-start orientation per domain |
 | `kb_recall` | A budgeted answer briefing: explanations, caveats, sources, and what else exists |
 | `kb_connect` | Chains of links between two ideas, or what one idea reaches a few hops out |
-| `kb_read` | Full accounts, topic catalogues, source units, guides and schemas |
+| `kb_read` | Full accounts, domain catalogues, source units, guides and schemas |
 | `kb_file` | Publish a worked answer as a cited synthesis |
 | `kb_idea` | Keep candidate inventions in their own lane: propose, declare a pass rule, record results, export |
 | `kb_ingest`, `kb_job` | Register a source and move its ingestion job through the stages |

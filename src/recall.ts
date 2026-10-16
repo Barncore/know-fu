@@ -39,7 +39,7 @@ export type RecallRequest = {
   graph?: boolean;
   seen?: (Ref | string)[];
   context?: Record<string, { value: unknown; unit?: string | null }>;
-  /** Invent only: show accounts from other topics. Off by default; with domains set and this off, invent stays inside them. */
+  /** Invent only: show accounts from other domains. Off by default; with domains set and this off, invent stays inside them. */
   cross_domain?: boolean;
 };
 
@@ -215,7 +215,7 @@ function slateLines(
   }
   if (slate.bridges.length) {
     lines.push({
-      line: "## From other topics: possible bridges",
+      line: "## From other domains: possible bridges",
       always: true,
     });
     slate.bridges.forEach((line, position) =>
@@ -223,7 +223,7 @@ function slateLines(
     );
   } else if (slate.hidden)
     lines.push({
-      line: `${slate.hidden} account(s) in other topics connect to these by links or by what they do. Call again with cross_domain:true to see them.`,
+      line: `${slate.hidden} account(s) in other domains connect to these by links or by what they do. Call again with cross_domain:true to see them.`,
       always: true,
     });
   if (slate.looseEnds.length) {
@@ -472,7 +472,7 @@ export class Recall {
 
     // Priors: prefer explanations to raw evidence, and forms that serve the purpose.
     const domainBoost = new Set(input.domains ?? []);
-    // Inventing inside named topics keeps other fields out unless cross_domain asks for them.
+    // Inventing inside named domains keeps other fields out unless cross_domain asks for them.
     const restrict =
       input.purpose === "invent" &&
       domainBoost.size > 0 &&
@@ -857,7 +857,7 @@ export class Recall {
     ];
     if (purpose === "invent")
       header.push(
-        `Invent: the matches, then ideas on file, ${input.cross_domain === true ? "bridges into other topics" : "no other topics (cross_domain off)"} and loose ends. Nothing here judges a new idea; its kill test does.`,
+        `Invent: the matches, then ideas on file, ${input.cross_domain === true ? "bridges into other domains" : "no other domains (cross_domain off)"} and loose ends. Nothing here judges a new idea; its kill test does.`,
       );
     if (purpose === "teach" || purpose === "explain") {
       const top = loaded.find((p) => p.role === "account");
@@ -1008,7 +1008,7 @@ export class Recall {
 
   /**
    * What invent adds around the matches: ideas already on file (failures included, so
-   * they aren't proposed again), accounts in other topics reached by links or matched by
+   * they aren't proposed again), accounts in other domains reached by links or matched by
    * what they do, and matched accounts the library has barely connected yet.
    */
   private inventSlate(
@@ -1021,13 +1021,13 @@ export class Recall {
     const matches = [...packed.values()]
       .filter((p) => p.reason === "match" && p.record.record_type !== "passage")
       .map((p) => p.record);
-    const topic = new Set(
+    const matchDomains = new Set(
       input.domains?.length
         ? input.domains
         : matches.flatMap((r) => r.scope.domains),
     );
-    const inTopic = (r: RecordData) =>
-      !topic.size || r.scope.domains.some((d) => topic.has(d));
+    const inDomains = (r: RecordData) =>
+      !matchDomains.size || r.scope.domains.some((d) => matchDomains.has(d));
     const restrict = !!input.domains?.length && input.cross_domain !== true;
 
     // Ideas: words in common with the question, plus premises among the matches.
@@ -1044,12 +1044,12 @@ export class Recall {
     }
     const ideas = [...ideaScore]
       .map(([id, score]) => ({ idea: index.ideas.get(id)!, score }))
-      .filter((x) => x.idea && (!restrict || inTopic(x.idea)))
+      .filter((x) => x.idea && (!restrict || inDomains(x.idea)))
       .sort((a, b) => b.score - a.score || a.idea.id.localeCompare(b.idea.id))
       .slice(0, 6)
       .map((x) => x.idea);
 
-    // Bridges: accounts in other topics within four links of the matches, strongest first.
+    // Bridges: accounts in other domains within four links of the matches, strongest first.
     const prev = new Map<string, { from: string; label: string }>();
     const depth = new Map(matches.map((r) => [r.id, 0]));
     const queue = matches.map((r) => r.id);
@@ -1076,7 +1076,10 @@ export class Recall {
       return steps.join(" → ");
     };
     const outside = (r: RecordData) =>
-      index.isAccount(r) && !packed.has(r.id) && !held.has(r.id) && !inTopic(r);
+      index.isAccount(r) &&
+      !packed.has(r.id) &&
+      !held.has(r.id) &&
+      !inDomains(r);
     const linked = [...depth.keys()]
       .map((id) => index.visible.get(id)!)
       .filter(outside)
@@ -1106,7 +1109,7 @@ export class Recall {
       ),
     ];
 
-    // Loose ends: matched accounts in the topic with at most one link, not yet combined with anything.
+    // Loose ends: matched accounts in these domains with at most one link, not yet combined with anything.
     const looseEnds = candidates
       .map((c) => c.record)
       .filter(
@@ -1115,7 +1118,7 @@ export class Recall {
           r.record_type !== "question" &&
           !packed.has(r.id) &&
           !held.has(r.id) &&
-          inTopic(r) &&
+          inDomains(r) &&
           (index.adjacency.get(r.id)?.size ?? 0) <= 1,
       )
       .slice(0, 4);

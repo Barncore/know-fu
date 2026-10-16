@@ -248,7 +248,7 @@ export class Connect {
       };
     }
 
-    // Outward mode: what this idea reaches within a few hops, split into its own topic and others.
+    // Outward mode: what this idea reaches within a few hops, split into its own domain and others.
     const limit = Math.min(Math.max(input.limit ?? 8, 1), 20);
     const activation = index.spread(new Map([[from.record.id, 1]]));
     const domains = new Set(from.record.scope.domains);
@@ -287,8 +287,8 @@ export class Connect {
             .join("\n\n")
         : "";
     const blocks = [
-      section("In other topics: possible bridges", others),
-      section("In the same topic, not directly linked", same),
+      section("In other domains: possible bridges", others),
+      section("In the same domain, not directly linked", same),
     ].filter(Boolean);
     if (!blocks.length)
       blocks.push(
@@ -302,7 +302,7 @@ export class Connect {
         record_ref: ref(n.record),
         title: n.record.title,
         hops: n.chain.steps.length - 1,
-        other_topic: n.other,
+        other_domain: n.other,
       })),
       briefing: [header.join("\n"), ...blocks].join("\n\n"),
     };

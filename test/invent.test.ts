@@ -42,12 +42,12 @@ async function plant(
   return record;
 }
 
-/** A second topic with one account linked to the workshop and one that only does the same job. */
-async function twoTopics(label: string) {
+/** A second domain with one account linked to the workshop and one that only does the same job. */
+async function twoDomains(label: string) {
   const f = await published(label);
   await new Governance(f.store).configure({
     domains: [{ domain_id: "garden", title: "Garden" }],
-    authorization: "Add a garden topic for the test",
+    authorization: "Add a garden domain for the test",
   });
   await plant(
     f,
@@ -101,8 +101,8 @@ async function twoTopics(label: string) {
   return f;
 }
 
-test("invent stays inside named topics unless cross_domain asks for bridges", async () => {
-  const f = await twoTopics("invent-bridges");
+test("invent stays inside named domains unless cross_domain asks for bridges", async () => {
+  const f = await twoDomains("invent-bridges");
   const recall = new Recall(f.store, noIndex);
   const query = "a permission that depends on several necessary conditions";
   const inside: any = await recall.recall({
@@ -113,9 +113,9 @@ test("invent stays inside named topics unless cross_domain asks for bridges", as
   assert.doesNotMatch(inside.briefing, /Seed trays|Germination gate/);
   assert.match(
     inside.briefing,
-    /2 account\(s\) in other topics connect to these .* cross_domain:true/,
+    /2 account\(s\) in other domains connect to these .* cross_domain:true/,
   );
-  assert.match(inside.briefing, /no other topics \(cross_domain off\)/);
+  assert.match(inside.briefing, /no other domains \(cross_domain off\)/);
   const across: any = await recall.recall({
     query,
     purpose: "invent",
@@ -123,7 +123,7 @@ test("invent stays inside named topics unless cross_domain asks for bridges", as
     cross_domain: true,
     graph: false,
   });
-  assert.match(across.briefing, /## From other topics: possible bridges/);
+  assert.match(across.briefing, /## From other domains: possible bridges/);
   assert.match(
     across.briefing,
     /knowledge:garden-linked@1 · Seed trays[^\n]*\n  linked: How the handbook permits moving a lantern → feeds → Seed trays/,
