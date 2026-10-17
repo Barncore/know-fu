@@ -2,6 +2,10 @@
 
 Things this project learned the hard way, newest first. Each one says what happened and what to do differently.
 
+## 2026-10-17 - Install from a clean clone before trusting the setup steps
+
+The development checkout had a working `node_modules` and a converter `.venv` from earlier work, so every setup step passed there. The first clean clone from GitHub showed two things the docs had never said: `npm ci` needs a C++ toolchain to compile better-sqlite3, and the install script repackaged the plugin inside the engine and copied an out-of-date file list. Check setup changes by installing from a fresh clone of `main` into a new folder, the way a user does, and keep the machine's running engine in that clone rather than in the development checkout.
+
 ## 2026-10-13 - An idle Node process doesn't give memory back on its own
 
 Dropping the engine's recall index left private memory exactly where it was, because an idle process allocates nothing, so V8 never collects. A plain forced `gc()` shrank V8's heap from 57 to 19 MB and still returned nothing to Windows. Only the `last-resort` collection gave memory back to the operating system. When a long-lived process should shrink while idle, measure the operating system's view of it (private bytes), not the heap, and ask for the collection that returns memory.

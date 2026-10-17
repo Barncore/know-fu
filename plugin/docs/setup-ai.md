@@ -62,6 +62,8 @@ npm test
 
 Done when the build passes and every test passes, with 3 Python conversion tests skipped until phase 4. `package.json` lists the packages whose install scripts npm may run (`allowScripts`). If `npm ci` warns that it skipped install scripts, stop and sort that out first, because search won't work without them.
 
+`npm ci` compiles better-sqlite3 from source with node-gyp, so it needs a C++ build toolchain: on Windows, Visual Studio Build Tools with the "Desktop development with C++" workload; on macOS, the Xcode Command Line Tools; on Linux, `make` and a C++ compiler. Without one, `npm ci` stops at better-sqlite3 with "Could not find any Visual Studio installation to use" (seen on Windows on 17 October 2026). Check for the toolchain before running it, and if it's missing, ask the person whether to install it. If another checkout on the machine has a working `node_modules` for the same `package-lock.json` and Node version, copying that folder in also works; the build and tests then prove the copy.
+
 ## Phase 4: Python converters
 
 These turn PDFs, EPUBs and images into units an agent can read. With uv, from the repository root:
@@ -126,7 +128,7 @@ Know Fu runs only when the person types `/know-fu:know-fu`. The skill never load
 
    The flags match Claude Code's. It writes the `codex` section of `~/.know-fu/config.json` and a machine-local `plugin/.mcp.json` (ignored by Git) that starts the launcher with `KB_ACTOR=codex`. Add `--project <folder>` only if the chat's own folder shouldn't be its identity. It refuses to overwrite either file without `--replace`; on an existing install, that refusal is your cue to look at the file and change it on purpose.
 
-2. Run `node scripts/install-plugin.mjs`, then register or refresh the plugin through Codex's own plugin workflow (`codex plugin add`). Codex runs its installed copy, so a change reaches it only after this step, even at the same version. This changes the person's Codex setup, so confirm it with them first and back up the current plugin and its cache.
+2. Run `node scripts/install-plugin.mjs`. It checks the package, copies the whole plugin folder to `~/plugins/know-fu` in place of what was there, and keeps the replaced copy in `~/.know-fu/codex-plugin-previous`. Then register or refresh the plugin with `codex plugin add know-fu@personal`. Codex runs its installed copy, so a change reaches it only after this step, even at the same version. This changes the person's Codex setup, so confirm it with them first and back up Codex's plugin cache.
 
 3. Check it: start a new Codex chat in the home folder, invoke `$know-fu:know-fu` (or pick it in the skill picker) and ask for the status. The skill is manual-only in Codex too, through `skills/know-fu/agents/openai.yaml`. Codex's hooks didn't run in tests on 13 October, so in Codex the tools themselves stay callable without the skill; say so when you hand over.
 

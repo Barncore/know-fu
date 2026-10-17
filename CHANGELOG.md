@@ -4,6 +4,16 @@ Changes after this baseline belong here with their reason, affected behavior/doc
 
 ## Unreleased
 
+### 2026-10-17 - 0.4.1: the Codex install replaces the whole plugin, and setup names the C++ toolchain
+
+Why: the first install from a clean clone (the shared engine in the setup trial) showed two gaps. `scripts/install-plugin.mjs` imported `package-plugin.mjs` in package mode, so every install rewrote the engine's bundled contracts and `release.json`, and it copied a fixed list of plugin parts that predated `scripts/`, `hooks/` and `release.json`, leaving older files behind. And `npm ci` compiles better-sqlite3 from source, which failed on a Windows machine without Visual Studio; the setup docs didn't say a toolchain was needed.
+
+- `scripts/install-plugin.mjs` runs `package-plugin.mjs --check` and changes nothing in the checkout. It copies the whole plugin folder beside the target and swaps it in, so no file from an older version stays and a failed copy leaves the old install working. The replaced copy goes to `~/.know-fu/codex-plugin-previous` (`--backup`), and `--target` picks another destination. It ends by naming the refresh command, `codex plugin add know-fu@personal`, which Codex confirmed on 17 October.
+- Setup-ai phase 3 names the C++ toolchain per platform and the copy-a-matching-`node_modules` fallback. Setup's table lists the toolchain. Phase 6 and `docs/MAINTENANCE.md` describe the new install behaviour.
+- Tests: a new portability test installs into a scratch folder over a leftover file and checks that the copy matches the plugin folder, the leftover went to the backup, and the checkout's `release.json` and contract manifest are byte-for-byte unchanged. The gate test now deletes its marker from the system temp folder instead of leaving one per run. 178 tests pass.
+- `LESSONS.md`: install from a clean clone before trusting the setup steps.
+- Compatibility: no engine or library change.
+
 ### 2026-10-17 - 0.4.0: the ingest asks for a domain, and releases get tags
 
 Why: the owner wants the user to choose each source's domain, since notes inherit it and their curation gives the library its value. Before this, an ingest with no domain named fell back to `general`. The owner also asked that any release can be gone back to by name.

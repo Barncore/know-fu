@@ -25,6 +25,7 @@ Measured on the development machine (Windows 11) on 12 October 2026, as space on
 | Part | Needed for | Where it goes | On disk |
 |---|---|---|---:|
 | Node.js 24.14 | Everything | Its own install | 103 MB |
+| A C++ build toolchain (Windows: Visual Studio Build Tools, "Desktop development with C++") | Compiling better-sqlite3 during `npm ci` | Its own install | not measured |
 | Engine packages (`npm ci`) | Everything, including QMD search | `node_modules` in the engine folder | 919 MB |
 | Python 3.12, when uv installs it | Document and image conversion | uv's Python folder | 69 MB |
 | Converter environment: Docling, CPU PyTorch, OCR, Pillow | Document and image conversion | `.venv` in the engine folder | 1.1 GB |
