@@ -38,7 +38,7 @@ The first commit summarized earlier local development rather than inventing a fa
 | `gaps.ts` | Gap suggestions for the brief and `investigate` |
 | `navigation.ts`, `research-view.ts`, `reading.ts`, `reading-render.ts` | Progressive reading and its MCP presentation |
 | `retrieval.ts` | The older packet route, and `linkedRelationships`, which both older routes use to find linked records in the canonical records |
-| `projections.ts`, `qmd-search.ts`, `qmd-worker.ts` | Wiki and QMD views, and view cleanup |
+| `projections.ts`, `qmd-search.ts`, `qmd-worker.ts`, `embedder.ts` | Wiki and QMD views, the embedder choice and background embedding, vector search for an API embedder, and view cleanup. Changes here affect `plugin/docs/setup-choices.md`, `setup.md`, `architecture.md` and `operations.md` |
 | `present.ts`, `job-render.ts`, `mcp.ts`, `api.ts`, `cli.ts` | Tool descriptions, which tools MCP lists (`exposedTools`), dispatch, and what MCP clients receive |
 | `lifecycle.ts`, `governance.ts`, `maintenance.ts` | Archive, withdrawal, purge, configuration, meaning changes, export and restore |
 | `evaluation*.ts` | Frozen evaluations through Codex |

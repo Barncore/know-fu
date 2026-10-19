@@ -17,7 +17,9 @@ const system = new KnowledgeSystem(
     process.env.KB_PROJECT ?? process.cwd(),
   ),
   // Each chat runs its own engine for the chat's lifetime; an idle one gives its caches back.
-  { idleReleaseMs: idleReleaseMs() },
+  // Long conversions and embedding finish in the background, so no call outlives the host's
+  // tool timeout.
+  { idleReleaseMs: idleReleaseMs(), background: true },
 );
 const server = new McpServer({ name: "know-fu", version: ENGINE_VERSION });
 for (const name of exposedTools())

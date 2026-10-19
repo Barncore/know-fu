@@ -1164,7 +1164,8 @@ export class Store {
             (t.record_type === "knowledge" &&
               ["mechanism", "procedure"].includes((t.payload as any).form)),
           "VALIDATION_FAILED",
-          "exemplifies needs a concept, mechanism or procedure",
+          `exemplifies needs a concept, mechanism or procedure as its target: "${r.title}"`,
+          { relationship: r.title, target: t.title },
         );
         const s = await resolve(p.subject);
         ensure(
@@ -1172,7 +1173,8 @@ export class Store {
             s.record_type === "passage" ||
             s.epistemic === "illustration",
           "VALIDATION_FAILED",
-          "exemplifies needs an attributable case",
+          `exemplifies needs an attributable case: "${s.title}" is a ${s.record_type} note, but the example side of exemplifies must be a learning note, a passage or a note marked epistemic: illustration. Use supports or explains for a source's own claim: "${r.title}"`,
+          { relationship: r.title, subject: s.title },
         );
       }
       if (

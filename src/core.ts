@@ -224,10 +224,16 @@ export async function safePath(
   }
   return abs;
 }
+/**
+ * Runs `fn` holding a lock directory in the library, so processes take turns. A lock left by
+ * a dead process on this host is cleared. A live holder means waiting up to `waitMs`
+ * (default 5 seconds), then BUSY.
+ */
 export async function withLock<T>(
   root: string,
   name: string,
   fn: () => Promise<T>,
+  waitMs = 5000,
 ): Promise<T> {
   const lock = path.join(root, `.${name}.lock`);
   await fs.mkdir(root, { recursive: true });
@@ -256,9 +262,12 @@ export async function withLock<T>(
         await fs.rename(lock, lock + ".abandoned." + uid()).catch(() => {});
         continue;
       }
-      ensure(attempt < 100, "BUSY", "Corpus operation is in progress; retry", {
-        lock,
-      });
+      ensure(
+        attempt < Math.max(1, Math.ceil(waitMs / 50)),
+        "BUSY",
+        "Corpus operation is in progress; retry",
+        { lock },
+      );
       await new Promise((r) => setTimeout(r, 50));
     }
   }

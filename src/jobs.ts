@@ -54,6 +54,34 @@ export type SourceSpec = {
 };
 const INDEPENDENCE = ["independent", "derived", "unknown"];
 
+/** Short names a receipt or reader can use for a PDF page's representations. */
+const REPRESENTATIONS: Record<string, string> = {
+  text: "poppler-flow",
+  flow: "poppler-flow",
+  layout: "poppler-layout",
+  image: "visual",
+};
+
+/** The source, physical page and representation a single-page PDF unit stands for. */
+export function pageUnit(unit: { source_ref: Ref; locator?: any }) {
+  const locator = unit.locator;
+  if (
+    locator?.kind !== "pages" ||
+    !Number.isInteger(locator.start) ||
+    locator.start !== locator.end
+  )
+    return null;
+  return {
+    source: unit.source_ref.id,
+    page: locator.start as number,
+    representation:
+      /:\s*([a-z0-9-]+)\s*$/i.exec(locator.label ?? "")?.[1] ?? null,
+  };
+}
+
+/** Caption-style references that suggest a page holds a figure or table worth looking at. */
+const FIGURE_HINT = /\b(fig(ure)?\.?|table|chart|diagram|graph)\s*\d/i;
+
 /**
  * Normalizes a `kb_ingest` path entry. Two copies or formats of one work share an evidence
  * family, so they count once; `derived_from` names registered sources this one restates.
@@ -137,6 +165,14 @@ export class Jobs {
   async save(j: JobData) {
     await validate("job", j);
     await atomic(path.join(this.jobPath(j.job_id), "job.json"), json(j));
+  }
+  /** Records a failure on the job, or clears it, so kb_job next shows what went wrong. */
+  async recordError(id: string, error: JobData["error"]) {
+    return withLock(this.store.root, "jobs", async () => {
+      const j = await this.load(id);
+      j.error = error;
+      await this.save(j);
+    });
   }
   async reservePaid(
     id: string,
@@ -497,8 +533,10 @@ export class Jobs {
     return {
       job: j,
       instruction:
-        guidance[j.stage] ??
-        "Convert original sources; inspect the extraction and coverage units.",
+        j.status === "complete"
+          ? "Published. This job is closed; reassessments its release left pending travel with the release and show in kb_brief and recall."
+          : (guidance[j.stage] ??
+            "Convert original sources; inspect the extraction and coverage units."),
       source_paths: sources.map((s) => ({
         record_ref: ref(s),
         path: this.store.p((s.payload as any).original_path),
@@ -517,7 +555,10 @@ export class Jobs {
         ),
       ],
       staged_path: path.join(this.jobPath(id), "staged.json"),
+      // A published job's staged records are now the release, so comparing them with the
+      // job's old base would flag everything it published as needing reassessment.
       ...(j.workflow_version === 2 &&
+      j.status !== "complete" &&
       [
         "integrate",
         "discover",
@@ -726,6 +767,96 @@ export class Jobs {
       details: unit.details ?? null,
       evidence_only: true,
       image,
+    };
+  }
+  /**
+   * Serves the flow text of a run of PDF pages in one call, each counted as read, with the
+   * id of each page's image unit and a hint where the text points at a figure or table.
+   * Long runs stop at a page boundary and say where to continue.
+   */
+  async readPages(
+    id: string,
+    input: {
+      from: number;
+      to: number;
+      source_id?: string;
+      max_characters?: number;
+    },
+  ) {
+    const { from, to } = input;
+    const budget = input.max_characters ?? 60000;
+    ensure(
+      Number.isInteger(from) &&
+        Number.isInteger(to) &&
+        from >= 1 &&
+        to >= from &&
+        to - from < 100 &&
+        Number.isInteger(budget) &&
+        budget >= 1000 &&
+        budget <= 120000,
+      "VALIDATION_FAILED",
+      "Read pages with from and to (physical page numbers, at most 100 pages apart) and an optional max_characters of 1000 to 120000",
+    );
+    const j = await this.load(id);
+    const pdfUnits = j.coverage.filter(
+      (unit) => unit.converted === "complete" && pageUnit(unit),
+    );
+    const sourceIds = [...new Set(pdfUnits.map((u) => u.source_ref.id))];
+    const sourceId = input.source_id ?? sourceIds[0];
+    ensure(
+      sourceId && (input.source_id || sourceIds.length === 1),
+      "VALIDATION_FAILED",
+      sourceIds.length
+        ? `This job has ${sourceIds.length} paged sources; name one with source_id: ${sourceIds.join(", ")}`
+        : "This job has no converted PDF pages; read its units with kind unit",
+    );
+    const onPage = (representation: string, page: number) =>
+      pdfUnits.find((unit) => {
+        const p = pageUnit(unit)!;
+        return (
+          unit.source_ref.id === sourceId &&
+          p.page === page &&
+          p.representation === representation
+        );
+      });
+    const pages: any[] = [];
+    let used = 0,
+      nextPage: number | null = null;
+    for (let page = from; page <= to; page++) {
+      const flow = onPage("poppler-flow", page);
+      if (!flow) continue;
+      let text = "",
+        offset: number | null = 0;
+      while (offset !== null) {
+        const part: any = await this.readUnit(id, flow.unit_id, offset, 32000);
+        text += part.text;
+        offset = part.next_offset;
+      }
+      if (pages.length && used + text.length > budget) {
+        nextPage = page;
+        break;
+      }
+      used += text.length;
+      const image = onPage("visual", page);
+      pages.push({
+        page,
+        unit_id: flow.unit_id,
+        text,
+        image_unit_id: image?.unit_id ?? null,
+        figure_hint: FIGURE_HINT.test(text)
+          ? "the text names a figure or table"
+          : text.trim().length < 300
+            ? "little or no text; the page may be visual"
+            : null,
+      });
+    }
+    return {
+      kind: "pages",
+      job_id: id,
+      source_id: sourceId,
+      pages,
+      next_page: nextPage,
+      note: 'Each page\'s flow text now counts as read, and its layout text is covered when you receipt the flow text. Open a page image with kb_read {kind:"unit", unit_id: image_unit_id} where figure_hint is set or the text describes a visual.',
     };
   }
   async recoverProposal(id: string) {
@@ -1088,6 +1219,12 @@ export class Jobs {
         (previousReceipt?.records ?? []).map((r: Ref) => r.id),
       );
       staged.records = staged.records.filter((r) => !removed.has(r.id));
+      // The replaced proposal's bodies and local names leave with its records, or the
+      // replacement would compile against records that are no longer staged.
+      for (const name of Object.keys(staged.bodies))
+        if (removed.has(name.replace(/@\d+$/, ""))) delete staged.bodies[name];
+      for (const [name, target] of Object.entries(staged.local_refs))
+        if (removed.has(target.id)) delete staged.local_refs[name];
       const compiled = await this.store.compile(p, staged.records);
       for (const r of compiled.records) {
         const previous = staged.records.find((x) => x.id === r.id);
@@ -1288,8 +1425,69 @@ export class Jobs {
               ? "checked"
               : null;
       if (field) {
+        const read =
+          field === "read" && j.read_receipts
+            ? await this.unitsRead(id)
+            : new Set<string>();
+        // A page range stands for every matching unit on those pages. An excluded range
+        // still counts a unit the engine served in full as read, so a reader can exclude
+        // "the page images I didn't open" in one line.
+        const updates: {
+          unit_id: string;
+          status: "complete" | "excluded";
+          reason?: string;
+        }[] = [];
+        for (const entry of (input.coverage ?? []) as any[]) {
+          if (!Array.isArray(entry?.pages)) {
+            updates.push(entry);
+            continue;
+          }
+          const [first, last] = entry.pages;
+          ensure(
+            Number.isInteger(first) &&
+              Number.isInteger(last) &&
+              first >= 1 &&
+              last >= first &&
+              ["complete", "excluded"].includes(entry.status),
+            "VALIDATION_FAILED",
+            "A page range is {pages:[first,last], status, reason, optional representation text|layout|image and source_id}",
+          );
+          const representation = entry.representation
+            ? (REPRESENTATIONS[entry.representation] ?? entry.representation)
+            : null;
+          if (representation) {
+            const known = new Set(
+              j.coverage.map((unit) => pageUnit(unit)?.representation),
+            );
+            ensure(
+              known.has(representation),
+              "VALIDATION_FAILED",
+              `No units on this job's pages are "${entry.representation}". Use text, layout or image, or one of: ${[...known].filter(Boolean).join(", ")}`,
+            );
+          }
+          const matched = j.coverage.filter((unit) => {
+            const page = pageUnit(unit);
+            return (
+              page &&
+              page.page >= first &&
+              page.page <= last &&
+              (!representation || page.representation === representation) &&
+              (!entry.source_id || unit.source_ref.id === entry.source_id) &&
+              !["complete", "excluded"].includes((unit as any)[field])
+            );
+          });
+          for (const unit of matched)
+            updates.push(
+              entry.status === "excluded" && read.has(unit.unit_id)
+                ? { unit_id: unit.unit_id, status: "complete" }
+                : {
+                    unit_id: unit.unit_id,
+                    status: entry.status,
+                    reason: entry.reason,
+                  },
+            );
+        }
         // coverage_all asserts the same thing as listing every remaining unit of this stage.
-        const updates = [...(input.coverage ?? [])];
         if (input.coverage_all) {
           ensure(
             ["complete", "excluded"].includes(input.coverage_all.status),
@@ -1304,9 +1502,49 @@ export class Jobs {
             )
               updates.push({ unit_id: unit.unit_id, ...input.coverage_all });
         }
+        // Reading a page's flow text covers its layout text: the same words, laid out
+        // differently. The engine records that, so nobody has to list it, and a
+        // coverage_all marking it complete doesn't fail for want of a read.
+        if (field === "read") {
+          const flowRead = new Set(
+            j.coverage
+              .filter(
+                (unit) =>
+                  unit.read === "complete" ||
+                  updates.some(
+                    (u) =>
+                      u.unit_id === unit.unit_id && u.status === "complete",
+                  ),
+              )
+              .map(pageUnit)
+              .filter((p) => p?.representation === "poppler-flow")
+              .map((p) => `${p!.source}#${p!.page}`),
+          );
+          const duplicate =
+            "Duplicate representation: this page's poppler-flow text was read (recorded by the engine)";
+          for (const unit of j.coverage) {
+            const page = pageUnit(unit);
+            if (
+              page?.representation !== "poppler-layout" ||
+              !flowRead.has(`${page.source}#${page.page}`) ||
+              ["complete", "excluded"].includes(unit.read)
+            )
+              continue;
+            const listed = updates.find((u) => u.unit_id === unit.unit_id);
+            if (!listed)
+              updates.push({
+                unit_id: unit.unit_id,
+                status: "excluded",
+                reason: duplicate,
+              });
+            else if (listed.status === "complete" && !read.has(unit.unit_id)) {
+              listed.status = "excluded";
+              listed.reason = duplicate;
+            }
+          }
+        }
         // A unit is read when kb_read has served all of it, not when a receipt says so.
         if (field === "read" && j.read_receipts) {
-          const read = await this.unitsRead(id);
           const unread = updates
             .filter((u) => u.status === "complete" && !read.has(u.unit_id))
             .map((u) => u.unit_id);

@@ -5,10 +5,12 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
+import { embedderSetting } from './configure-embedder.mjs';
 
 const app = path.resolve(import.meta.dirname, '..');
 const usage = `Usage: node scripts/create-library.mjs --library PATH --state PATH --home PATH --id LIBRARY_ID --agent claude|codex|mcp [--title TITLE] [--domain id=Title]... [--python PATH] [--pdftotext PATH]
   [--no-read-from-any-folder] [--no-save-from-any-folder] [--ingest-from-any-folder]
+  [--embedder local|api|off [--embedder-url URL --embedder-model MODEL --embedder-key-env NAME|--embedder-key-file PATH]]
 
 Creates a new library with one "research" module, makes --home its home folder (it can do everything there), runs init, and writes <state>/config.json.
 --project is the older spelling of --home and still works.
@@ -18,7 +20,10 @@ Access from other folders, each a toggle:
   --ingest-from-any-folder   any folder may ingest and write notes (default off; ingest happens in the home folder)
 Saving or ingesting from any folder needs reading from any folder. Administering always stays with the home folder.
 Paths must be absolute. It refuses to touch a library or config that already exists, so it can't overwrite an install.
---python is the converter environment's interpreter. --pdftotext is Poppler's; without it, the one on PATH is used if it's Poppler.`;
+--python is the converter environment's interpreter. --pdftotext is Poppler's; without it, the one on PATH is used if it's Poppler.
+--embedder picks the model that embeds the library for semantic search: local (default, on this machine's CPU), api (an
+OpenAI-compatible endpoint such as OpenRouter; the key stays in the environment variable named by --embedder-key-env) or off.
+scripts/configure-embedder.mjs changes it later.`;
 
 export const options = {
   library: { type: 'string' }, state: { type: 'string' }, home: { type: 'string' }, project: { type: 'string' },
@@ -27,6 +32,8 @@ export const options = {
   'read-from-any-folder': { type: 'boolean', default: true },
   'save-from-any-folder': { type: 'boolean', default: true },
   'ingest-from-any-folder': { type: 'boolean', default: false },
+  embedder: { type: 'string' }, 'embedder-url': { type: 'string' }, 'embedder-model': { type: 'string' },
+  'embedder-key-env': { type: 'string' }, 'embedder-key-file': { type: 'string' },
   help: { type: 'boolean' },
 };
 
@@ -92,6 +99,12 @@ async function main() {
   if (!existsSync(path.join(app, 'dist/cli.js'))) fail('Build the engine first: npm ci, then npm run build.');
   if (existsSync(path.join(values.library, 'corpus.json'))) fail(`${values.library} already holds a library. Use it as it is; never re-initialize a library.`);
   if (existsSync(path.join(values.state, 'config.json'))) fail(`${values.state} already has a config.json. Check it and edit it on purpose instead.`);
+  let embedder;
+  try {
+    embedder = embedderSetting({ embedder: values.embedder, url: values['embedder-url'], model: values['embedder-model'], 'key-env': values['embedder-key-env'], 'key-file': values['embedder-key-file'] });
+  } catch (error) {
+    fail(error.message);
+  }
   if (values.python && !existsSync(values.python)) fail(`No Python at ${values.python}.`);
 
   // PDF intake needs Poppler. Git for Windows puts Xpdf's pdftotext on PATH, which looks the same but isn't.
@@ -117,6 +130,7 @@ async function main() {
   const config = { schema_version: 1 };
   if (values.python) config.python = values.python;
   if (pdftotext) config.pdftotext = pdftotext;
+  config.embedder = embedder;
   // Exclusive creation, so a config written in the meantime is never replaced.
   await fs.writeFile(path.join(values.state, 'config.json'), JSON.stringify(config, null, 2) + '\n', { flag: 'wx' });
   console.log(JSON.stringify({ library: values.library, state: values.state, home, id: values.id, agent: values.agent, access: corpus.access, config }, null, 2));

@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import {
   APP,
@@ -21,21 +22,77 @@ import { Store } from "./store.js";
 import { run } from "./process.js";
 import { QmdSearch } from "./qmd-search.js";
 import {
+  VectorStore,
+  embedTexts,
+  embedderConfig,
+  embedderLabel,
+  similarity,
+  type EmbedderConfig,
+} from "./embedder.js";
+import {
   isAccount,
   navigationEntry,
   summary as authoredSummary,
 } from "./navigation.js";
 
+/**
+ * QMD contexts to embed with in parallel on this machine. One context already uses most
+ * cores; on a 16-core machine four were 18% faster and eight were slower (20 October 2026).
+ */
+function localParallelism() {
+  const set = Number(process.env.KB_EMBED_PARALLELISM);
+  if (Number.isInteger(set) && set >= 1) return String(Math.min(set, 8));
+  // A "16 GB" machine reports a little under 16 GiB.
+  return os.cpus().length >= 8 && os.totalmem() >= 15 * 1024 ** 3 ? "4" : "1";
+}
+
+/** The text an API embedder sees for a search document: what a reader would search for. */
+function embeddingText(r: RecordData, body: string) {
+  const p = r.payload as any;
+  return [
+    r.title,
+    authoredSummary(r) ?? "",
+    body || p.text || p.definition || p.rationale || p.unknown || "",
+    [...r.scope.conditions, ...r.scope.exclusions].join("\n"),
+  ]
+    .filter((part) => part && part.trim())
+    .join("\n\n");
+}
+
 export class Projections {
   private searchWorker = new QmdSearch();
+  private vectorStore?: VectorStore;
+  /** The background embedding this engine is running, if any. */
+  private embedding?: Promise<void>;
+  /** Stops this engine's running embedding at once. */
+  private stopEmbeddingNow?: () => void;
   closeSearch() {
     this.searchWorker.close();
+    this.vectorStore?.forget();
   }
-  constructor(public store: Store) {}
+  constructor(
+    public store: Store,
+    private options: {
+      /** Run semantic embedding after reindex returns (MCP), or wait for it (CLI, tests). */
+      background?: boolean;
+      /** Tests: an embedder instead of the state folder's setting, and where vectors go. */
+      embedder?: EmbedderConfig;
+      vectorRoot?: string;
+    } = {},
+  ) {}
+  private embedderConfig() {
+    return this.options.embedder
+      ? Promise.resolve(this.options.embedder)
+      : embedderConfig();
+  }
+  /** Waits for a background embedding started by this engine, if one is running. */
+  async settled() {
+    await this.embedding;
+  }
   async indexName() {
     return "kb_" + hash((await this.store.config()).corpus_id).slice(0, 24);
   }
-  async qmd(args: string[], timeout = 120000) {
+  async qmd(args: string[], timeout = 120000, signal?: AbortSignal) {
     return run(
       process.execPath,
       [
@@ -51,13 +108,38 @@ export class Projections {
           XDG_CACHE_HOME: path.join(STATE, "cache"),
           XDG_CONFIG_HOME: path.join(STATE, "qmd-config"),
           QMD_FORCE_CPU: "1",
-          QMD_EMBED_PARALLELISM: "1",
+          QMD_EMBED_PARALLELISM: localParallelism(),
         },
+        signal,
       },
     );
   }
+  /** Writes the views receipt whole, taking turns with embedding progress updates. */
+  private writeReceipt(receipt: unknown) {
+    return withLock(this.store.root, "receipt", () =>
+      atomic(this.store.p("views/receipt.json"), json(receipt)),
+    );
+  }
   async receipt() {
-    return readJson(this.store.p("views/receipt.json")).catch(() => null);
+    const receipt = await readJson(this.store.p("views/receipt.json")).catch(
+      () => null,
+    );
+    // An embedding run whose engine has gone (the chat closed) stopped part-way.
+    const semantic = receipt?.semantic;
+    if (semantic?.state === "running" && semantic.pid !== process.pid) {
+      let alive = true;
+      try {
+        process.kill(semantic.pid, 0);
+      } catch {
+        alive = false;
+      }
+      if (!alive) {
+        semantic.state = "interrupted";
+        semantic.next =
+          'Run kb_maintain {action:"reindex"} again; it resumes where the last run stopped.';
+      }
+    }
+    return receipt;
   }
   async fresh(release: string, kind: "search" | "wiki") {
     const r = await this.receipt();
@@ -68,13 +150,15 @@ export class Projections {
       !(await exists(this.store.p(".projection.lock"))),
     );
   }
-  async build(options: { semantic?: boolean } = {}) {
+  async build(options: { semantic?: boolean; background?: boolean } = {}) {
     // Rebuilding views needs some write access; libraries without an access policy keep their old rule.
     await this.store.requireAccess("write", {
       operation: "kb_maintain reindex",
       policyOnly: true,
     });
-    return withLock(this.store.root, "projection", async () => {
+    const embedder = await this.embedderConfig();
+    const wanted = options.semantic !== false && embedder.provider !== "off";
+    const built = await withLock(this.store.root, "projection", async () => {
       this.closeSearch();
       const release = await this.store.release();
       ensure(release, "VALIDATION_FAILED", "Nothing has been published");
@@ -112,11 +196,17 @@ export class Projections {
         wiki: { state: "pending" },
         search: { state: "pending" },
         semantic_requested: options.semantic !== false,
+        semantic: {
+          state: wanted ? "pending" : "off",
+          embedder: embedderLabel(embedder),
+        },
       };
-      await atomic(this.store.p("views/receipt.json"), json(receipt));
+      await this.writeReceipt(receipt);
       const fileHashes: Record<string, string> = {},
         searchMap: Record<string, any> = {},
-        pages: string[] = [];
+        pages: string[] = [],
+        // Accounts and text passages are what recall can return, so only they get embedded.
+        semanticDocs: { file: string; hash: string; text: string }[] = [];
       for (const r of records.values()) {
         const body = await this.store.body(r),
           p = r.payload as any;
@@ -133,10 +223,24 @@ export class Projections {
           );
           // Ideas get a wiki page but stay out of search, so no search route can serve one as an account.
           if (r.record_type === "idea") continue;
-          const module = "m" + hash(r.maintenance_module).slice(0, 16);
+          const main = "m" + hash(r.maintenance_module).slice(0, 16);
+          // Relationship, source and figure-locator records stay keyword-searchable for
+          // the older routes, in a second collection that is never embedded.
+          const embedded =
+            isAccount(r) ||
+            (r.record_type === "passage" && (p.kind ?? "text") === "text");
+          const module = embedded ? main : main + "x";
           const searchPath = `views/${release.release_id}/search/${module}/${name}`;
           await atomic(this.store.p(searchPath), content);
           fileHashes[searchPath] = hash(content);
+          if (embedded) {
+            const text = embeddingText(r, body);
+            semanticDocs.push({
+              file: `${module}/${name}`,
+              hash: hash(text),
+              text,
+            });
+          }
           searchMap[`${module}/${name}`] = {
             record_ref: ref(r),
             level: "account",
@@ -147,11 +251,11 @@ export class Projections {
           };
           if (authoredSummary(r)) {
             const summaryName = name.replace(".md", "-summary.md");
-            const summaryPath = `views/${release.release_id}/search/${module}/${summaryName}`;
+            const summaryPath = `views/${release.release_id}/search/${main}x/${summaryName}`;
             const summaryContent = `# ${r.title}\n\n${authoredSummary(r)}\n\nExact account: ${key(r)}\nDomains: ${r.scope.domains.join(", ")}\n`;
             await atomic(this.store.p(summaryPath), summaryContent);
             fileHashes[summaryPath] = hash(summaryContent);
-            searchMap[`${module}/${summaryName}`] = {
+            searchMap[`${main}x/${summaryName}`] = {
               ...searchMap[`${module}/${name}`],
               level: "summary",
             };
@@ -245,32 +349,34 @@ export class Projections {
         json(fileHashes),
       );
       receipt.wiki = { state: "ready", pages: pages.length };
-      await atomic(this.store.p("views/receipt.json"), json(receipt));
+      await this.writeReceipt(receipt);
+      const collections: string[] = [];
       try {
         for (const m of (await this.store.config()).modules) {
-          const name = "m" + hash(m.module_id).slice(0, 16),
-            folder = this.store.p(`views/${release.release_id}/search/${name}`);
-          await fs.mkdir(folder, { recursive: true });
-          await this.qmd(["collection", "remove", name]).catch(() => {});
-          await this.qmd([
-            "collection",
-            "add",
-            folder,
-            "--name",
-            name,
-            "--mask",
-            "**/*.md",
-          ]);
+          const main = "m" + hash(m.module_id).slice(0, 16);
+          for (const name of [main, main + "x"]) {
+            const folder = this.store.p(
+              `views/${release.release_id}/search/${name}`,
+            );
+            await fs.mkdir(folder, { recursive: true });
+            await this.qmd(["collection", "remove", name]).catch(() => {});
+            await this.qmd([
+              "collection",
+              "add",
+              folder,
+              "--name",
+              name,
+              "--mask",
+              "**/*.md",
+            ]);
+          }
+          collections.push(main);
         }
+        // Keyword search is ready in seconds; embedding comes after, on its own lock.
         await this.qmd(["update"]);
-        if (options.semantic !== false)
-          await this.qmd(
-            ["embed", "--max-docs-per-batch", "8", "--max-batch-mb", "8"],
-            1800000,
-          );
         receipt.search = {
           state: "ready",
-          semantic: options.semantic !== false,
+          semantic: false,
           version: (
             await readJson(
               path.join(APP, "node_modules/@tobilu/qmd/package.json"),
@@ -284,10 +390,16 @@ export class Projections {
           error: e.message,
           details: e.details,
         };
+        if (wanted) receipt.semantic.state = "failed";
       }
+      // Embedding reads its documents from here, so a later run can resume the same set.
+      await atomic(
+        this.store.p(`views/${release.release_id}/semantic-map.json`),
+        json(Object.fromEntries(semanticDocs.map((d) => [d.file, d.hash]))),
+      );
       receipt.completed_at = now();
       receipt.collected_views = await this.collectOldViews(release.release_id);
-      await atomic(this.store.p("views/receipt.json"), json(receipt));
+      await this.writeReceipt(receipt);
       await this.store.audit(
         "reindex",
         "Rebuilt canonical knowledge views",
@@ -295,8 +407,214 @@ export class Projections {
         release.release_id,
         receipt.search.state === "ready" ? "completed" : "incomplete",
       );
-      return receipt;
+      return {
+        receipt,
+        release_id: release.release_id as string,
+        semanticDocs,
+        collections,
+      };
     });
+    if (!wanted || built.receipt.search.state !== "ready") return built.receipt;
+    const previous = this.embedding ?? Promise.resolve();
+    const embedding = previous.then(() =>
+      this.embed(
+        built.release_id,
+        built.semanticDocs,
+        built.collections,
+        embedder,
+      ),
+    );
+    if (options.background ?? this.options.background) {
+      // The call returns now; kb_status shows progress, and recall uses keywords meanwhile.
+      this.embedding = embedding
+        .catch(() => {})
+        .finally(() => {
+          if (this.embedding === tracked) this.embedding = undefined;
+        });
+      const tracked = this.embedding;
+      return this.receipt();
+    }
+    await embedding;
+    return this.receipt();
+  }
+
+  /**
+   * Embeds the release's accounts and text passages, recording progress in the views
+   * receipt. Stored vectors are kept, so an interrupted run resumes where it stopped, and
+   * a newer reindex makes an older run stop at its next step.
+   */
+  private async embed(
+    releaseId: string,
+    docs: { file: string; hash: string; text: string }[],
+    collections: string[],
+    embedder: EmbedderConfig,
+  ) {
+    const receiptPath = this.store.p("views/receipt.json");
+    const abort = new AbortController();
+    this.stopEmbeddingNow = () => abort.abort();
+    // False when a newer reindex took over or a purge stopped this run.
+    const update = (patch: Record<string, unknown>) =>
+      withLock(this.store.root, "receipt", async () => {
+        const r = await readJson(receiptPath).catch(() => null);
+        if (!r || r.release_id !== releaseId || r.semantic?.state === "stopped")
+          return false;
+        r.semantic = { ...r.semantic, ...patch, updated_at: now() };
+        if (patch.state === "ready") r.search = { ...r.search, semantic: true };
+        await atomic(receiptPath, json(r));
+        return true;
+      });
+    const current = async () => {
+      const r = await readJson(receiptPath).catch(() => null);
+      return (
+        !abort.signal.aborted &&
+        r?.release_id === releaseId &&
+        r.semantic?.state === "running" &&
+        r.semantic.pid === process.pid
+      );
+    };
+    try {
+      // A run for an older release stops at its next step once this one has started, so
+      // waiting for its lock (at most one five-minute QMD slice) beats failing.
+      await withLock(
+        this.store.root,
+        "semantic",
+        async () => {
+          if (
+            !(await update({
+              state: "running",
+              pid: process.pid,
+              started_at: now(),
+              documents: docs.length,
+              embedded: 0,
+              error: null,
+              next: null,
+            }))
+          )
+            return;
+          if (embedder.provider === "api") {
+            const store = await this.vectors(embedder);
+            const have = await store.load();
+            const todo = [
+              ...new Map(
+                docs.filter((d) => !have.has(d.hash)).map((d) => [d.hash, d]),
+              ).values(),
+            ];
+            let done = docs.length - todo.length;
+            await update({ embedded: done });
+            for (let i = 0; i < todo.length; i += embedder.batch_size) {
+              const slice = todo.slice(i, i + embedder.batch_size);
+              const vectors = await embedTexts(
+                embedder,
+                slice.map((d) => d.text),
+              );
+              // Checked before writing, so a purge that ran meanwhile isn't undone.
+              if (!(await current())) return;
+              await store.add(
+                slice.map((d, j) => ({ hash: d.hash, vector: vectors[j] })),
+              );
+              done += slice.length;
+              if (!(await update({ embedded: Math.min(done, docs.length) })))
+                return;
+            }
+            await update({ state: "ready", completed_at: now() });
+            return;
+          }
+          // QMD embeds in five-minute slices, so progress shows between them and no
+          // single call runs into a time limit.
+          let embedded = 0;
+          for (const collection of collections)
+            for (let slice = 0; slice < 500; slice++) {
+              if (!(await current())) return;
+              const out = (
+                await this.qmd(
+                  [
+                    "embed",
+                    "-c",
+                    collection,
+                    "--timeout",
+                    "5",
+                    "--max-docs-per-batch",
+                    "8",
+                    "--max-batch-mb",
+                    "8",
+                  ],
+                  8 * 60 * 1000,
+                  abort.signal,
+                )
+              ).stdout.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
+              if (
+                /All content hashes already have embeddings|No non-empty documents/.test(
+                  out,
+                )
+              )
+                break;
+              ensure(
+                !/Another embed process is already running/.test(out),
+                "BUSY",
+                "Another QMD embedding holds this index; try again when it finishes",
+              );
+              embedded += Number(
+                /from\s+(\d[\d,]*)\s+documents/
+                  .exec(out)?.[1]
+                  ?.replace(/,/g, "") ?? 0,
+              );
+              if (
+                !(await update({ embedded: Math.min(embedded, docs.length) }))
+              )
+                return;
+            }
+          await update({
+            state: "ready",
+            embedded: docs.length,
+            completed_at: now(),
+            status: (await this.qmd(["status"])).stdout,
+          });
+        },
+        15 * 60 * 1000,
+      );
+    } catch (e: any) {
+      if (e?.code === "CANCELLED") return;
+      await update({
+        state: "failed",
+        error: e.message,
+        next: 'Fix the cause, then run kb_maintain {action:"reindex"} again; finished embeddings are kept.',
+      }).catch(() => {});
+    } finally {
+      this.stopEmbeddingNow = undefined;
+    }
+  }
+
+  /**
+   * Stops any embedding of this library before a purge deletes stored vectors: marks the
+   * run stopped (a run in another process sees that at its next step), stops this engine's
+   * own run at once, and waits until no run holds the semantic lock.
+   */
+  async stopEmbedding(reason: string) {
+    const receiptPath = this.store.p("views/receipt.json");
+    await withLock(this.store.root, "receipt", async () => {
+      const r = await readJson(receiptPath).catch(() => null);
+      if (r?.semantic && ["running", "pending"].includes(r.semantic.state)) {
+        r.semantic = {
+          ...r.semantic,
+          state: "stopped",
+          error: reason,
+          next: 'Run kb_maintain {action:"reindex"} to embed again.',
+          updated_at: now(),
+        };
+        await atomic(receiptPath, json(r));
+      }
+    });
+    this.stopEmbeddingNow?.();
+    await withLock(this.store.root, "semantic", async () => {}, 10 * 60 * 1000);
+  }
+
+  private async vectors(
+    embedder: Extract<EmbedderConfig, { provider: "api" }>,
+  ) {
+    const index = await this.indexName();
+    const store = new VectorStore(index, embedder, this.options.vectorRoot);
+    if (this.vectorStore?.dir !== store.dir) this.vectorStore = store;
+    return this.vectorStore!;
   }
   /**
    * Views are rebuilt in full for each release and only the receipt's release is served.
@@ -348,14 +666,53 @@ export class Projections {
     limit: number,
     rerank = false,
   ) {
+    const main = modules.map((module) => "m" + hash(module).slice(0, 16));
+    if (semantic) {
+      const embedder = await this.embedderConfig();
+      if (embedder.provider === "api")
+        return this.vectorSearch(query, main, limit, embedder);
+    }
     return this.searchWorker.search({
       index: await this.indexName(),
       query,
-      collections: modules.map((module) => "m" + hash(module).slice(0, 16)),
+      // Semantic search covers what was embedded; keyword search also covers the rest.
+      collections: semantic ? main : [...main, ...main.map((c) => c + "x")],
       semantic,
       limit,
       rerank,
     });
+  }
+
+  /** Nearest documents to the query by an API embedder's vectors, in the given collections. */
+  private async vectorSearch(
+    query: string,
+    collections: string[],
+    limit: number,
+    embedder: Extract<EmbedderConfig, { provider: "api" }>,
+  ) {
+    const started = performance.now();
+    if (!collections.length) return { items: [], elapsed_ms: 0 };
+    const receipt = await this.receipt();
+    const map = await readJson<Record<string, string>>(
+      this.store.p(`views/${receipt.release_id}/semantic-map.json`),
+    );
+    const vectors = await (await this.vectors(embedder)).load();
+    // A question is embedded while someone waits, so an unreachable embedder fails fast and
+    // recall carries on with keywords.
+    const [question] = await embedTexts(embedder, [query], fetch, {
+      attempts: 1,
+      timeout_ms: 8000,
+    });
+    const wanted = new Set(collections);
+    const items = Object.entries(map)
+      .filter(([file]) => wanted.has(file.split("/")[0]))
+      .flatMap(([file, h]) => {
+        const vector = vectors.get(h);
+        return vector ? [{ file, score: similarity(question, vector) }] : [];
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+    return { items, elapsed_ms: performance.now() - started };
   }
   async verifyViews() {
     const release = await this.store.release();

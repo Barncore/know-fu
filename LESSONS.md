@@ -2,6 +2,14 @@
 
 Things this project learned the hard way, newest first. Each one says what happened and what to do differently.
 
+## 2026-10-20 - Measure what the model writes, not what the tools do
+
+A book ingest took five and a half hours, and the engine's own timings looked fine: every call came back in about a second. The time was the model streaming output, and half of that output was the same notes sent again, because the guide asked for a dry run before every real call and a refused batch had to be resent whole. Claude Code's logged `output_tokens` undercounted it badly; the characters written into tool inputs told the truth. When an agent workflow is slow, count what the model writes per step, and look for anything it has to write twice. Prefer tools that take a file path over tools that take the content inline, so a fix is an edit, not a resend.
+
+## 2026-10-20 - A safety step the engine already does is pure cost
+
+"Run a dry run first" sounded careful, but a normal `kb_write` already ran every check and staged nothing on a refusal. The dry run added no protection and doubled the writing. Before adding a precaution to a guide, check whether the tool already gives that guarantee.
+
 ## 2026-10-17 - Install from a clean clone before trusting the setup steps
 
 The development checkout had a working `node_modules` and a converter `.venv` from earlier work, so every setup step passed there. The first clean clone from GitHub showed two things the docs had never said: `npm ci` needs a C++ toolchain to compile better-sqlite3, and the install script repackaged the plugin inside the engine and copied an out-of-date file list. Check setup changes by installing from a fresh clone of `main` into a new folder, the way a user does, and keep the machine's running engine in that clone rather than in the development checkout.

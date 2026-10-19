@@ -58,7 +58,9 @@ export class SourceWorkflow {
     ensure(
       j.status !== "cancelled" && j.status !== "complete",
       "VALIDATION_FAILED",
-      "Source workflow requires an active job",
+      j.status === "complete"
+        ? "This job is published, so its source reviews and renders are closed. Keep later working notes (chapter digests, say) in the ingest's working file, or start a new job for new source work."
+        : "Source workflow requires an active job",
     );
     if (input.action === "source_review") {
       ensure(

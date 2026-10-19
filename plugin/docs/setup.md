@@ -31,7 +31,8 @@ Measured on the development machine (Windows 11) on 12 October 2026, as space on
 | Converter environment: Docling, CPU PyTorch, OCR, Pillow | Document and image conversion | `.venv` in the engine folder | 1.1 GB |
 | Docling's models, downloaded at the first PDF conversion | PDFs | The Hugging Face cache in your user folder | 506 MB |
 | Poppler (the winget build) | PDFs | Its own install | 42 MB |
-| QMD's embedding model, downloaded at the first reindex | Search by meaning | `<state>/cache/qmd/models` | 318 MB |
+| QMD's embedding model, downloaded at the first reindex with the `local` embedder | Search by meaning | `<state>/cache/qmd/models` | 318 MB |
+| Vectors from an `api` embedder | Search by meaning | `<state>/cache/vectors/` | about 6 to 20 MB per 364-page book, depending on the model's dimensions |
 | QMD's reranker, downloaded only if you turn on `rerank` | Optional reranking | `<state>/cache/qmd/models` | 610 MB |
 | The search index | Search | `<state>/cache/qmd` | 3-4 MB for each small test library |
 | FFmpeg and FFprobe (the gyan.dev Essentials build, through winget) | Video and audio only | Its own install, or inside WSL | 307 MB, of which `ffplay` is 100 MB that Know Fu doesn't use |
@@ -52,7 +53,7 @@ Three things sit outside that total:
 | `plugin/.claude-plugin/plugin.json` | Claude Code's launch, committed: `node <plugin>/scripts/launch.mjs` with `KB_ACTOR=claude` and the session's folder |
 | `plugin/hooks/hooks.json` | Claude Code's gate, committed: Know Fu's tools stay closed in a chat until the user invokes `/know-fu:know-fu` |
 | `plugin/.mcp.json` | Codex's machine-local launch: `node <engine>/plugin/scripts/launch.mjs` with `KB_ACTOR=codex`. Ignored by Git |
-| `<state>/config.json` | The converter environment's Python, Poppler's `pdftotext`, and optional speech and evaluation settings. See [the runtime example](../examples/runtime.example.json) |
+| `<state>/config.json` | The converter environment's Python, Poppler's `pdftotext`, the semantic search `embedder` ([choices](setup-choices.md#semantic-search-embedder)), and optional speech and evaluation settings. See [the runtime example](../examples/runtime.example.json) |
 | `<corpus>/corpus.json` | Library identity, domains and modules, and allowed projects. Created by `init` |
 | `<corpus>/dimensions.json` | Applicability dimensions and their units |
 | `<state>/ledgers/` | The deletion history. Back it up and keep it with the library |
@@ -69,6 +70,9 @@ The engine reads these environment variables. The launcher sets them from Know F
 | `KB_WSL_DISTRO` | Which WSL distribution, when media runs in WSL |
 | `KB_ADVANCED_TOOLS` | `1`, `true` or `yes` lists the five specialist tools as well as the 11 everyday ones |
 | `KB_PDFTOTEXT` | Poppler's `pdftotext`, when `config.json` doesn't name it |
+| `KB_EMBED_PARALLELISM` | QMD contexts for the local embedder (1 to 8). Default 4 on machines with 8 or more cores and 16 GB or more, otherwise 1 |
+| `KB_BACKGROUND_WAIT_MS` | How long an MCP call waits for a conversion before returning and letting it finish in the background. Default 200000 |
+| The variable your `embedder.api_key_env` names | The API key for an `api` embedder, such as `OPENROUTER_API_KEY` |
 | `KNOW_FU_CONFIG` | Where the launcher and the gate look for Know Fu's settings, instead of `~/.know-fu/config.json` |
 
 Neither `KB_CORPUS` nor `KB_STATE_DIR` moves an existing installation's data, so changing one points the engine somewhere new rather than migrating anything. `kb_status` tells you where the engine, state and library actually are.

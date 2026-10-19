@@ -123,10 +123,10 @@ Links come from several places: relationship records (weighted by predicate), co
 
 ### kb_recall
 
-Recall ranks with three channels and fuses them by reciprocal rank (k = 60):
+Recall ranks with three channels and fuses them by reciprocal rank (k = 60), each hit's share scaled by its score against its channel's best (`fuseRankings` in `recall.ts`). Plain reciprocal rank keeps only positions, so first and ninth place differ by about 13% whatever their scores; with the scale, a clear margin in a channel survives, and the purpose prior decides between close matches:
 
 - BM25 keyword search.
-- The QMD semantic index, but only when keyword coverage of the query looks weak, or when the caller forces it.
+- The semantic index, when the best keyword match holds less than 70% of the query's terms, fewer than five accounts match, or the caller forces it. It searches QMD's vectors with the `local` embedder, or the engine's own stored vectors with an `api` embedder.
 - Personalized PageRank seeded from the best text matches. It spreads along links for many steps, fading as it goes, which is how an account three links away can surface with no words in common with the question.
 
 Purpose, domain, pending reassessment and filed-answer priors nudge the score. Packing then follows rank order inside the budget, costing each account by the block it will actually render as, and the best match always arrives whole. Each packed account brings its baggage with it: the accounts or passages that qualify or challenge it, and its current judgments. Explain and teach also bring conceptual prerequisites and a foundations-first reading order, and teach and apply render procedures' decision points as trees.
@@ -188,7 +188,9 @@ The links are part of the records. A relationship record names its subject, its 
 
 Until 12 October 2026 a FalkorDB server held a copy of the links as a view. By then nothing answered from it, and on Windows it was the only reason to install WSL2, so it was removed. An older setup's FalkorDB data is a stale copy that purges no longer reach; [setup](setup.md#upgrading-from-a-falkordb-setup) says how to clear it.
 
-QMD keeps a local keyword and vector index over the generated Markdown, grouped by module, in its own storage. Its configuration and model cache live under the state folder (`KB_STATE_DIR`, or the engine's `.runtime/` by default), and its status command reports on the index. All of it can be rebuilt from the library.
+QMD keeps a local keyword and vector index over the generated Markdown, in two collections per module: accounts and text passages, which recall can return and which get embedded, and relationship, source, figure-locator and summary documents, which stay keyword-only for the older routes. Its configuration and model cache live under the state folder (`KB_STATE_DIR`, or the engine's `.runtime/` by default), and its status command reports on the index. With an `api` embedder (`embedder.ts`), the engine calls an OpenAI-compatible `/embeddings` endpoint instead and keeps the vectors under `<state>/cache/vectors/`, keyed by a hash of the text embedded, so a later release re-embeds only what changed. All of it can be rebuilt from the library.
+
+Reindex builds the wiki and the keyword index under the `projection` lock, then embeds under its own `semantic` lock. Under MCP the embedding runs after the call returns, in slices for QMD, recording progress in `views/receipt.json` (`semantic`); an engine that exits part-way leaves the receipt `interrupted`, and the next reindex resumes from the stored vectors. Recall uses keywords and links until the receipt says `ready`.
 
 The engine also keeps verified canonical files in a bounded cache. Access policy, the deletion ledger, its generation and the release pointer are reread on every request and checked again before anything is returned. A cached file is only reused if its path and filesystem fingerprint still match; a changed file gets reread and checked against its expected hash. So the cache makes repeat reads fast without ever becoming an authority. It does assume an ordinary local filesystem, not an adversary who can fake file identity and every timestamp.
 

@@ -371,9 +371,16 @@ export class Lifecycle {
             this.store.p("lifecycle/ledger-generation.json"),
             json({ generation: ledger.generation }),
           );
-          await atomic(
-            this.store.p("views/receipt.json"),
-            json({ state: "purge_pending", release_id: p.base_release }),
+          // An embedding still running would write vectors of the purged text back, and its
+          // progress updates could overwrite the marker below, so it stops first.
+          await this.projections.stopEmbedding?.(
+            "Stopped by a purge; run kb_maintain reindex to embed again",
+          );
+          await withLock(this.store.root, "receipt", () =>
+            atomic(
+              this.store.p("views/receipt.json"),
+              json({ state: "purge_pending", release_id: p.base_release }),
+            ),
           );
           const failures: string[] = [],
             removed: string[] = [];
@@ -474,6 +481,11 @@ export class Lifecycle {
               cache = path.join(STATE, "cache/qmd");
             for (const suffix of [".sqlite", ".sqlite-wal", ".sqlite-shm"])
               await fs.rm(path.join(cache, index + suffix), { force: true });
+            // An API embedder's vectors encode the purged text too.
+            await fs.rm(path.join(STATE, "cache/vectors", index), {
+              recursive: true,
+              force: true,
+            });
           } catch (e: any) {
             failures.push("search: " + e.message);
           }

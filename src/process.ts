@@ -8,6 +8,7 @@ export function run(
     env?: NodeJS.ProcessEnv;
     timeout?: number;
     input?: string;
+    signal?: AbortSignal;
   } = {},
 ): Promise<{ stdout: string; stderr: string; elapsed_ms: number }> {
   return new Promise((resolve, reject) => {
@@ -27,6 +28,13 @@ export function run(
     child.stderr.on("data", (b) => {
       err += b;
     });
+    const stop = () => {
+      clearTimeout(timer);
+      child.kill();
+      reject(new KBError("CANCELLED", `${command} was stopped`));
+    };
+    if (options.signal?.aborted) queueMicrotask(stop);
+    options.signal?.addEventListener("abort", stop, { once: true });
     const timer = setTimeout(() => {
       child.kill();
       reject(

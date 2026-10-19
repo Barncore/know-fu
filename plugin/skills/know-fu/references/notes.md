@@ -1,6 +1,6 @@
 # Writing notes
 
-A note is one unit of understanding: a mechanism, a procedure, a concept, a lesson, a judgment about a disagreement, or an open question. You write it as Markdown with a short frontmatter block, and `kb_write {job_id, notes:[...]}` turns a batch of them into canonical records. The engine does the tedious parts for you. It creates the passages for the units you cite, checks your quotes against the source text, turns `links` into relationship records, and fills in every identity, hash and default. Then the normal validation runs.
+A note is one unit of understanding: a mechanism, a procedure, a concept, a lesson, a judgment about a disagreement, or an open question. You write it as Markdown with a short frontmatter block, one note per `.md` file, and `kb_write {job_id, paths:[...]}` turns a batch of them into canonical records. The engine does the tedious parts for you. It creates the passages for the units you cite, checks your quotes against the source text, turns `links` into relationship records, and fills in every identity, hash and default. Then the normal validation runs.
 
 Put your effort into the prose. Write something a reader can actually learn from: why the thing works, what it rests on, where it stops working, and an example. The frontmatter only carries what the engine and later readers need to find, connect and weigh the note.
 
@@ -11,7 +11,7 @@ Put your effort into the prose. Write something a reader can actually learn from
 id: holm-step-down
 type: knowledge
 form: procedure
-title: Holm step-down: order, threshold and stopping rule
+title: "Holm step-down: order, threshold and stopping rule"
 summary: Sort p-values, compare the i-th with alpha/(m-i+1), and stop at the first failure.
 holds_when: [a planned family of m hypotheses, valid marginal p-values]
 not_for: [choosing the family after seeing the results]
@@ -51,7 +51,7 @@ The same batch can hold the `family-wise-error` concept and the `post-hoc-compar
 | `summary` | One or two sentences a reader can choose from. Defaults to the first paragraph. |
 | `cites` | Evidence. A unit id from `kb_read {kind:"unit"}` becomes a located passage. `{unit, quote}` also stores a verified quote. A record id (`passage:...@1`, `knowledge:...@2`) cites existing library material. |
 | `uses` | Notes or records this one builds on. Concepts listed here become the knowledge's concepts; knowledge listed on a lesson becomes what it teaches. |
-| `links` | Typed relationships from this note: `supports`, `challenges`, `qualifies`, `depends_on`, `explains`, `exemplifies`, `applies_to`, `derived_from`. Each needs `why`. `depends_on` points at the prerequisite. |
+| `links` | Typed relationships from this note: `supports`, `challenges`, `qualifies`, `depends_on`, `explains`, `exemplifies`, `applies_to`, `derived_from`. Each needs `why`. `depends_on` points at the prerequisite. `exemplifies` runs from an attributable case (a learning note, a passage, or a note marked `epistemic: illustration`) to the concept, mechanism or procedure it shows; for a source's own claim, use `supports` or `explains`. |
 | `holds_when`, `not_for` | Conditions and exclusions. They travel with the note into every recall. |
 | `epistemic` | Defaults to `source_account` for a single-source knowledge or concept note and `synthesis` otherwise. Use `inference` or `hypothesis` when you go beyond the sources, `illustration` for an invented example. |
 | `domains` | Defaults to the job's domains. |
@@ -139,9 +139,16 @@ An evidence level also names its `basis`, the kind of support the source actuall
 
 ```yaml
 assess:
-  evidence: {level: moderate, basis: measured_observation, why: One benchmark of 14 datasets and no independent replication}
-  fidelity: {level: high, why: Table 3 checked cell by cell against the page image}
+  evidence:
+    level: moderate
+    basis: measured_observation
+    why: "One benchmark of 14 datasets, with no independent replication"
+  fidelity:
+    level: high
+    why: Table 3 checked cell by cell against the page image
 ```
+
+Write each assessment one key per line, as above, and quote a `why` that holds a comma or a colon. In a `{level: ..., why: ...}` mapping, YAML cuts the reason at its first comma; the engine now refuses the stray key that leaves, but the fix is to write it this way.
 
 `unknown` means you looked and couldn't tell. Leaving a dimension out means nobody looked, and on a revision a dimension you leave out keeps its earlier value. A guessed level is worse than none, because later sessions will trust it. And levels never pick a winner: when accounts conflict, recall shows both sides' levels next to each other, and it's a judgment note that settles or keeps the disagreement, with reasons.
 
@@ -161,6 +168,9 @@ That's a complete reaffirmation: one line saying why the old account still holds
 
 - Ground every knowledge, learning, judgment and question note in `cites` or `uses`. The engine rejects ungrounded notes.
 - Copy quotes exactly. If a quote fails, the engine sends back the closest wording in the source; fix it or drop the quote.
-- Run `dry_run:true` on a big batch first. It validates everything and stages nothing.
-- Send at most 60 notes per call, and keep related notes in the same batch so their slugs resolve.
+- Write each note once, to its own `.md` file in a drafts folder, and stage the folder with `kb_write {job_id, paths:["<folder>"]}`. The engine checks the whole batch before it stages anything. If any note fails, nothing is staged and the refusal lists every failing note with its file and the field at fault; fix those fields in place and call again with the same paths. Never type a batch out a second time: on the first real ingest that re-typing was half of everything the readers wrote.
+- Skip the dry run. A normal call already runs every check and stages nothing on a refusal, so `dry_run:true` only previews the records; use it when you want that preview, not as a safety step.
+- Keep frontmatter values parseable: quote any `summary`, `title` or `why` that holds a colon, and write nested maps one key per line. Or write the whole frontmatter as JSON between the `---` lines, which YAML reads as it is. An unquoted colon in a summary refuses the note.
+- Stage up to 1,000 notes per call from files (60 inline). Slugs resolve within a call and across earlier calls in the same job, so stage the notes that define a slug before, or with, the notes that link to it.
+- A slug can be staged once per job. To change notes you've already staged, stage their batch again with the same `proposal_id` and `replace: true`; give every batch a stable `proposal_id` (such as `span-3`) so that's possible. Staging an already-staged slug any other way is refused, because it would publish a second copy.
 - Keep the author's account apart from your synthesis: one note says what the source says, another says what follows from combining it with other sources.

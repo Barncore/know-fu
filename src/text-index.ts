@@ -80,6 +80,20 @@ export class Bm25Index {
     return terms.filter((t) => this.postings.has(t)).length / terms.length;
   }
 
+  /**
+   * Share of distinct query terms one document contains. Unlike `coverage`, this doesn't
+   * creep towards 100% as the library grows, so it can tell whether keywords really found
+   * an answer.
+   */
+  coverageOf(query: string, id: string) {
+    const terms = [...new Set(tokens(query))];
+    const doc = this.ids.indexOf(id);
+    if (!terms.length || doc < 0) return 0;
+    return (
+      terms.filter((t) => this.postings.get(t)?.has(doc)).length / terms.length
+    );
+  }
+
   search(query: string, limit = 50, filter?: (id: string) => boolean) {
     const terms = [...new Set(tokens(query))];
     const scores = new Map<number, number>();

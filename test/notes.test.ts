@@ -244,6 +244,11 @@ Run the vent ten minutes before moving an amber-badged lantern in a humid worksh
   });
   const result: any = await f.jobs.publish(f.id);
   assert.equal(result.status, "canonical_committed");
+  // A published job is closed: its status no longer reports the records it published as
+  // needing reassessment.
+  const closed: any = await f.jobs.next(f.id);
+  assert.equal(closed.reweave, undefined);
+  assert.match(closed.instruction, /Published/);
   const recall: any = await new Recall(f.store, noIndex).recall({
     query: "move lantern amber badge humid workshop",
     purpose: "apply",

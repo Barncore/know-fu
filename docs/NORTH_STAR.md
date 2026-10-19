@@ -115,6 +115,15 @@ The "Domain page and primer" reading layer below, called a "topic map" before th
 
 Code, tool text and docs call a domain a domain. Version 0.3.2 renamed the places that called it a topic: `kb_read` takes `kind:"domain"` with `domain`, its catalogue returns `domains`, the wiki's domain pages live in `wiki/_domains/`, and `kb_connect` reports `other_domain`.
 
+## Decisions on 20 October 2026
+
+The first real book ingest (a 364-page book, 17 October) took 5 h 33 min in Claude Code and 2 h 53 min in Codex. The owner called that too slow to use, and an audit found the workflow's design, not its bugs, to blame: readers ran one after another, Claude's readers typed each batch of notes out about 2.75 times (a dry run, refusals, then the real call), and CPU embedding took 75 to 93 minutes per book. The owner approved the audit's guide fixes and engine changes, and decided:
+
+- Long books are read by several readers at once, with the main agent as the only writer. This replaces the 7 October rule of readers in order. The serial rule existed so each chapter could build on the last; the book map now carries that, by naming which chapter owns each key concept and reserving its slug, and the cost of running readers in sequence (most of the 5.5 hours) was too high. If parallel readers duplicate each other, a pause where readers share digests before writing notes is the fallback.
+- The semantic search embedder is a setup choice: the local CPU model, any OpenAI-compatible API, or off. Sending a book's text to an embedding provider is acceptable for the owner's own library.
+
+Still open: whether to consolidate notes into fewer, broader accounts per question a practitioner would ask, to be decided by a blind test on one chapter against today's notes and a plain-text baseline.
+
 ## One knowledge system, several ways in
 
 ```mermaid

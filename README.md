@@ -107,7 +107,7 @@ The [setup reference](plugin/docs/setup.md) separates what the system actually n
 
 ## Where it's at
 
-It works on the development machine: Windows 11 with QMD on the CPU. Since 12 October 2026 it needs no database server; the automated tests cover that change, but it hasn't run on a live library yet. There are 157 automated tests; 154 pass, and 3 Python conversion tests skip where that runtime isn't installed. The whole pipeline has run end to end on technical papers, including a three-source test where later papers had to revise earlier understanding. An independent audit on 5 October 2026 found twelve defects the tests had missed; all are fixed, and each now has a regression test.
+It works on the development machine: Windows 11 with QMD on the CPU, or an embedding API of your choice for semantic search. Since 12 October 2026 it needs no database server. Its first real book ingest ran on 17 October 2026, a 364-page book in both agents, and version 0.5.0 rebuilt the reading workflow after that run took hours. There are 203 automated tests and all pass; 5 of them need the Python document runtime and skip where it isn't installed. The whole pipeline has run end to end on technical papers, including a three-source test where later papers had to revise earlier understanding. An independent audit on 5 October 2026 found twelve defects the tests had missed; all are fixed, and each now has a regression test.
 
 What it hasn't done yet: ingest a long book or a full course with the new note format. A different machine needs its own dependency setup and checks, and local speech transcription is configurable but untested end to end. [Validation](docs/VALIDATION.md) and [performance](docs/PERFORMANCE.md) keep score on what's been shown and what hasn't.
 

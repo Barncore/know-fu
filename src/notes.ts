@@ -1,8 +1,10 @@
+import * as fs from "node:fs/promises";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
 import { Jobs } from "./jobs.js";
 import type { Materialized } from "./store.js";
 import {
+  KBError,
   VERSION,
   atomic,
   ensure,
@@ -12,6 +14,7 @@ import {
   readJson,
   ref,
   safePath,
+  withLock,
 } from "./core.js";
 import type { ProposalData, RecordData, Ref } from "./core.js";
 import { closestSpan, quoteFound } from "./quote.js";
@@ -20,14 +23,138 @@ import { closestSpan, quoteFound } from "./quote.js";
  * Notes are the authoring format: Markdown with a short frontmatter block. The engine
  * fills identities, defaults, passages and relationship records, then hands the result
  * to the normal proposal compiler, so every validation still applies.
+ *
+ * Notes arrive inline (`notes`) or as files (`paths`: note files or folders of them).
+ * Files let an agent write each note once and fix one field in place after a refusal,
+ * instead of sending the whole batch again.
  */
 export type NotesRequest = {
   job_id: string;
-  notes: string[];
+  notes?: string[];
+  paths?: string[];
   proposal_id?: string;
   replace?: boolean;
   dry_run?: boolean;
 };
+
+/** Inline notes stay small enough to send in one call; files can carry a whole book. */
+const MAX_INLINE_NOTES = 60;
+const MAX_NOTES = 1000;
+
+/** Keys each nested frontmatter entry may carry. Anything else is a typo or a split value. */
+const ENTRY_KEYS: Record<string, string[]> = {
+  assess: ["fidelity", "evidence", "applicability"],
+  "assess entry": ["level", "why", "rationale", "basis", "context"],
+  priority: ["impact", "effort", "why", "rationale"],
+  "facets entry": ["text", "abstract", "basis"],
+  decisions: ["at", "decide", "options", "check", "cite", "stated"],
+  "decisions option": ["if", "then"],
+  links: ["why", "materiality", "stated"],
+  "cites entry": ["unit", "quote", "ref"],
+  "uses entry": ["ref"],
+};
+
+/**
+ * Refuses keys a frontmatter entry doesn't use. A comma inside a `{...}` flow mapping
+ * splits the value, and the rest turns into a stray key that would otherwise vanish.
+ */
+function onlyKeys(
+  value: unknown,
+  kind: string,
+  at: string,
+  extra: string[] = [],
+) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return;
+  const allowed = [...ENTRY_KEYS[kind], ...extra];
+  const stray = Object.keys(value).filter((k) => !allowed.includes(k));
+  ensure(
+    !stray.length,
+    "VALIDATION_FAILED",
+    `${at} has ${stray.length === 1 ? "an unknown key" : "unknown keys"} ${stray.map((k) => JSON.stringify(k)).join(", ")}. If that's the rest of a value cut at a comma, write the mapping one key per line or quote the value; otherwise use ${allowed.join(", ")}.`,
+    { stray },
+  );
+}
+
+type NoteSource = { source: string; file: string | null };
+
+/** Reads note files, and every `.md` file directly inside a listed folder, in name order. */
+async function noteSources(input: NotesRequest): Promise<NoteSource[]> {
+  const inline = input.notes ?? [];
+  ensure(
+    Array.isArray(inline) && (inline.length || input.paths?.length),
+    "VALIDATION_FAILED",
+    "Supply notes (an array of Markdown notes) or paths (note files or folders of them)",
+  );
+  ensure(
+    inline.length <= MAX_INLINE_NOTES,
+    "VALIDATION_FAILED",
+    `Send at most ${MAX_INLINE_NOTES} notes inline per call; write more as files and pass their paths`,
+  );
+  const sources: NoteSource[] = inline.map((source) => ({
+    source,
+    file: null,
+  }));
+  for (const given of input.paths ?? []) {
+    ensure(
+      typeof given === "string" && path.isAbsolute(given),
+      "VALIDATION_FAILED",
+      "Each path is an absolute path to a note file or a folder of note files",
+      { path: given },
+    );
+    const stat = await fs.stat(given).catch(() => null);
+    ensure(stat, "VALIDATION_FAILED", `No note file or folder at ${given}`);
+    const files = stat.isDirectory()
+      ? (await fs.readdir(given))
+          .filter((name) => name.toLowerCase().endsWith(".md"))
+          .sort()
+          .map((name) => path.join(given, name))
+      : [given];
+    for (const file of files) {
+      ensure(
+        file.toLowerCase().endsWith(".md"),
+        "VALIDATION_FAILED",
+        `A note file ends in .md: ${file}`,
+      );
+      sources.push({ source: await fs.readFile(file, "utf8"), file });
+    }
+  }
+  ensure(
+    sources.length,
+    "VALIDATION_FAILED",
+    "The paths given hold no .md note files",
+  );
+  ensure(
+    sources.length <= MAX_NOTES,
+    "VALIDATION_FAILED",
+    `Stage at most ${MAX_NOTES} notes per call`,
+  );
+  return sources;
+}
+
+type NoteFailure = {
+  note: number;
+  file: string | null;
+  slug: string | null;
+  code: string;
+  message: string;
+  details?: unknown;
+};
+
+/** One refusal that lists every failing note, so a single round of fixes clears the batch. */
+function refuse(failures: NoteFailure[]): never {
+  const [first] = failures;
+  const quotesOnly = failures.every((f) => f.code === "QUOTE_NOT_FOUND");
+  throw new KBError(
+    quotesOnly ? "QUOTE_NOT_FOUND" : "VALIDATION_FAILED",
+    failures.length === 1
+      ? first.message
+      : `${first.message} (and ${failures.length - 1} more problem(s) in this batch; every one is listed in details.errors). Nothing was staged.`,
+    {
+      errors: failures,
+      ...(quotesOnly ? { problems: failures.map((f) => f.message) } : {}),
+    },
+  );
+}
 
 type Target = Ref | { local_ref: string };
 type Unit = {
@@ -124,6 +251,7 @@ export function facetsFrom(value: unknown, where: string, epistemic: string) {
     );
     facets[slot] = entries.map((raw, i) => {
       const at = `${where}: facets.${slot}[${i}]`;
+      onlyKeys(raw, "facets entry", at);
       const entry: any = typeof raw === "string" ? { text: raw } : (raw ?? {});
       const phrase = text(entry.text);
       const abstract = text(entry.abstract);
@@ -204,16 +332,15 @@ export class Notes {
   }
 
   async write(input: NotesRequest) {
-    ensure(
-      Array.isArray(input.notes) && input.notes.length,
-      "VALIDATION_FAILED",
-      "Supply notes: an array of Markdown notes",
-    );
-    ensure(
-      input.notes.length <= 60,
-      "VALIDATION_FAILED",
-      "Write at most 60 notes per call",
-    );
+    // Staging reads and rewrites the job's slug map, so writers take turns. Without this,
+    // two readers staging at once could each save a map missing the other's slugs.
+    return input.dry_run
+      ? this.compose(input)
+      : withLock(this.store.root, "notes", () => this.compose(input), 120000);
+  }
+
+  private async compose(input: NotesRequest) {
+    const drafts = await noteSources(input);
     const job = await this.jobs.load(input.job_id);
     const dir = this.jobs.jobPath(job.job_id);
     const sources = await readJson<RecordData[]>(
@@ -234,28 +361,101 @@ export class Notes {
     const slugs = await readJson<Record<string, Ref>>(slugFile).catch(
       () => ({}) as Record<string, Ref>,
     );
+    // A replacement drops the records its proposal staged before, so it must not reuse them,
+    // passages included: they leave the staged batch when the replacement lands.
+    const replacing = new Set<string>();
+    if (input.replace === true && input.proposal_id) {
+      const previous = await readJson<any>(
+        path.join(dir, "proposals", hash(input.proposal_id) + ".json"),
+      ).catch(() => null);
+      for (const r of previous?.records ?? []) replacing.add(r.id);
+    }
+    for (const [name, target] of Object.entries(slugs))
+      if (replacing.has(target.id)) delete slugs[name];
     const known = new Map<string, RecordData>();
     for (const r of current.values()) known.set(r.id, r);
-    for (const r of staged.records) known.set(r.id, r);
+    for (const r of staged.records)
+      if (!replacing.has(r.id)) known.set(r.id, r);
 
-    const parsed = input.notes.map((source, i) => {
-      const note = splitNote(source);
-      const slug = text(note.front.id);
-      ensure(
-        SLUG.test(slug),
-        "VALIDATION_FAILED",
-        `Note ${i + 1}: id must be a short lowercase slug like "holm-step-down"`,
-        { id: note.front.id },
-      );
-      return { ...note, slug, index: i + 1 };
+    // Every failing note is collected, so one refusal lists everything to fix.
+    const failures: NoteFailure[] = [];
+    const label = (index: number, slug: string | null, file: string | null) =>
+      (file ? path.basename(file) : `Note ${index}`) +
+      (slug ? ` (${slug})` : "");
+    const fail = (
+      index: number,
+      file: string | null,
+      slug: string | null,
+      error: any,
+      prefix = "",
+    ) => {
+      const yaml = /^YAML/.test(error?.name ?? "");
+      if (!(error instanceof KBError) && !yaml) throw error;
+      failures.push({
+        note: index,
+        file,
+        slug,
+        code: error.code ?? "YAML_PARSE_ERROR",
+        message: prefix + error.message,
+        ...(error instanceof KBError && error.details
+          ? { details: error.details }
+          : {}),
+      });
+    };
+    const parsed: (ReturnType<typeof splitNote> & {
+      slug: string;
+      index: number;
+      file: string | null;
+      where: string;
+    })[] = [];
+    drafts.forEach(({ source, file }, i) => {
+      try {
+        const note = splitNote(source);
+        const slug = text(note.front.id);
+        ensure(
+          SLUG.test(slug),
+          "VALIDATION_FAILED",
+          `${label(i + 1, null, file)}: id must be a short lowercase slug like "holm-step-down"`,
+          { id: note.front.id },
+        );
+        parsed.push({
+          ...note,
+          slug,
+          index: i + 1,
+          file,
+          where: label(i + 1, slug, file),
+        });
+      } catch (error: any) {
+        const at = label(i + 1, null, file);
+        fail(
+          i + 1,
+          file,
+          null,
+          error,
+          String(error?.message ?? "").startsWith(at) ? "" : `${at}: `,
+        );
+      }
     });
     const batch = new Set<string>();
     for (const n of parsed) {
-      ensure(
-        !batch.has(n.slug),
-        "VALIDATION_FAILED",
-        `Duplicate note id ${n.slug}`,
-      );
+      if (batch.has(n.slug))
+        failures.push({
+          note: n.index,
+          file: n.file,
+          slug: n.slug,
+          code: "VALIDATION_FAILED",
+          message: `${n.where}: duplicate note id ${n.slug}`,
+        });
+      // Staging a slug the job already has would add a second record beside the first,
+      // and both would publish. Changing a staged note is a replacement of its proposal.
+      else if (slugs[n.slug])
+        failures.push({
+          note: n.index,
+          file: n.file,
+          slug: n.slug,
+          code: "VALIDATION_FAILED",
+          message: `${n.where}: ${n.slug} is already staged in this job. To change staged notes, stage their batch again with the same proposal_id and replace: true. To add a different note, give it a new id.`,
+        });
       batch.add(n.slug);
     }
 
@@ -287,7 +487,7 @@ export class Notes {
       ensure(
         slugs[raw],
         "VALIDATION_FAILED",
-        `${where}: unknown note "${raw}". Use a slug from this job, or an id from kb_recall.`,
+        `${where}: unknown note "${raw}". Use a slug from this job, or an id from kb_recall. If it's a slug reserved in a book map, stage the notes that define it first, or in the same call.`,
       );
       return slugs[raw];
     };
@@ -401,512 +601,571 @@ export class Notes {
 
     const items: any[] = [];
     const relationships: any[] = [];
-    const problems: string[] = [];
-    const thinHigh: { slug: string; where: string; basis: string }[] = [];
+    const thinHigh: {
+      slug: string;
+      where: string;
+      basis: string;
+      note: (typeof parsed)[number];
+    }[] = [];
     for (const n of parsed) {
-      const where = `Note ${n.index} (${n.slug})`;
+      const where = n.where;
       const f = n.front;
-      // A revision states only what changes; everything it omits is inherited from the current revision.
-      const existing = f.revises ? resolve(f.revises, where) : undefined;
-      ensure(
-        !existing || !("local_ref" in existing),
-        "VALIDATION_FAILED",
-        `${where}: revises takes a published record id`,
-      );
-      const base = existing ? known.get((existing as Ref).id) : undefined;
-      if (existing)
+      const quoteProblem = (message: string) =>
+        failures.push({
+          note: n.index,
+          file: n.file,
+          slug: n.slug,
+          code: "QUOTE_NOT_FOUND",
+          message,
+        });
+      try {
+        // A revision states only what changes; everything it omits is inherited from the current revision.
+        const existing = f.revises ? resolve(f.revises, where) : undefined;
         ensure(
-          base && base.revision === (existing as Ref).revision,
-          "REVISION_CONFLICT",
-          `${where}: revise the current revision ${base ? key(base) : (existing as Ref).id}`,
-        );
-      if (base)
-        ensure(
-          text(f.change) || text(f.reaffirm),
+          !existing || !("local_ref" in existing),
           "VALIDATION_FAILED",
-          `${where}: a revision gives its reason under change or reaffirm`,
+          `${where}: revises takes a published record id`,
         );
-      const basePayload: any = base ? structuredClone(base.payload) : {};
-      const type = (text(f.type) ||
-        base?.record_type) as (typeof TYPES)[number];
-      ensure(
-        TYPES.includes(type),
-        "VALIDATION_FAILED",
-        `${where}: type must be one of ${TYPES.join(", ")}`,
-      );
-      ensure(
-        !base || base.record_type === type,
-        "VALIDATION_FAILED",
-        `${where}: a revision keeps its record type`,
-      );
-      const title = text(f.title) || base?.title || "";
-      ensure(title, "VALIDATION_FAILED", `${where}: title is required`);
+        const base = existing ? known.get((existing as Ref).id) : undefined;
+        if (existing)
+          ensure(
+            base && base.revision === (existing as Ref).revision,
+            "REVISION_CONFLICT",
+            `${where}: revise the current revision ${base ? key(base) : (existing as Ref).id}`,
+          );
+        if (base)
+          ensure(
+            text(f.change) || text(f.reaffirm),
+            "VALIDATION_FAILED",
+            `${where}: a revision gives its reason under change or reaffirm`,
+          );
+        const basePayload: any = base ? structuredClone(base.payload) : {};
+        const type = (text(f.type) ||
+          base?.record_type) as (typeof TYPES)[number];
+        ensure(
+          TYPES.includes(type),
+          "VALIDATION_FAILED",
+          `${where}: type must be one of ${TYPES.join(", ")}`,
+        );
+        ensure(
+          !base || base.record_type === type,
+          "VALIDATION_FAILED",
+          `${where}: a revision keeps its record type`,
+        );
+        const title = text(f.title) || base?.title || "";
+        ensure(title, "VALIDATION_FAILED", `${where}: title is required`);
 
-      // Evidence: unit ids (become passages, optionally with a verified quote) or existing records.
-      const inputs: Target[] = base ? [...base.provenance.input_refs] : [];
-      const sourceRefs = new Map<string, Ref>(
-        (base?.provenance.source_refs ?? []).map((s) => [key(s), s]),
-      );
-      const citations: { ref: Target; quote: string }[] = [
-        ...(((base?.extensions as any)?.citations ?? []) as any[]),
-      ];
-      for (const cite of list(f.cites)) {
-        const unitId =
-          typeof cite === "string"
-            ? coverage.has(cite)
-              ? cite
-              : null
-            : text(cite?.unit) || null;
-        if (unitId) {
-          const unit = await loadUnit(unitId, where);
-          const target = await passageTarget(unit);
+        // Evidence: unit ids (become passages, optionally with a verified quote) or existing records.
+        const inputs: Target[] = base ? [...base.provenance.input_refs] : [];
+        const sourceRefs = new Map<string, Ref>(
+          (base?.provenance.source_refs ?? []).map((s) => [key(s), s]),
+        );
+        const citations: { ref: Target; quote: string }[] = [
+          ...(((base?.extensions as any)?.citations ?? []) as any[]),
+        ];
+        for (const [i, cite] of list(f.cites).entries()) {
+          onlyKeys(cite, "cites entry", `${where}: cites[${i}]`);
+          const unitId =
+            typeof cite === "string"
+              ? coverage.has(cite)
+                ? cite
+                : null
+              : text(cite?.unit) || null;
+          if (unitId) {
+            const unit = await loadUnit(unitId, where);
+            const target = await passageTarget(unit);
+            inputs.push(target);
+            sourceRefs.set(key(unit.source_ref), unit.source_ref);
+            const quote = typeof cite === "object" ? text(cite.quote) : "";
+            if (quote) {
+              if (quoteFound(quote, unit.text))
+                citations.push({ ref: target, quote });
+              else {
+                const closest = closestSpan(quote, unit.text);
+                quoteProblem(
+                  `${where}: quote not found in ${unitId}${closest && closest.overlap > 0.4 ? `; closest wording: "${closest.text}"` : ""}`,
+                );
+              }
+            }
+            continue;
+          }
+          const target = resolve(cite, where);
           inputs.push(target);
-          sourceRefs.set(key(unit.source_ref), unit.source_ref);
-          const quote = typeof cite === "object" ? text(cite.quote) : "";
-          if (quote) {
-            if (quoteFound(quote, unit.text))
-              citations.push({ ref: target, quote });
-            else {
-              const closest = closestSpan(quote, unit.text);
-              problems.push(
-                `${where}: quote not found in ${unitId}${closest && closest.overlap > 0.4 ? `; closest wording: "${closest.text}"` : ""}`,
-              );
+          if (!("local_ref" in target)) {
+            const record = known.get(target.id)!;
+            for (const s of record.record_type === "source"
+              ? [ref(record)]
+              : record.provenance.source_refs)
+              sourceRefs.set(key(s), s);
+            const quote = typeof cite === "object" ? text(cite.quote) : "";
+            if (quote && record.record_type === "passage") {
+              if (quoteFound(quote, (record.payload as any).text ?? ""))
+                citations.push({ ref: target, quote });
+              else quoteProblem(`${where}: quote not found in ${key(target)}`);
             }
           }
-          continue;
         }
-        const target = resolve(cite, where);
-        inputs.push(target);
-        if (!("local_ref" in target)) {
-          const record = known.get(target.id)!;
-          for (const s of record.record_type === "source"
-            ? [ref(record)]
-            : record.provenance.source_refs)
-            sourceRefs.set(key(s), s);
-          const quote = typeof cite === "object" ? text(cite.quote) : "";
-          if (quote && record.record_type === "passage") {
-            if (quoteFound(quote, (record.payload as any).text ?? ""))
-              citations.push({ ref: target, quote });
-            else problems.push(`${where}: quote not found in ${key(target)}`);
-          }
-        }
-      }
-      const uses = list(f.uses).map((u) => resolve(u, where));
-      inputs.push(...uses);
-      for (const target of uses)
-        if (!("local_ref" in target))
-          for (const s of known.get(target.id)!.provenance.source_refs)
-            sourceRefs.set(key(s), s);
+        const uses = list(f.uses).map((u, i) => {
+          onlyKeys(u, "uses entry", `${where}: uses[${i}]`);
+          return resolve(u, where);
+        });
+        inputs.push(...uses);
+        for (const target of uses)
+          if (!("local_ref" in target))
+            for (const s of known.get(target.id)!.provenance.source_refs)
+              sourceRefs.set(key(s), s);
 
-      const body =
-        n.body ||
-        (base
-          ? (staged.bodies[key(base)] ?? (await this.store.body(base)))
-          : "");
-      const summary =
-        text(f.summary) ||
-        (base && !n.body ? text(basePayload.summary) : "") ||
-        firstParagraph(body).slice(0, 400);
-      const domains = list(f.domains).map(text).filter(Boolean);
-      const distinctSources = sourceRefs.size;
-      const epistemic =
-        text(f.epistemic) ||
-        base?.epistemic ||
-        (type === "judgment"
-          ? "judgment"
-          : (type === "knowledge" || type === "concept") &&
-              distinctSources === 1 &&
-              uses.length === 0
-            ? "source_account"
-            : "synthesis");
-      const refs = (field: unknown, inherited: Target[] = []) => {
-        const given = list(field).map((x) => resolve(x, where));
-        return [
-          ...new Map(
-            [...inherited, ...given].map((t) => [JSON.stringify(t), t]),
-          ).values(),
-        ];
-      };
-      const payload: any = basePayload;
-      if (type === "knowledge") {
-        payload.form = text(f.form) || basePayload.form || "explanation";
-        payload.summary = summary || title;
-        payload.concept_refs = refs(
-          [],
-          [
-            ...(basePayload.concept_refs ?? []),
-            ...uses.filter((t) => typeOf(t) === "concept"),
-          ],
-        );
-        ensure(
-          body,
-          "VALIDATION_FAILED",
-          `${where}: knowledge needs explanatory prose below the frontmatter`,
-        );
-      } else if (type === "concept") {
-        payload.definition =
-          text(f.definition) ||
-          basePayload.definition ||
-          summary ||
-          firstParagraph(body);
-        payload.meaning_scope =
-          text(f.meaning_scope) ||
-          basePayload.meaning_scope ||
-          list(f.holds_when).map(text).join("; ") ||
-          `As used in ${[...sourceRefs.values()].map(sourceTitle).join(", ") || "this library"}`;
-        payload.aliases = [
-          ...new Set([
-            ...(basePayload.aliases ?? []),
-            ...list(f.aliases).map(text).filter(Boolean),
-          ]),
-        ];
-        ensure(
-          payload.definition,
-          "VALIDATION_FAILED",
-          `${where}: a concept needs a definition`,
-        );
-      } else if (type === "learning") {
-        payload.form = text(f.form) || basePayload.form || "lesson";
-        payload.knowledge_refs = refs(
-          [],
-          [
-            ...(basePayload.knowledge_refs ?? []),
-            ...uses.filter((t) => typeOf(t) === "knowledge"),
-          ],
-        );
-        const objectives = list(f.objectives).map(text).filter(Boolean);
-        payload.objectives = objectives.length
-          ? objectives
-          : (basePayload.objectives ?? [summary || title]);
-        ensure(
-          payload.knowledge_refs.length,
-          "VALIDATION_FAILED",
-          `${where}: a lesson lists the knowledge notes it teaches under uses`,
-        );
-        ensure(
-          body,
-          "VALIDATION_FAILED",
-          `${where}: a lesson needs its teaching prose below the frontmatter`,
-        );
-      } else if (type === "judgment") {
-        payload.issue_refs = refs(f.issues, basePayload.issue_refs);
-        payload.outcome =
-          text(f.outcome) || basePayload.outcome || "unresolved";
-        payload.alternatives = refs(f.alternatives, basePayload.alternatives);
-        payload.preferred_refs =
-          f.preferred !== undefined
-            ? refs(f.preferred)
-            : (basePayload.preferred_refs ?? []);
-        payload.rationale =
-          text(f.rationale) ||
-          (n.body ? firstParagraph(n.body) : "") ||
-          basePayload.rationale ||
-          summary;
-        payload.what_would_change =
-          text(f.what_would_change) ||
-          basePayload.what_would_change ||
-          "Evidence that separates the alternatives.";
-        ensure(
-          payload.issue_refs.length,
-          "VALIDATION_FAILED",
-          `${where}: a judgment names the accounts it assesses under issues`,
-        );
-        inputs.push(...payload.issue_refs);
-      } else if (type === "question") {
-        payload.related_refs = refs(f.related, basePayload.related_refs);
-        payload.known = text(f.known) || basePayload.known || summary;
-        payload.unknown = text(f.unknown) || basePayload.unknown || title;
-        payload.impact =
-          text(f.impact) ||
-          basePayload.impact ||
-          "Would change how the related accounts are applied.";
-        payload.next_action =
-          text(f.next_action) ||
-          basePayload.next_action ||
-          "Find a source that addresses this directly.";
-        payload.resolution_status =
-          text(f.status) || basePayload.resolution_status || "open";
-        const priority = f.priority ?? {};
-        payload.priority = {
-          impact:
-            text(priority.impact) || basePayload.priority?.impact || "medium",
-          effort:
-            text(priority.effort) || basePayload.priority?.effort || "unknown",
-          rationale:
-            text(priority.why) ||
-            text(priority.rationale) ||
-            basePayload.priority?.rationale ||
-            "Not yet assessed.",
+        const body =
+          n.body ||
+          (base
+            ? (staged.bodies[key(base)] ?? (await this.store.body(base)))
+            : "");
+        const summary =
+          text(f.summary) ||
+          (base && !n.body ? text(basePayload.summary) : "") ||
+          firstParagraph(body).slice(0, 400);
+        const domains = list(f.domains).map(text).filter(Boolean);
+        const distinctSources = sourceRefs.size;
+        const epistemic =
+          text(f.epistemic) ||
+          base?.epistemic ||
+          (type === "judgment"
+            ? "judgment"
+            : (type === "knowledge" || type === "concept") &&
+                distinctSources === 1 &&
+                uses.length === 0
+              ? "source_account"
+              : "synthesis");
+        const refs = (field: unknown, inherited: Target[] = []) => {
+          const given = list(field).map((x) => resolve(x, where));
+          return [
+            ...new Map(
+              [...inherited, ...given].map((t) => [JSON.stringify(t), t]),
+            ).values(),
+          ];
         };
+        const payload: any = basePayload;
+        if (type === "knowledge") {
+          payload.form = text(f.form) || basePayload.form || "explanation";
+          payload.summary = summary || title;
+          payload.concept_refs = refs(
+            [],
+            [
+              ...(basePayload.concept_refs ?? []),
+              ...uses.filter((t) => typeOf(t) === "concept"),
+            ],
+          );
+          ensure(
+            body,
+            "VALIDATION_FAILED",
+            `${where}: knowledge needs explanatory prose below the frontmatter`,
+          );
+        } else if (type === "concept") {
+          payload.definition =
+            text(f.definition) ||
+            basePayload.definition ||
+            summary ||
+            firstParagraph(body);
+          payload.meaning_scope =
+            text(f.meaning_scope) ||
+            basePayload.meaning_scope ||
+            list(f.holds_when).map(text).join("; ") ||
+            `As used in ${[...sourceRefs.values()].map(sourceTitle).join(", ") || "this library"}`;
+          payload.aliases = [
+            ...new Set([
+              ...(basePayload.aliases ?? []),
+              ...list(f.aliases).map(text).filter(Boolean),
+            ]),
+          ];
+          ensure(
+            payload.definition,
+            "VALIDATION_FAILED",
+            `${where}: a concept needs a definition`,
+          );
+        } else if (type === "learning") {
+          payload.form = text(f.form) || basePayload.form || "lesson";
+          payload.knowledge_refs = refs(
+            [],
+            [
+              ...(basePayload.knowledge_refs ?? []),
+              ...uses.filter((t) => typeOf(t) === "knowledge"),
+            ],
+          );
+          const objectives = list(f.objectives).map(text).filter(Boolean);
+          payload.objectives = objectives.length
+            ? objectives
+            : (basePayload.objectives ?? [summary || title]);
+          ensure(
+            payload.knowledge_refs.length,
+            "VALIDATION_FAILED",
+            `${where}: a lesson lists the knowledge notes it teaches under uses`,
+          );
+          ensure(
+            body,
+            "VALIDATION_FAILED",
+            `${where}: a lesson needs its teaching prose below the frontmatter`,
+          );
+        } else if (type === "judgment") {
+          payload.issue_refs = refs(f.issues, basePayload.issue_refs);
+          payload.outcome =
+            text(f.outcome) || basePayload.outcome || "unresolved";
+          payload.alternatives = refs(f.alternatives, basePayload.alternatives);
+          payload.preferred_refs =
+            f.preferred !== undefined
+              ? refs(f.preferred)
+              : (basePayload.preferred_refs ?? []);
+          payload.rationale =
+            text(f.rationale) ||
+            (n.body ? firstParagraph(n.body) : "") ||
+            basePayload.rationale ||
+            summary;
+          payload.what_would_change =
+            text(f.what_would_change) ||
+            basePayload.what_would_change ||
+            "Evidence that separates the alternatives.";
+          ensure(
+            payload.issue_refs.length,
+            "VALIDATION_FAILED",
+            `${where}: a judgment names the accounts it assesses under issues`,
+          );
+          inputs.push(...payload.issue_refs);
+        } else if (type === "question") {
+          payload.related_refs = refs(f.related, basePayload.related_refs);
+          payload.known = text(f.known) || basePayload.known || summary;
+          payload.unknown = text(f.unknown) || basePayload.unknown || title;
+          payload.impact =
+            text(f.impact) ||
+            basePayload.impact ||
+            "Would change how the related accounts are applied.";
+          payload.next_action =
+            text(f.next_action) ||
+            basePayload.next_action ||
+            "Find a source that addresses this directly.";
+          payload.resolution_status =
+            text(f.status) || basePayload.resolution_status || "open";
+          onlyKeys(f.priority, "priority", `${where}: priority`);
+          const priority = f.priority ?? {};
+          payload.priority = {
+            impact:
+              text(priority.impact) || basePayload.priority?.impact || "medium",
+            effort:
+              text(priority.effort) ||
+              basePayload.priority?.effort ||
+              "unknown",
+            rationale:
+              text(priority.why) ||
+              text(priority.rationale) ||
+              basePayload.priority?.rationale ||
+              "Not yet assessed.",
+          };
+          ensure(
+            payload.related_refs.length,
+            "VALIDATION_FAILED",
+            `${where}: a question names related accounts under related`,
+          );
+          inputs.push(...payload.related_refs);
+        }
         ensure(
-          payload.related_refs.length,
+          inputs.length || type === "concept",
           "VALIDATION_FAILED",
-          `${where}: a question names related accounts under related`,
+          `${where}: cite source units or library records; an ungrounded note cannot enter the library`,
         );
-        inputs.push(...payload.related_refs);
-      }
-      ensure(
-        inputs.length || type === "concept",
-        "VALIDATION_FAILED",
-        `${where}: cite source units or library records; an ungrounded note cannot enter the library`,
-      );
-      // A level needs its one-line reason; a dimension left out stays as it was (or unassessed).
-      const assessments = f.assess
-        ? Object.fromEntries(
-            ["fidelity", "evidence", "applicability"].map((dimension) => {
-              const a = f.assess?.[dimension];
-              if (!a)
+        // A level needs its one-line reason; a dimension left out stays as it was (or unassessed).
+        onlyKeys(f.assess, "assess", `${where}: assess`);
+        const assessments = f.assess
+          ? Object.fromEntries(
+              ["fidelity", "evidence", "applicability"].map((dimension) => {
+                const a = f.assess?.[dimension];
+                onlyKeys(a, "assess entry", `${where}: assess.${dimension}`);
+                if (!a)
+                  return [
+                    dimension,
+                    base?.assessments?.[
+                      dimension as "fidelity" | "evidence" | "applicability"
+                    ] ?? {
+                      level: "not_assessed",
+                      rationale: "No substantive assessment has been supplied.",
+                      context: null,
+                    },
+                  ];
+                const level = text(a.level);
+                ensure(
+                  ASSESSMENT_LEVELS.includes(level),
+                  "VALIDATION_FAILED",
+                  `${where}: assess.${dimension}.level must be one of ${ASSESSMENT_LEVELS.join(", ")}`,
+                );
+                const why = text(a.why) || text(a.rationale);
+                ensure(
+                  level === "not_assessed" || why,
+                  "VALIDATION_FAILED",
+                  `${where}: assess.${dimension} needs a one-line why. Leave the dimension out rather than guess.`,
+                );
+                // An evidence level names the kind of support the source shows. High from thin
+                // support needs a second independent family, so repetition can never raise it.
+                const basis = text(a.basis);
+                if (dimension === "evidence" && basis)
+                  ensure(
+                    EVIDENCE_BASES.includes(basis),
+                    "VALIDATION_FAILED",
+                    `${where}: assess.evidence.basis must be one of ${EVIDENCE_BASES.join(", ")}`,
+                  );
+                if (
+                  dimension === "evidence" &&
+                  ["low", "moderate", "high"].includes(level)
+                ) {
+                  ensure(
+                    basis,
+                    "VALIDATION_FAILED",
+                    `${where}: assess.evidence needs a basis naming the kind of support: ${EVIDENCE_BASES.join(", ")}`,
+                  );
+                  // Checked once sources from same-batch notes have been propagated.
+                  if (level === "high" && THIN_BASES.includes(basis))
+                    thinHigh.push({ slug: n.slug, where, basis, note: n });
+                }
                 return [
                   dimension,
-                  base?.assessments?.[
-                    dimension as "fidelity" | "evidence" | "applicability"
-                  ] ?? {
-                    level: "not_assessed",
-                    rationale: "No substantive assessment has been supplied.",
-                    context: null,
+                  {
+                    level,
+                    rationale:
+                      why || "No substantive assessment has been supplied.",
+                    context: text(a.context) || null,
+                    ...(dimension === "evidence" && basis ? { basis } : {}),
                   },
                 ];
-              const level = text(a.level);
-              ensure(
-                ASSESSMENT_LEVELS.includes(level),
-                "VALIDATION_FAILED",
-                `${where}: assess.${dimension}.level must be one of ${ASSESSMENT_LEVELS.join(", ")}`,
-              );
-              const why = text(a.why) || text(a.rationale);
-              ensure(
-                level === "not_assessed" || why,
-                "VALIDATION_FAILED",
-                `${where}: assess.${dimension} needs a one-line why. Leave the dimension out rather than guess.`,
-              );
-              // An evidence level names the kind of support the source shows. High from thin
-              // support needs a second independent family, so repetition can never raise it.
-              const basis = text(a.basis);
-              if (dimension === "evidence" && basis)
-                ensure(
-                  EVIDENCE_BASES.includes(basis),
-                  "VALIDATION_FAILED",
-                  `${where}: assess.evidence.basis must be one of ${EVIDENCE_BASES.join(", ")}`,
-                );
-              if (
-                dimension === "evidence" &&
-                ["low", "moderate", "high"].includes(level)
-              ) {
-                ensure(
-                  basis,
-                  "VALIDATION_FAILED",
-                  `${where}: assess.evidence needs a basis naming the kind of support: ${EVIDENCE_BASES.join(", ")}`,
-                );
-                // Checked once sources from same-batch notes have been propagated.
-                if (level === "high" && THIN_BASES.includes(basis))
-                  thinHigh.push({ slug: n.slug, where, basis });
-              }
-              return [
-                dimension,
-                {
-                  level,
-                  rationale:
-                    why || "No substantive assessment has been supplied.",
-                  context: text(a.context) || null,
-                  ...(dimension === "evidence" && basis ? { basis } : {}),
-                },
-              ];
-            }),
-          )
-        : base?.assessments;
-      const extensions: any = base ? structuredClone(base.extensions) : {};
-      const uniqueCitations = [
-        ...new Map(citations.map((c) => [JSON.stringify(c), c])).values(),
-      ];
-      if (uniqueCitations.length) extensions.citations = uniqueCitations;
-      if (text(f.nav_summary))
-        extensions.navigation = {
-          interface_version: "1.0.0",
-          summary: text(f.nav_summary),
-        };
-      // Functional facets say what an account does, in its own terms and in domain-free
-      // words, so records from other fields can be matched on function rather than topic.
-      if (f.facets !== undefined)
-        extensions.functional_facets = facetsFrom(f.facets, where, epistemic);
-      // Decision points: where a procedure branches, as an expert would say it out loud.
-      if (f.decisions !== undefined) {
-        const points = list(f.decisions);
-        ensure(
-          !points.length ||
-            (type === "knowledge" && payload.form === "procedure"),
-          "VALIDATION_FAILED",
-          `${where}: decisions belong on procedure notes`,
-        );
-        ensure(
-          points.length <= 12,
-          "VALIDATION_FAILED",
-          `${where}: keep to the 12 decisions that matter most`,
-        );
-        const decisionPoints = [];
-        for (const [i, raw] of points.entries()) {
-          const at = `${where}: decisions[${i}]`;
-          const short = (value: unknown, field: string, words: number) => {
-            const phrase = text(value);
-            ensure(phrase, "VALIDATION_FAILED", `${at} needs ${field}`);
-            ensure(
-              wordCount(phrase) <= words,
-              "VALIDATION_FAILED",
-              `${at}: keep ${field} to ${words} words or fewer`,
-            );
-            return phrase;
+              }),
+            )
+          : base?.assessments;
+        const extensions: any = base ? structuredClone(base.extensions) : {};
+        const uniqueCitations = [
+          ...new Map(citations.map((c) => [JSON.stringify(c), c])).values(),
+        ];
+        if (uniqueCitations.length) extensions.citations = uniqueCitations;
+        if (text(f.nav_summary))
+          extensions.navigation = {
+            interface_version: "1.0.0",
+            summary: text(f.nav_summary),
           };
-          const options = list(raw?.options);
+        // Functional facets say what an account does, in its own terms and in domain-free
+        // words, so records from other fields can be matched on function rather than topic.
+        if (f.facets !== undefined)
+          extensions.functional_facets = facetsFrom(f.facets, where, epistemic);
+        // Decision points: where a procedure branches, as an expert would say it out loud.
+        if (f.decisions !== undefined) {
+          const points = list(f.decisions);
           ensure(
-            options.length >= 2 && options.length <= 5,
+            !points.length ||
+              (type === "knowledge" && payload.form === "procedure"),
             "VALIDATION_FAILED",
-            `${at}: a decision has two to five options, each {if, then}; "otherwise" is a fine if`,
+            `${where}: decisions belong on procedure notes`,
           );
-          const evidence: Target[] = [];
-          if (raw?.cite !== undefined) {
-            const cite = text(raw.cite);
-            if (coverage.has(cite)) {
-              const unit = await loadUnit(cite, at);
-              const target = await passageTarget(unit);
-              inputs.push(target);
-              sourceRefs.set(key(unit.source_ref), unit.source_ref);
-              evidence.push(target);
-            } else {
-              const target = resolve(cite, at);
+          ensure(
+            points.length <= 12,
+            "VALIDATION_FAILED",
+            `${where}: keep to the 12 decisions that matter most`,
+          );
+          const decisionPoints = [];
+          for (const [i, raw] of points.entries()) {
+            const at = `${where}: decisions[${i}]`;
+            onlyKeys(raw, "decisions", at);
+            for (const [j, option] of list(raw?.options).entries())
+              onlyKeys(option, "decisions option", `${at}.options[${j}]`);
+            const short = (value: unknown, field: string, words: number) => {
+              const phrase = text(value);
+              ensure(phrase, "VALIDATION_FAILED", `${at} needs ${field}`);
               ensure(
-                typeOf(target) === "passage",
+                wordCount(phrase) <= words,
                 "VALIDATION_FAILED",
-                `${at}: cite a unit or passage`,
+                `${at}: keep ${field} to ${words} words or fewer`,
               );
-              inputs.push(target);
-              evidence.push(target);
+              return phrase;
+            };
+            const options = list(raw?.options);
+            ensure(
+              options.length >= 2 && options.length <= 5,
+              "VALIDATION_FAILED",
+              `${at}: a decision has two to five options, each {if, then}; "otherwise" is a fine if`,
+            );
+            const evidence: Target[] = [];
+            if (raw?.cite !== undefined) {
+              const cite = text(raw.cite);
+              if (coverage.has(cite)) {
+                const unit = await loadUnit(cite, at);
+                const target = await passageTarget(unit);
+                inputs.push(target);
+                sourceRefs.set(key(unit.source_ref), unit.source_ref);
+                evidence.push(target);
+              } else {
+                const target = resolve(cite, at);
+                ensure(
+                  typeOf(target) === "passage",
+                  "VALIDATION_FAILED",
+                  `${at}: cite a unit or passage`,
+                );
+                inputs.push(target);
+                evidence.push(target);
+              }
             }
+            decisionPoints.push({
+              cue: short(raw?.at, "at (when the choice comes up)", 20),
+              decision: short(
+                raw?.decide,
+                "decide (the question being settled)",
+                25,
+              ),
+              options: options.map((o: any, j: number) => ({
+                when: short(o?.if, `options[${j}].if`, 30),
+                then: short(o?.then, `options[${j}].then`, 30),
+              })),
+              check:
+                raw?.check === undefined ? null : short(raw.check, "check", 25),
+              basis:
+                raw?.stated === false
+                  ? "inferred"
+                  : raw?.stated === true || epistemic === "source_account"
+                    ? "source_stated"
+                    : "inferred",
+              evidence_refs: evidence,
+            });
           }
-          decisionPoints.push({
-            cue: short(raw?.at, "at (when the choice comes up)", 20),
-            decision: short(
-              raw?.decide,
-              "decide (the question being settled)",
-              25,
-            ),
-            options: options.map((o: any, j: number) => ({
-              when: short(o?.if, `options[${j}].if`, 30),
-              then: short(o?.then, `options[${j}].then`, 30),
-            })),
-            check:
-              raw?.check === undefined ? null : short(raw.check, "check", 25),
-            basis:
-              raw?.stated === false
-                ? "inferred"
-                : raw?.stated === true || epistemic === "source_account"
-                  ? "source_stated"
-                  : "inferred",
-            evidence_refs: evidence,
-          });
+          if (decisionPoints.length)
+            extensions.decision_points = decisionPoints;
+          else delete extensions.decision_points;
         }
-        if (decisionPoints.length) extensions.decision_points = decisionPoints;
-        else delete extensions.decision_points;
-      }
-      ensure(
-        type !== "knowledge" ||
-          !FACET_FORMS.includes(payload.form) ||
-          !!base ||
-          hasCoreFacets(extensions.functional_facets),
-        "VALIDATION_FAILED",
-        `${where}: a ${payload.form} note says what it does: add facets with at least one purpose and one mechanism, each with text and an abstract wording (see the notes guide)`,
-      );
-      const uniqueInputs = [
-        ...new Map(inputs.map((t) => [JSON.stringify(t), t])).values(),
-      ];
-      const pick = (field: unknown, inherited: string[] = []) =>
-        field === undefined ? inherited : list(field).map(text).filter(Boolean);
-      items.push({
-        local_id: n.slug,
-        record_type: type,
-        title,
-        maintenance_module: base?.maintenance_module ?? module,
-        epistemic,
-        scope: {
-          domains: domains.length
-            ? domains
-            : (base?.scope.domains ?? defaultDomains),
-          conditions: pick(f.holds_when, base?.scope.conditions),
-          exclusions: pick(f.not_for, base?.scope.exclusions),
-          condition_expression: base?.scope.condition_expression ?? null,
-          valid_from: f.valid_from
-            ? String(f.valid_from)
-            : (base?.scope.valid_from ?? null),
-          valid_until: f.valid_until
-            ? String(f.valid_until)
-            : (base?.scope.valid_until ?? null),
-        },
-        source_refs: [...sourceRefs.values()],
-        input_refs: uniqueInputs,
-        change_reason:
-          text(f.change) ||
-          (text(f.reaffirm)
-            ? `Reaffirmed: ${text(f.reaffirm)}`
-            : `Authored from ${job.job_id}`),
-        body_markdown: body || null,
-        payload,
-        ...(existing ? { existing_ref: existing } : {}),
-        ...(assessments ? { assessments } : {}),
-        ...(Object.keys(extensions).length ? { extensions } : {}),
-      });
-
-      // Typed links become relationship records whose subject is this note.
-      for (const link of list(f.links)) {
-        const predicate = Object.keys(link ?? {}).find((k) =>
-          PREDICATES.includes(k),
-        );
         ensure(
-          predicate,
+          type !== "knowledge" ||
+            !FACET_FORMS.includes(payload.form) ||
+            !!base ||
+            hasCoreFacets(extensions.functional_facets),
           "VALIDATION_FAILED",
-          `${where}: each link names one of ${PREDICATES.join(", ")}`,
+          `${where}: a ${payload.form} note says what it does: add facets with at least one purpose and one mechanism, each with text and an abstract wording (see the notes guide)`,
         );
-        const object = resolve(link[predicate], where);
-        const why = text(link.why);
-        ensure(
-          why,
-          "VALIDATION_FAILED",
-          `${where}: each link explains why it holds (why: ...)`,
-        );
-        const objectName =
-          "local_ref" in object
-            ? object.local_ref
-            : (known.get(object.id)?.title ?? object.id);
-        relationships.push({
-          local_id: `${n.slug}--${predicate}--${hash(JSON.stringify(object)).slice(0, 8)}`,
-          record_type: "relationship",
-          title: `${title} ${predicate.replace("_", " ")} ${objectName}`.slice(
-            0,
-            200,
-          ),
-          maintenance_module: module,
-          epistemic:
-            link.stated === true && epistemic === "source_account"
-              ? "source_account"
-              : "synthesis",
+        const uniqueInputs = [
+          ...new Map(inputs.map((t) => [JSON.stringify(t), t])).values(),
+        ];
+        const pick = (field: unknown, inherited: string[] = []) =>
+          field === undefined
+            ? inherited
+            : list(field).map(text).filter(Boolean);
+        items.push({
+          local_id: n.slug,
+          record_type: type,
+          title,
+          maintenance_module: base?.maintenance_module ?? module,
+          epistemic,
           scope: {
-            domains: domains.length ? domains : defaultDomains,
-            conditions: [],
-            exclusions: [],
-            condition_expression: null,
-            valid_from: null,
-            valid_until: null,
+            domains: domains.length
+              ? domains
+              : (base?.scope.domains ?? defaultDomains),
+            conditions: pick(f.holds_when, base?.scope.conditions),
+            exclusions: pick(f.not_for, base?.scope.exclusions),
+            condition_expression: base?.scope.condition_expression ?? null,
+            valid_from: f.valid_from
+              ? String(f.valid_from)
+              : (base?.scope.valid_from ?? null),
+            valid_until: f.valid_until
+              ? String(f.valid_until)
+              : (base?.scope.valid_until ?? null),
           },
           source_refs: [...sourceRefs.values()],
-          input_refs: [{ local_ref: n.slug }, object],
-          change_reason: text(f.change) || `Authored from ${job.job_id}`,
-          body_markdown: null,
-          payload: {
-            subject: { local_ref: n.slug },
-            object,
-            predicate,
-            rationale: why,
-            materiality:
-              text(link.materiality) ||
-              (ESSENTIAL.has(predicate) ? "essential" : "contextual"),
-          },
+          input_refs: uniqueInputs,
+          change_reason:
+            text(f.change) ||
+            (text(f.reaffirm)
+              ? `Reaffirmed: ${text(f.reaffirm)}`
+              : `Authored from ${job.job_id}`),
+          body_markdown: body || null,
+          payload,
+          ...(existing ? { existing_ref: existing } : {}),
+          ...(assessments ? { assessments } : {}),
+          ...(Object.keys(extensions).length ? { extensions } : {}),
         });
+
+        // Typed links become relationship records whose subject is this note.
+        for (const [i, link] of list(f.links).entries()) {
+          const named = Object.keys(link ?? {}).filter((k) =>
+            PREDICATES.includes(k),
+          );
+          ensure(
+            named.length === 1,
+            "VALIDATION_FAILED",
+            `${where}: links[${i}] names exactly one of ${PREDICATES.join(", ")}`,
+          );
+          const predicate = named[0];
+          onlyKeys(link, "links", `${where}: links[${i}]`, [predicate]);
+          const object = resolve(link[predicate], where);
+          if (predicate === "exemplifies") {
+            const local =
+              "local_ref" in object
+                ? parsed.find((p) => p.slug === object.local_ref)
+                : undefined;
+            const target = local ? undefined : known.get((object as Ref).id);
+            const targetType = local
+              ? text(local.front.type)
+              : target?.record_type;
+            const targetForm = local
+              ? text(local.front.form)
+              : (target?.payload as any)?.form;
+            ensure(
+              targetType === "concept" ||
+                (targetType === "knowledge" &&
+                  ["mechanism", "procedure"].includes(targetForm)),
+              "VALIDATION_FAILED",
+              `${where}: links[${i}] exemplifies needs a concept, mechanism or procedure as its target`,
+            );
+            ensure(
+              type === "learning" || epistemic === "illustration",
+              "VALIDATION_FAILED",
+              `${where}: links[${i}] exemplifies runs from an attributable case: this note is a ${type} note, so it must be a learning note or marked epistemic: illustration. For a source's own claim, use supports or explains.`,
+            );
+          }
+          const why = text(link.why);
+          ensure(
+            why,
+            "VALIDATION_FAILED",
+            `${where}: each link explains why it holds (why: ...)`,
+          );
+          const objectName =
+            "local_ref" in object
+              ? object.local_ref
+              : (known.get(object.id)?.title ?? object.id);
+          relationships.push({
+            local_id: `${n.slug}--${predicate}--${hash(JSON.stringify(object)).slice(0, 8)}`,
+            record_type: "relationship",
+            title:
+              `${title} ${predicate.replace("_", " ")} ${objectName}`.slice(
+                0,
+                200,
+              ),
+            maintenance_module: module,
+            epistemic:
+              link.stated === true && epistemic === "source_account"
+                ? "source_account"
+                : "synthesis",
+            scope: {
+              domains: domains.length ? domains : defaultDomains,
+              conditions: [],
+              exclusions: [],
+              condition_expression: null,
+              valid_from: null,
+              valid_until: null,
+            },
+            source_refs: [...sourceRefs.values()],
+            input_refs: [{ local_ref: n.slug }, object],
+            change_reason: text(f.change) || `Authored from ${job.job_id}`,
+            body_markdown: null,
+            payload: {
+              subject: { local_ref: n.slug },
+              object,
+              predicate,
+              rationale: why,
+              materiality:
+                text(link.materiality) ||
+                (ESSENTIAL.has(predicate) ? "essential" : "contextual"),
+            },
+          });
+        }
+      } catch (error) {
+        fail(n.index, n.file, n.slug, error);
       }
     }
     // A note that cites or uses another note in this batch inherits that note's sources,
@@ -934,36 +1193,61 @@ export class Notes {
       for (const s of (subject?.source_refs ?? []) as Ref[])
         if (!have.has(key(s))) relationship.source_refs.push(s);
     }
-    for (const { slug, where, basis } of thinHigh) {
-      const families = new Set(
-        (bySlug.get(slug).source_refs as Ref[]).map(familyOf),
-      ).size;
-      ensure(
-        families >= 2,
-        "VALIDATION_FAILED",
-        `${where}: evidence high from a ${basis.replace(/_/g, " ")} needs at least two independent source families, and this note rests on ${families}. Lower the level or cite the other evidence.`,
-      );
+    for (const { slug, where, basis, note } of thinHigh) {
+      const item = bySlug.get(slug);
+      if (!item) continue;
+      const families = new Set((item.source_refs as Ref[]).map(familyOf)).size;
+      if (families < 2)
+        failures.push({
+          note: note.index,
+          file: note.file,
+          slug,
+          code: "VALIDATION_FAILED",
+          message: `${where}: evidence high from a ${basis.replace(/_/g, " ")} needs at least two independent source families, and this note rests on ${families}. Lower the level or cite the other evidence.`,
+        });
     }
-    ensure(
-      !problems.length,
-      "QUOTE_NOT_FOUND",
-      "Some quotes do not match their cited text. Copy the wording exactly or drop the quote.",
-      { problems },
-    );
+    if (failures.length) refuse(failures.sort((a, b) => a.note - b.note));
 
+    const items_ = [...passageItems, ...items, ...relationships];
     const proposal = {
       schema_version: VERSION,
       proposal_id:
         input.proposal_id ??
-        `notes-${hash(job.job_id + JSON.stringify(input.notes)).slice(0, 20)}`,
+        `notes-${hash(job.job_id + JSON.stringify(drafts.map((d) => d.source))).slice(0, 20)}`,
       job_id: job.job_id,
       base_release: job.base_release,
       scope_policy: job.scope_policy,
-      items: [...passageItems, ...items, ...relationships],
+      items: items_,
     } as unknown as ProposalData;
+    // Schema errors name an item by its position; say which note (and file) it came from.
+    const located = async <T>(work: () => Promise<T>) => {
+      try {
+        return await work();
+      } catch (error: any) {
+        if (!(error instanceof KBError) || !Array.isArray(error.details))
+          throw error;
+        const owner = (index: number) => {
+          const localId = String(items_[index]?.local_id ?? "");
+          const slug = localId.split("--")[0];
+          const note = parsed.find((n) => n.slug === slug);
+          return note ? { note: note.where, file: note.file } : {};
+        };
+        throw new KBError(
+          error.code,
+          error.message,
+          error.details.map((d: any) => {
+            const match = /^\/items\/(\d+)/.exec(d?.instancePath ?? "");
+            return match ? { ...owner(Number(match[1])), ...d } : d;
+          }),
+          error.resumable,
+        );
+      }
+    };
 
     if (input.dry_run) {
-      const compiled = await this.store.compile(proposal, staged.records);
+      const compiled = await located(() =>
+        this.store.compile(proposal, staged.records),
+      );
       return {
         status: "valid",
         proposal_id: proposal.proposal_id,
@@ -975,12 +1259,11 @@ export class Notes {
           type: r.record_type,
           title: r.title,
         })),
-        note: "Nothing was staged. Call again without dry_run to stage these records.",
+        note: "Nothing was staged. A normal call runs these same checks and stages nothing if any fail, so a dry run is only needed to preview the records.",
       };
     }
-    const receipt: any = await this.jobs.propose(
-      proposal,
-      input.replace === true,
+    const receipt: any = await located(() =>
+      this.jobs.propose(proposal, input.replace === true),
     );
     const localRefs: Record<string, Ref> = receipt.local_refs ?? {};
     for (const n of parsed)
@@ -992,6 +1275,7 @@ export class Notes {
       notes: parsed.map((n) => ({
         slug: n.slug,
         ref: localRefs[n.slug] ? key(localRefs[n.slug]) : null,
+        ...(n.file ? { file: n.file } : {}),
       })),
       passages_created: passageItems.length,
       relationships: relationships.length,

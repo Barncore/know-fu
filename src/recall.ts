@@ -318,6 +318,45 @@ export function scopeText(r: RecordData) {
  * the caveats that must travel with them, and a map of what else exists, instead of
  * every transitively connected body.
  */
+/**
+ * Whether recall should add semantic search: the best keyword match holds under 70% of the
+ * query's terms, or fewer than five accounts matched.
+ */
+export function semanticGate(bestCoverage: number, accountHits: number) {
+  return bestCoverage < 0.7 || accountHits < 5;
+}
+
+/**
+ * Fuses ranked lists by reciprocal rank, scaled by how close each hit's score is to its
+ * channel's best. Plain reciprocal rank keeps only positions, so first and ninth place
+ * differ by about 13% whatever the scores say, and a purpose preference (a quarter higher
+ * for forms that fit) could lift a weak ninth-place match over a strong first. With the
+ * scale, a clear margin in a channel survives fusion: the purpose preference only overtakes
+ * the best match when the other scores within about a quarter of it at a neighbouring rank.
+ */
+export function fuseRankings(
+  lists: Map<string, { id: string; score: number }[]>,
+  weights: Record<string, number>,
+) {
+  const fused = new Map<string, { score: number; channels: Set<string> }>();
+  for (const [channel, list] of lists) {
+    const top = Math.max(0, ...list.map((hit) => Number(hit.score) || 0));
+    list.forEach((hit, rank) => {
+      const entry = fused.get(hit.id) ?? {
+        score: 0,
+        channels: new Set<string>(),
+      };
+      const strength =
+        top > 0 ? Math.max(0, Math.min(1, (Number(hit.score) || 0) / top)) : 1;
+      entry.score +=
+        ((weights[channel] ?? 1) * (0.25 + 0.75 * strength)) / (60 + rank + 1);
+      entry.channels.add(channel);
+      fused.set(hit.id, entry);
+    });
+  }
+  return fused;
+}
+
 export class Recall {
   constructor(
     readonly store: Store,
@@ -376,15 +415,20 @@ export class Recall {
     lists.set("lexical", lexical);
     channels.lexical = `ok (${lexical.length})`;
 
-    // Semantic search through the QMD projection: forced, disabled, or automatic when keywords look weak.
-    const coverage = index.lexical.coverage(input.query);
-    const lexicalAccounts = lexical.filter((h) =>
+    // Semantic search: forced, disabled, or automatic when keywords look weak. Weak means the
+    // best keyword match holds less than 70% of the query's terms, or fewer than five accounts
+    // match at all. (Judging the whole library's vocabulary instead would almost never fire
+    // once a library is large, because nearly every word appears somewhere.)
+    const lexicalAccountHits = lexical.filter((h) =>
       index.isAccount(index.visible.get(h.id)!),
-    ).length;
-    const weak = coverage < 0.7 || lexicalAccounts < 5;
+    );
+    const coverage = lexicalAccountHits.length
+      ? index.lexical.coverageOf(input.query, lexicalAccountHits[0].id)
+      : 0;
+    const weak = semanticGate(coverage, lexicalAccountHits.length);
     if (input.semantic === false) channels.semantic = "off (requested)";
     else if (input.semantic !== true && !weak)
-      channels.semantic = `skipped (keywords matched ${Math.round(coverage * 100)}% of query terms)`;
+      channels.semantic = `skipped (the best keyword match holds ${Math.round(coverage * 100)}% of the query's terms)`;
     else {
       const receipt = await this.projections.receipt();
       const semantic = receipt?.search?.semantic === true;
@@ -432,20 +476,8 @@ export class Recall {
         }
     }
 
-    const fuse = (weights: Record<string, number>) => {
-      const fused = new Map<string, { score: number; channels: Set<string> }>();
-      for (const [channel, list] of lists)
-        list.forEach((hit, rank) => {
-          const entry = fused.get(hit.id) ?? {
-            score: 0,
-            channels: new Set<string>(),
-          };
-          entry.score += (weights[channel] ?? 1) / (60 + rank + 1);
-          entry.channels.add(channel);
-          fused.set(hit.id, entry);
-        });
-      return fused;
-    };
+    const fuse = (weights: Record<string, number>) =>
+      fuseRankings(lists, weights);
     const weights = { lexical: 1, semantic: 1, graph: 0.8 };
     let fused = fuse(weights);
 
