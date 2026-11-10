@@ -55,6 +55,8 @@ export function initLibrary(folder: string, options: { noConfig?: boolean } = {}
   // Claude Code reads CLAUDE.md, Codex reads AGENTS.md; one text, imported, so the two can't drift.
   seed('CLAUDE.md', '@AGENTS.md\n');
   seed('.gitignore', GITIGNORE);
+  // Line endings stay as written on every machine, so a checkout never changes a file the checker has verified.
+  seed('.gitattributes', '*.md text eol=lf\n*.txt text eol=lf\n*.json text eol=lf\n');
   seed('log.md', `# Library log\n\nOne line per change, oldest first.\n\n- ${today()} library created\n`);
   for (const dir of ['knowledge', 'sources', 'ideas', 'inbox']) seed(`${dir}/.gitkeep`, '');
   if (!exists(path.join(root, '.git'))) {

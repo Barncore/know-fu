@@ -49,7 +49,8 @@ export function brief(lib: Library, topicRef?: string): string {
       '',
       `${asText(topic.fm.summary)} Updated ${asText(topic.fm.updated)}; ${topic.principles.length} principles, ${accounts.length} accounts, sources: ${sources.join(', ') || 'none'}.`,
       '',
-      topic.body.trim(),
+      // The page's own title line repeats the heading above.
+      topic.body.trim().replace(/^# .*\n+/, ''),
       '',
       '---',
       `This page is the frame. For a specific question, kf_recall with topic "${topic.path}". For one account in full, kf_read with its name from a Governs line. For every account with its one-line gist, kf_read ref "${topic.path}/_index".`,
