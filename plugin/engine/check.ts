@@ -54,7 +54,7 @@ const SHAPES: Record<string, Shape> = {
   note: { required: ['type', 'title', 'date'], optional: ['from', 'topic'], lists: [], enums: {} },
 };
 
-const LIMITS = { accountMin: 80, accountMax: 1500, summaryMax: 60, topicTokens: 5000, principlesMax: 15, retelling: 0.5 };
+const LIMITS = { accountMin: 80, accountMax: 1500, summaryMax: 60, topicTokens: 5000, principlesMax: 15, retelling: 0.35 };
 
 export type Report = {
   errors: Issue[];
@@ -298,7 +298,7 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
       accounts: citing.length,
     });
     if (covered.size && ratio > LIMITS.retelling)
-      add({ level: 'warn', code: 'retelling', message: `accounts citing this source total ${compiledWords} words against the ${mappedWords} words mapped so far: ${Math.round(ratio * 100)}%. Half the source's length is a lot to have kept. Check for retelling: an account explains an idea in full, but it doesn't repeat background any model already has, and the original stays searchable.` });
+      add({ level: 'warn', code: 'retelling', message: `accounts citing this source total ${compiledWords} words against the ${mappedWords} words mapped so far: ${Math.round(ratio * 100)}%. That is a lot of the source to have kept. Check for retelling: an account explains an idea in full, but it doesn't repeat background any model already has, and the original stays searchable.` });
     if (status !== 'compiled') continue;
     const todo = source.body.split('\n').findIndex(l => l.trim().startsWith('TODO:'));
     if (todo >= 0) add({ level: 'error', code: 'source', line: source.bodyLine + todo, message: 'a TODO placeholder is still here; a compiled source has its About, Map and What it changed written' });

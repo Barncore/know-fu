@@ -6,6 +6,13 @@ Entries before 0.6.0 describe the earlier engine, and the files and tools they n
 
 ## Unreleased
 
+### 2026-11-10 - 0.7.1: the retelling warning at 35%
+
+Why: 0.7.0 moved the warning from 30% to 50%. The owner pointed out that 50% is close to the 63% retelling the rebuild exists to prevent, and set it at 35%. The 1,500-word account limit stays.
+
+- The checker warns when accounts citing a source total more than 35% of the words mapped. The ingest and format guides and the north star say 35%.
+- Compatibility: no library change. Tests: 27 pass.
+
 ### 2026-11-10 - 0.7.0: search by meaning, room for depth, and the agent's name on commits
 
 Why: the owner read the 0.6.0 acceptance result and corrected its aim. He is optimizing for performance as the library grows, not for cost: "Isn't the important thing that the searchable L1 bit is short? Can't the deeper stuff be longer since the AI will have deliberately selected that document to read anyway?" And he is building for the size the library will reach, where keyword search alone fails on questions asked in another field's words, which is what invention looks like. The comparison's one worrying number pointed the same way: the 0.6 answerer read 60% less and scored lower on usefulness (39 against 42).

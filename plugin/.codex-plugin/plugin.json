@@ -1,6 +1,6 @@
 {
   "name": "know-fu",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "A local research library your agent compiles from books, papers and videos, then explains, applies and invents from.",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
