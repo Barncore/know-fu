@@ -1,207 +1,89 @@
-# Architecture and storage
+# How Know Fu works
 
-[Package overview](../README.md) · [Setup](setup.md) · [Schemas](../contracts/README.md)
+[Overview](../../README.md) · [Setup](setup.md) · [File format](../skills/know-fu/references/format.md) · [Lineage](lineage.md)
 
-How Know Fu stores knowledge, and how the pieces fit together. One thing to know up front: the engine version and the schema version are separate numbers, and the bundled [contract manifest](../engine-contracts.json) records both.
+This page explains the design: what the parts are, why each one is there, and what was left out on purpose. For the exact file format, see the format guide. For the reasoning that led here from the earlier design, see [the rebuild record](../../docs/REBUILD.md).
 
-## Who does what
+## The problem it solves
 
-```text
-Book / PDF / video / other source
-  -> original copied and never changed; extraction into located units
-  -> the AI reads text and visuals, rebuilds the argument, writes notes
-  -> the engine validates and publishes canonical JSON records + Markdown prose
-       -> wiki (generated)
-       -> QMD keyword and vector search (generated)
-  -> kb_brief, kb_recall, kb_connect, exact reads of records and source pages
-  -> explanation, teaching, application, new ideas, corrections, new questions
-  -> kb_file sends worth-keeping answers back in as cited syntheses
-```
+A model's weights don't change when you give it a book. It knows what is in its context at the moment it reasons. So "teaching" an agent a subject comes down to two questions: what gets written down when a source is read, and what reaches the context when work happens.
 
-The split is simple. The AI writes the meaning, and the engine keeps it honest: it checks structure, references, scope, reading coverage, quotes and that publication is consistent. Those checks can't tell you an interpretation is *right*, only that it's well-formed and grounded. The wiki and the search index are both generated from the same published records, and the engine reads the links straight from those records. Think of them as windows onto one library, not separate readings of the source.
+Left to itself, an agent writes one summary document per source. That is easy to produce and poor to build from: knowledge stays organized by book, the same idea is told three times in three summaries, and nothing connects them. Know Fu's earlier versions went the other way and stored a small note per point, hundreds per book. That restated the source at most of its length and still had no page that said what the subject's principles were.
 
-The engine is one MCP server, and any agent that launches it gets the same tools. `plugin/` packages it for two: Codex through `.codex-plugin/plugin.json` and a generated `.mcp.json`, Claude Code through `.claude-plugin/plugin.json`, with one shared skill. The server lists eleven everyday tools. `kb_lifecycle`, `kb_evaluate`, `kb_propose`, `kb_change` and `kb_retrieve` are listed only when `KB_ADVANCED_TOOLS` is set (`exposedTools` in `api.ts`), and the CLI always accepts all of them.
+Know Fu 0.6 takes a third shape, the one an expert's knowledge has: a few principles, each with the specifics that are cases of it.
 
-## Records
+## The four layers
 
-Everything in the library is a record. The [record schema](../contracts/schemas/record.schema.json) gives every record the same shared metadata, plus a payload for its family:
+| Layer | File | What it holds | When it's read |
+|---|---|---|---|
+| Topic page | `knowledge/<domain>/<topic>/TOPIC.md` | A frame for the subject and 6 to 15 principles: statement, why, where it breaks, which accounts it governs, which sources hold it. Then tensions, a decision map, vocabulary, open questions | Whole, when work on the subject starts |
+| Accounts | `…/accounts/<name>.md` | One idea each: a mechanism, method, case, reference table or debate, with its numbers and page citations | The few a task needs |
+| Source map | `sources/<id>/source.md` | A digest of every stretch of the source, with page ranges, and what the source changed in the library | When looking for where a source covers something |
+| Source text | `sources/<id>/text.txt` | The extracted original, a unit per page, section or two minutes of recording | A page at a time, to verify or get detail |
 
-| Family | What it holds |
-|---|---|
-| `source` | An original source's identity and how it was extracted |
-| `passage` | A located piece of a source, including evidence tied to page images or frames |
-| `concept` | A definition, its scope and the distinctions that matter |
-| `knowledge` | An assertion, explanation, mechanism, procedure or synthesis |
-| `relationship` | A typed, reasoned link between exact record revisions |
-| `judgment` | A reasoned assessment of competing or overlapping accounts |
-| `learning` | A primer, lesson, worked example, near miss, application or teaching sequence |
-| `question` | A gap in the library, what it's grounded in, and whether it's resolved |
-| `idea` | A candidate invention: its statement, premises, kill test, pass rule, status and the results reported by outside tools. Kept apart from knowledge (see [Ideas](#ideas)) |
+Each layer is an entry point. A broad design task starts at the topic page. A precise lookup goes straight to an account or a page.
 
-The shared fields are `id`, `revision`, `corpus_id`, `maintenance_module`, `scope`, `provenance`, `epistemic`, `assessments`, `depends_on`, `supersedes`, `lifecycle`, `archived`, optional `extensions`, and an optional `body` path and hash. The full explanation lives in `body.md`. Metadata never stands in for the prose.
+The layers depend on each other in one useful way. The agent can compress hard when it writes accounts because the source text is still there underneath. Nothing is lost by leaving common knowledge and the author's repetition in the source.
 
-### Identity, provenance and labels
+## What gets stored: the delta
 
-An id plus a revision names one exact meaning at one point in time, a bit like a commit. A release says which revisions are current. Provenance ties each meaning to its sources and to the records it was built from, and names the agent that wrote it (`provenance.actor`, from the launcher's `KB_ACTOR`: `codex`, `claude`, or `unspecified` when the launcher doesn't say). A source also carries its evidence family, independence and the sources it derives from, set when it's registered; sources in one family count once toward independent support. Epistemic labels keep a source's own account apart from synthesis, inference, hypothesis, judgment and illustration, so you always know whose claim you're looking at.
+The reader is a frontier model that already holds the common knowledge of most fields. An account earns its place by what it adds to that: the author's frame, surprising claims, numbers and thresholds, the order of steps, decision rules, failure modes, worked cases. The ingest guide gives the test as a question: would a strong general model, asked cold, already say this with this precision?
 
-### Assessments
+This matters for more than cost. Research on agent context files and self-written skills in 2026 found that text a model writes for itself, carrying what it already knew, was neutral or slightly harmful, while curated material helped most where the model's training was thin. A library of restated common knowledge would make an agent slower and no better.
 
-Three questions get answered separately, because they really are different: did we read the source right (fidelity), how well supported is the claim (evidence), and does it hold in this case (applicability). A faithful account of an author can still be a badly supported rule.
+## How understanding accumulates
 
-Each assessment is a level (`low`, `moderate`, `high` or `unknown`, or `not_assessed` when nobody looked) with a rationale and an optional context. An evidence assessment also names its `basis`, the kind of support the source actually shows, from `review_of_studies` through `bare_assertion` to `our_inference`. `kb_write` refuses three things: a level without a reason, an evidence level without a basis, and `high` from a worked case, a bare assertion or an inference unless at least two independent source families stand behind the note.
+An account is the unit, and it belongs to an idea, never to a source. Its `sources` field lists every source that speaks to it. When a new source arrives, each idea it carries gets one of five outcomes: the library already holds it (add the source and anything new), it extends an account (revise in place), it disputes one (write a debate account both sides link to, and keep both), it is new (write an account), or any model already knows it (leave it in the source).
 
-Recall puts the levels to work. It shows them on each account's identity line with their reasons, and wherever a challenge link or a judgment joins two accounts, it sets both sides next to each other. `kb_brief` does the same for live disagreements. What levels never do is change the ranking or pick a winner.
+So the tenth book on a subject adds far less text than the first, and changes the topic page more than it lengthens it. A principle the first book only implied becomes "stated" when the third book states it. A boundary gets sharper when a source shows a failure.
 
-### Extensions
+## The engine
 
-Three optional extensions carry extra structure. `extensions.navigation` holds an authored one-line summary where the record's own fields don't give one. `extensions.citations` holds verbatim quotes from the record's cited passages, and each quote is checked against the passage text when the record is staged and again at publication.
+The engine does what an agent is bad at or shouldn't spend tokens on. It never calls a model.
 
-`extensions.functional_facets` says what an account does, so a record from another field can be matched by function rather than topic. Its slots are `purpose`, `mechanism`, `preconditions`, `failure_modes` and `evaluation_method`; each entry has `text` in the source's terms, an optional `abstract` wording in domain-free words, a `basis` and evidence refs. `kb_write` requires a purpose and a mechanism, both with abstract wordings, on every new `mechanism` and `procedure` note, and checks that each wording is short and that the abstract doesn't just repeat the text. A revision that only adds or edits facets isn't a change of meaning: it doesn't reopen dependents, clear pending flags or make a primer stale. `kb_brief` counts mechanism and procedure accounts that still lack facets. The abstract purpose and mechanism wordings are indexed on their own (`LibraryIndex.functional`), and invent recall uses that index to find accounts in other topics that do the same job, and shows each loaded account's wordings on a `Does: … · By: …` line.
+| Part | File | Job |
+|---|---|---|
+| Extraction | `engine/extract.ts`, `sources.ts` | PDF to page text with Poppler; text and Markdown to sections; subtitles and timestamped transcripts to time units; EPUB, DOCX and HTML through pandoc; audio and video through a transcription API, with frames sampled once a minute. Page images and video frames on request |
+| Library model | `engine/library.ts`, `frontmatter.ts` | Reads the folder into memory: topics with their principles, accounts with their links and citations, sources with their units and maps |
+| Checker | `engine/check.ts` | Frontmatter, links, citations, quoted words against the source text, principles, source maps, sizes, and words compiled against words read. Writes the derived parts: each principle's Governs line, `_index.md`, `INDEX.md`. Commits to git |
+| Search | `engine/search.ts` | A SQLite full-text index under `.knowfu/`, rebuilt a file at a time when a file changes |
+| Reading | `engine/recall.ts` | `brief`, `recall`, `read`, `connect` |
+| Serving | `engine/tools.ts`, `mcp.ts`, `cli.ts` | The nine tools, over MCP and from a shell |
 
-`extensions.decision_points` belongs to `procedure` accounts. Each point has a `cue` (when the choice comes up), the `decision`, two to five `options` (`when` and `then`), an optional `check`, a `basis` (`source_stated`, or `inferred` when the source skips the choice) and evidence refs, which must be passages the account itself cites. Recall renders them as a tree for `teach` and `apply`. Adding them is a real revision of the procedure, so dependents go pending.
+It is TypeScript that Node runs directly, with no build step and no installed dependency. The MCP server is written by hand, because the protocol surface it needs is five methods.
 
-### Rules that keep history trustworthy
+### Recall
 
-Only CURRENT and the releases it descends from can be read by exact revision. A candidate release left behind by an interrupted publication doesn't count as evidence. Its object files don't block a corrected retry either: when the same revision number is published again with different content, the leftovers are removed, but only after proving no committed release includes that revision. Ordinary edits keep lifecycle, archive and supersession state as they were. A revision keeps its record family and owning module; changing ownership is its own operation, not a relabel slipped into a proposal. Whole-library export and format generation need read access to every module, and restore needs write access to every module too.
+`kf_recall` ranks principles and accounts with BM25 over title, summary, keywords and body, title weighted highest. An account under a principle the question also matched gets a small lift. It then packs a briefing to a token budget, in this order: the principles in play, the best accounts in full, any account that disputes or qualifies a loaded one, one line each for other matches, and where the source text speaks to the question.
 
-Relationship predicates are `supports`, `challenges`, `qualifies`, `depends_on`, `explains`, `exemplifies`, `applies_to` and `derived_from`. A relationship is itself a record, so its rationale can be revised and cited like anything else. There's deliberately no `analogous_to`.
+Two rules hold whatever the budget. The best match is always delivered whole. And an account that disputes or qualifies a loaded account is always named, because dropping a caveat to save tokens produces a confident wrong answer.
 
-A judgment can find that two accounts cover different scopes, are compatible, that one qualifies the other, that there's a provisional preference, that one interpretation is superseded, or that the question is unresolved. Conflicts stay in the library to reason with. Supersession is a justified revision, never the deletion of the losing source.
+A list of sub-questions is ranked per sub-question and merged, so each one's best match is present. `load: "gists"` returns one line per match and loads nothing, for choosing before reading.
 
-## What's on disk
+### Why there are no embeddings
 
-Paths are relative to the library folder, and some only appear after their first use.
+Search is lexical. Three things make that enough at this size. Every account has a title, a one-line summary and optional keywords written for finding it. The topic page tells the agent the library's own vocabulary before it searches. And the agent can rephrase. A 2026 study found an agent using grep and file reads beat a strong embedding retriever on a research benchmark, with the advantage fading only past a hundred thousand documents. A personal library won't get there. If lexical search starts missing in practice, an optional embedding channel is the next step, and the 0.5 branch has one.
 
-```text
-corpus.json                         Library identity, modules, domains, project bindings
-dimensions.json                     Registered applicability dimensions, when configured
-CURRENT                             The current release id
-objects/
-  <record-id-with-colon-as-underscore>/<revision>/
-    record.json                     Canonical structured meaning
-    body.md                         Canonical explanatory prose, when present
-sources/
-  <source-hash-prefix>/1/
-    original.<extension>            The original bytes
-    registration.json               Registration metadata
-    extractions/<job-id>/           Extracted units, locators and page or frame images
-releases/
-  <release-id>.json                 Revisions in the release, their paths and hashes
-  <release-id>.impacts.json         Accounts awaiting reassessment after the release
-jobs/<job-id>/                      Requests, staged records, coverage, receipts, note slugs, the log of units served (reads.jsonl)
-audit/events/<event-id>.json        Authoritative operation events
-audit/events.jsonl                  Derived event stream, appended per event
-audit/journal-state.json            Tells the journal when it must be rebuilt
-log.md                              Derived readable activity log
-lifecycle/ledger-generation.json    Which generation of the deletion ledger matches this library
-retrieval-receipts/                 One receipt per recall, read or retrieval call
-exports/ideas/                      Idea exports for outside tools
-views/
-  receipt.json                      Which views are ready for which release
-  <release-id>/
-    wiki/_index.md                  Orientation index of active records
-    wiki/_domains/<domain-hash>.md  Domain pages: primers, summaries, typed connections
-    wiki/_records.md                Every record and piece of evidence
-    wiki/<record-id-hash>.md        One generated page per record
-    catalogue.json                  Exact identities and navigation summaries
-    search/<module-hash>/           Search documents per module
-    search-map.json                 Search document to exact record mapping
-    file-hashes.json                Integrity hashes for the views
-```
+### Why there is no graph database
 
-Jobs can also hold raw API responses and reservations for paid requests, and publication uses short-lived journal and lock files. Treat this listing as a map: the schemas and the engine define the exact structures. Reindexing clears out the view folders of older releases, except one holding a wiki edit that hasn't been imported yet.
+Connections are written where a reader sees them: a link in a sentence, or a typed line under an account's Connections heading with the reason beside it. `kf_connect` reads those links into memory and walks them. Typed relationship records in a database cost a lot to write and maintain, and the measured gains for graphs come from weak models on multi-hop questions; a strong agent reading linked prose reaches the same places.
 
-The wiki has full record pages, domain pages and an orientation index, built from authored summaries and existing primers. It never generates summaries on the fly, so a missing summary stays visibly missing. Summary and body search documents point at the same record and never count as two sources. These files contain the whole library, which is why scoped tools filter what they reveal before showing any title, count or membership.
+## Ownership and history
 
-If you want to change a generated page, import the edit with `kb_maintain {action:"wiki_edit"}` and publish it as canonical prose. Rebuilding won't overwrite an edit you haven't imported, and if a later publication has moved on, `wiki_edit` still finds the edit in the older view it was kept in (or the one you name with `view_release`) and tells you which revision it was made against. Domain pages and catalogues can always be rebuilt, and their hashes and release binding stop a same-sized edit from passing as current.
+The Markdown files are the library. `INDEX.md`, each `_index.md` and the search index are generated and can be deleted. Each principle's Governs line is also generated, from the `principles` field of the accounts, so the topic page's links can't drift from the accounts.
 
-## The recall index
+History is git. `kf_check` with a commit message writes a line to `log.md` and commits. Going back is `git revert`. Originals, page images and frames are left out of git by the library's `.gitignore`; they sit in the folder and don't change.
 
-This is the 1.2.0 "reading desk". `kb_recall`, `kb_brief` and `kb_connect` all read from a `LibraryIndex`: one scoped snapshot of a release, held in memory. It contains the usable records and their bodies, a BM25 index over titles, summaries, bodies and passage text, and a map of every link.
+One session writes at a time. The home session, opened in the library folder, is the only one that ingests or edits, and a lock file stops two of them overlapping. Any other session reads, and can save a note to `inbox/`. This is also why Claude Code and Codex can share one library.
 
-Links come from several places: relationship records (weighted by predicate), concept, knowledge, issue and related references, judgment alternatives, record-to-record inputs and passage citations. Every link also knows how it reads in each direction ("builds on" one way, "is a prerequisite for" the other) and carries the relationship's rationale. The snapshot is built once per combination of control signature (binding, deletion ledger, CURRENT), release and scope, then reused for as long as the MCP process lives. It applies the reading rules before anything else sees the data: scope and source restrictions, withdrawal anywhere in a record's exact inputs, archive state and pending reassessment. Reliance is worked out by `blockedIds` in `core.ts`, a fixed-point calculation that progressive reading uses too, so the answer never depends on the order records are visited or on cycles that later revisions create.
+## Deliberate use and pinning
 
-### kb_recall
+The library's value comes from its owner's curation, so Know Fu's tools stay closed in a chat until the owner invokes the skill there. In Claude Code a hook enforces that.
 
-Recall ranks with three channels and fuses them by reciprocal rank (k = 60), each hit's share scaled by its score against its channel's best (`fuseRankings` in `recall.ts`). Plain reciprocal rank keeps only positions, so first and ninth place differ by about 13% whatever their scores; with the scale, a clear margin in a channel survives, and the purpose prior decides between close matches:
+Pinning is the exception the owner chooses. `kf_pin` ties a topic to a project folder. Sessions there start with a short block in context, written by a SessionStart hook: the topic's frame in a paragraph and each principle in a sentence, with how to load the rest. The tools are open there without invoking. The block is kept short on purpose. A 2026 study of agents over a large wiki found they did as well with a cheap targeted lookup as with a preloaded index, at lower cost, so what loads up front is the principles and never the catalogue.
 
-- BM25 keyword search.
-- The semantic index, when the best keyword match holds less than 70% of the query's terms, fewer than five accounts match, or the caller forces it. It searches QMD's vectors with the `local` embedder, or the engine's own stored vectors with an `api` embedder.
-- Personalized PageRank seeded from the best text matches. It spreads along links for many steps, fading as it goes, which is how an account three links away can surface with no words in common with the question.
+## What was left out
 
-Purpose, domain, pending reassessment and filed-answer priors nudge the score. Packing then follows rank order inside the budget, costing each account by the block it will actually render as, and the best match always arrives whole. Each packed account brings its baggage with it: the accounts or passages that qualify or challenge it, and its current judgments. Explain and teach also bring conceptual prerequisites and a foundations-first reading order, and teach and apply render procedures' decision points as trees.
+Releases, proposals, staged jobs, lifecycle plans, a deletion ledger, modules, per-folder access levels and an evaluation harness all existed in 0.5 and are gone. Git covers versioning and rollback. The home-session rule covers access. Retiring an account (`status: retired` with a reason) covers withdrawal without deleting anything.
 
-Invent adds a slate after the matches: ideas on file (ranked by words shared with the query plus premises among the loaded accounts), bridges into other domains (accounts within four links of the matches, ordered by PageRank from them, plus accounts whose abstract facets match what the matches do), and loose ends (matched accounts in the same domains with at most one link). Bridges only show with `cross_domain:true`; otherwise the briefing gives a count. With `domains` set and `cross_domain` off, candidates outside those domains are dropped before packing. The slate's size is measured after a first packing pass, and only if it doesn't fit are the matches packed again leaving room for it, up to a fifth of the budget. Investigate adds up to three gap suggestions for the loaded accounts, from `gaps.ts`.
-
-Then comes the guard pass, and it's the part that must never be skipped. Recall hands the loaded matches to the same resolver progressive reading uses, `ResearchView.materialContext`. That resolver follows each account's exact premises and returns what has to travel with it: premises with their own conditions, validity limits or pending reassessment, plus qualifications, challenges and current judgments on any of them, including ones published after a pinned release. Each guard is packed if it fits, or named under "Caveats not loaded" if it doesn't, whatever the rank, graph setting or budget. Premises that only repeat a boundary the loaded accounts already show are left out.
-
-Anything that doesn't fit gets listed rather than silently dropped. The optional lists (related accounts, open questions) are trimmed to what the budget has left, and the reported `budget.used` is the whole delivered briefing; a briefing that runs over says so. The briefing is Markdown; the API also returns the item list, each channel's status and the budget, and every call writes a retrieval receipt.
-
-### kb_brief
-
-The brief uses the same snapshot to sketch each domain: its newest primer, and whether any account in the domain was published or revised in a later release (in which case the primer may be stale); the most central accounts by global PageRank; unresolved judgments; open questions ranked by impact and effort; and what recent in-scope ingestion reports say they added.
-
-Under each domain's recorded questions, the brief lists up to three it computes from the library's shape (`gapSignals` in `gaps.ts`), marked as not yet recorded: a `challenges` link with no current judgment on either side, an account that two or more others build on (`depends_on`) resting on one source family without a moderate or high evidence level, and a mechanism or procedure with at least two links and no conditions, exclusions, preconditions, failure modes or qualifying links. An open question whose `related` accounts cover the same records suppresses the suggestion. When ideas exist, one line counts them by status and names how many have a changed or lost premise.
-
-### kb_connect
-
-Connect searches the same link map. Give it two endpoints and it runs a best-first search over simple paths up to `max_hops` (default 4). Each hop costs according to its link weight, plus a small penalty for passing through a highly connected hub, so chains through specific accounts beat chains through some catch-all idea. It returns the strongest distinct chains, with each hop's direction and rationale. Give it one endpoint and it lists accounts two or more hops out, split into other domains and the same domain, each with its strongest chain. Endpoints can be ids or a few words, which resolve to the best keyword match.
-
-### kb_file
-
-A filed answer goes through the normal proposal compiler and publishes without an ingestion job. Filing needs the save capability, which a library's `access` setting can give to every folder, so answers can be kept from the project where they were worked out. Its provenance method is `filed_answer`, its inputs are the exact revisions it cites, and its sources are theirs, so it can never count as an extra source. When any cited revision changes, knowledge impact marks it pending like any other dependent account.
-
-## Ideas
-
-`kb_idea` writes `idea` records without an ingestion job, through the same compiler and publish checks as everything else (provenance method `idea`). The point of the family is the walls around it, and each one lives in the engine rather than in the guides:
-
-- Publish (`store.ts`) refuses any non-idea record whose references reach an idea, so nothing can cite, link, judge or build on one. Job proposals can't contain ideas at all.
-- `LibraryIndex` and `ResearchView` never count an idea as usable. Ideas sit in their own map (`LibraryIndex.ideas`) with their own BM25 index, so recall's normal channels, the link map, `kb_connect`, `kb_file` citations and progressive reading never see them. Packet retrieval skips them, and the search projection leaves them out (they keep a wiki page). Only invent recall reads the idea map.
-- `checkIdea` in `idea-rules.ts` runs at publish. Premises are accounts or passages, and an idea input must be a listed parent with a decisive result. Results are append-only, at most one per revision, and each must be judged by the pass rule the previous revision declared. Once any result exists, the statement, kill test, pass rule and premise ids are fixed. The stored status must equal the one the results imply (`ideaStatus`), except `dormant`.
-- Premises are ordinary `input_refs`, so knowledge impact marks an idea pending when one changes, like any dependent. The reweave plan leaves ideas out, so ingestion never has to reassess them, and any later revision of the idea moves its premises to their current revisions and says which moved.
-
-Export writes `exports/ideas/ideas-<timestamp>.json` in the `know-fu-ideas-1` format: each idea with its premises (titles, summaries, source titles and whether they're still current), lineage, ratings, results and total trials.
-
-## Progressive reading
-
-`kb_retrieve {mode:"progressive"}` returns orientation candidates, necessary reading and traceable support, and `kb_read` opens catalogues, domains, accounts, batches of up to 12 accounts, sections and material context. The [reading request](../contracts/schemas/reading-request.schema.json) and [response](../contracts/schemas/reading.schema.json) contracts are interface version 1.0.0.
-
-These, along with the packet route (`kb_retrieve` with no mode), stay around for comparison; `kb_recall` is the routine route. Why not progressive reading? A comparison on 4 October 2026 found it cost more than the packet in total, because every extra reading turn resends the whole conversation.
-
-Its rules still matter, though. Qualifications, challenges, conceptual prerequisites and current judgments are resolved from the canonical records, independently of the graph. The engine follows exact inputs to find inherited caveats without loading every supporting body. Keep the two kinds of dependency straight: a record's top-level `depends_on` lists its exact inputs and drives invalidation, while a relationship with predicate `depends_on` states a conceptual prerequisite. Both keep their direction. Sections are bound to the release, the exact revision and the body hash, and a section read is always marked partial.
-
-## Note authoring
-
-`kb_write` parses Markdown notes with YAML frontmatter and builds a proposal for the job. Slugs become local references, saved in `jobs/<job>/slugs.json` so later batches can use them. Cited unit ids become passages copied exactly from the extraction mapping, reusing a passage that already holds the same unit. `links` become relationship records with the note as subject. A `revises` note starts from the current revision of its target and inherits whatever it leaves out. Then the proposal goes through exactly the same validation as `kb_propose`.
-
-## Ingestion and evaluation
-
-Ingestion jobs use workflow version 2. The reweave plan covers explanations, lessons and questions affected by changed inputs, or by new, changed or retired material relationships. A revised or reaffirmed decision needs a staged revision behind it; unresolved or out-of-scope targets stay pending. Decisions are bound to the staged meaning and expire if it changes. The check receipt records what understanding was added, which revisions changed, what's unresolved and which checks were actually run, plus a digest of exactly what was staged. Publication refuses if staging changed after the check (`CHECK_STALE`), and a proposal that arrives after the check sends the job back to it. The ingestion report survives an interrupted publication. Older jobs keep their original workflow, and `coverage_all` marks every remaining unit of the current stage in one go.
-
-Reading is checked rather than taken on trust. Jobs created since 7 October 2026 carry `read_receipts: true`. `readUnit` appends each serve (unit, character range, total length) to `jobs/<job>/reads.jsonl`, and a reconstruct receipt that marks a unit complete is refused unless the served ranges cover the unit from start to end; excluded units still only need a reason. The ingestion report adds `reading`: units, excluded, read in full and the ratio. This proves the text went out, not that the agent understood it. Older jobs report `reading: {tracked: false}`.
-
-Version 3 evaluations freeze the implementation, cases and rubrics, release, scope, model, budgets and conditions. Interactive conditions read through a pinned, read-only MCP reader, and fixed-packet and source-only controls keep their own names. The reader records chosen summaries, opened bodies and sections, graph routes, repeat reads, delivered characters and unmet requirements. Codex-reported input includes repeated context. The input-token ceiling is checked after the run, while tool-call, evidence and time limits are enforced during it. Separate quality dimensions and decisive failures stop a good average from hiding a lost condition. Sending extra source text to a grader needs a per-run authorization naming exact references or hashes. [Operations](../skills/know-fu/references/operations.md) has the details.
-
-## Links and search storage
-
-The links are part of the records. A relationship record names its subject, its object, a predicate and the reason it was written, and every record lists the exact revisions it rests on. The engine reads these into memory. `LibraryIndex` builds the link map that recall, brief, connect and invent follow, and `linkedRelationships` in `retrieval.ts` finds the relationships touching a set of records for the older packet and progressive routes. Nothing is copied into a database, so there's no second copy to rebuild, check or purge.
-
-Until 12 October 2026 a FalkorDB server held a copy of the links as a view. By then nothing answered from it, and on Windows it was the only reason to install WSL2, so it was removed. An older setup's FalkorDB data is a stale copy that purges no longer reach; [setup](setup.md#upgrading-from-a-falkordb-setup) says how to clear it.
-
-QMD keeps a local keyword and vector index over the generated Markdown, in two collections per module: accounts and text passages, which recall can return and which get embedded, and relationship, source, figure-locator and summary documents, which stay keyword-only for the older routes. Its configuration and model cache live under the state folder (`KB_STATE_DIR`, or the engine's `.runtime/` by default), and its status command reports on the index. With an `api` embedder (`embedder.ts`), the engine calls an OpenAI-compatible `/embeddings` endpoint instead and keeps the vectors under `<state>/cache/vectors/`, keyed by a hash of the text embedded, so a later release re-embeds only what changed. All of it can be rebuilt from the library.
-
-Reindex builds the wiki and the keyword index under the `projection` lock, then embeds under its own `semantic` lock. Under MCP the embedding runs after the call returns, in slices for QMD, recording progress in `views/receipt.json` (`semantic`); an engine that exits part-way leaves the receipt `interrupted`, and the next reindex resumes from the stored vectors. Recall uses keywords and links until the receipt says `ready`.
-
-The engine also keeps verified canonical files in a bounded cache. Access policy, the deletion ledger, its generation and the release pointer are reread on every request and checked again before anything is returned. A cached file is only reused if its path and filesystem fingerprint still match; a changed file gets reread and checked against its expected hash. So the cache makes repeat reads fast without ever becoming an authority. It does assume an ordinary local filesystem, not an adversary who can fake file identity and every timestamp.
-
-Search runs through QMD's SDK in a reusable local worker that closes its database and model handles after each request, exits after 60 seconds idle, and restarts after a timeout or crash. Reindex and purge stop it first. It's an internal process, not a service you install, and no local reasoning model is involved.
-
-## Scope and recovery
-
-One library can hold several maintenance modules and domain tags. The calling folder (`KB_PROJECT`, the chat's folder) decides what a call may do, per module, in four capabilities: read; save (`kb_file`, and `kb_idea` writes); author (ingestion, notes, proposals, jobs); and administer (configuration, lifecycle, import, restore, whole-library verify and export, evaluation). `src/access.ts` holds the one table of what each tool call needs, and every write also checks inside its own operation.
-
-A folder gets its capabilities from, in order: its own binding in `project_bindings`; with an `access` setting, the binding of the closest folder that contains it; with an `access` setting, the library's default for folders without a binding (`access.any_project`), which never administers; otherwise nothing. A binding's `write_modules` means save, author and administer unless the optional `save_modules`, `author_modules` and `administer_modules` split them. `access.home_project` is the library's home folder, where ingestion and administration happen by default. Libraries without an `access` setting keep the older rules: exact folder matching, and nothing for an unbound folder.
-
-Refusals keep the code `SCOPE_DENIED` and say what the folder can do, how it got that, and where the refused work is done, naming the home folder but never another folder's binding. `kb_status` shows the full configuration only to a folder that administers every module, and gives every caller an `access` block describing its own access. Retrieval receipts and audit events record the real calling folder and agent; the engine never substitutes another identity. These are checks inside the application, not an operating-system security boundary against someone with direct file access. Read access also lets material leave the library: an answer read in a chat can end up in that chat's files, where a later purge can't reach it. Cross-domain use stays scoped rather than blending everything into universal advice.
-
-Keep the library together with its deletion ledger, which lives under the state folder's `ledgers/` (by default the engine's `.runtime/ledgers/`). The ledger sits outside the library on purpose: restoring an old library can't quietly bring back knowledge you purged. It blocks whole ids, and also exact historical revisions (`blocked_refs`): when an account was revised to independent material before its source was purged, the current revision stays, and the earlier source-derived revisions are deleted and refused. And the generated wiki and search index are not a backup. [Setup](setup.md) covers the rest.
+Docling and its Python environment are gone too. When a table or formula matters, the agent looks at the page image, which is the check that had to happen anyway.

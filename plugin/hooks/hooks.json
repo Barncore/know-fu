@@ -1,6 +1,17 @@
 {
-  "description": "Opens Know Fu's tools in a chat only after the user invokes /know-fu:know-fu there.",
+  "description": "Keeps Know Fu deliberate: its tools open in a chat after the user invokes /know-fu:know-fu, or in a project the owner pinned a topic to. A pinned project also starts each session with that topic's principles in context.",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/session.mjs\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [

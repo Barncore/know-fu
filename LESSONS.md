@@ -2,6 +2,26 @@
 
 Things this project learned the hard way, newest first. Each one says what happened and what to do differently.
 
+## 2026-11-10 - The unit of knowledge decides everything downstream
+
+Versions up to 0.5 stored a small note per point per source. The first real book came out as 425 notes totalling 63% of the book's length, joined by 583 relationship records, and the six notes that stated the book's organizing ideas were written on the agent's own initiative. Every later problem traced back to that unit: ingests were slow because there was so much to write, revision across sources was impractical at 400 notes a book, and retrieval returned many near-matches. Three weeks of fixes had gone into speed, ranking and staging, all downstream of it. Before tuning a pipeline, measure what it produces against what went in (words compiled against words read is one line of code) and ask whether the unit is the one a reader needs.
+
+## 2026-11-10 - Store what the reader lacks, not what the source says
+
+The reader of this library is a frontier model. 71 of the 0.5 library's records defined terms like mastering and resonance, which any model already knows. Research on agent-written context in 2026 found that text restating what a model knows is neutral or slightly harmful, and that curated material helps most where training is thin. Decide what to keep by asking what the reader would get wrong or couldn't say without it, and keep the original searchable so that leaving something out loses nothing.
+
+## 2026-11-10 - Size the machinery for the user you have
+
+0.5 had releases, proposals, staged jobs with receipts, lifecycle plans, a deletion ledger, modules, access levels and an evaluation harness: about 800 KB of TypeScript and 76 KB of guides for an agent to read before working. Each piece answered a real risk for a shared product, and the library had one owner. Git already gave versioning and rollback. When a safeguard is proposed, ask what one person with one library and git would actually lose without it.
+
+## 2026-11-10 - Nothing to install is a feature worth designing for
+
+A clean clone of 0.5 needed a C++ toolchain for one native module, a 1.1 GB Python environment for PDF tables, and a build step whose output could go stale. 0.6 runs TypeScript directly in Node, uses Node's built-in SQLite, and reads a table by looking at the page image. The plugin folder is the whole product, so a host can copy it anywhere and it runs. Check what the runtime already ships before adding a dependency.
+
+## 2026-11-10 - Derive what can drift
+
+A topic page lists the accounts each principle governs, and each account names its principles. Two hand-kept copies of one fact drift, and two practitioners who ran LLM wikis for six months both reported stale cross-references as what broke first. One side is now authoritative (the account's `principles` field) and the checker writes the other. When two files must agree, pick the owner and generate the rest.
+
 ## 2026-10-20 - Measure what the model writes, not what the tools do
 
 A book ingest took five and a half hours, and the engine's own timings looked fine: every call came back in about a second. The time was the model streaming output, and half of that output was the same notes sent again, because the guide asked for a dry run before every real call and a refused batch had to be resent whole. Claude Code's logged `output_tokens` undercounted it badly; the characters written into tool inputs told the truth. When an agent workflow is slow, count what the model writes per step, and look for anything it has to write twice. Prefer tools that take a file path over tools that take the content inline, so a fix is an edit, not a resend.

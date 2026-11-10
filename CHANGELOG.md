@@ -2,7 +2,31 @@
 
 Changes after this baseline belong here with their reason, affected behavior/docs, validation and migration implications. Git records exact file history; this file explains why it changed.
 
+Entries before 0.6.0 describe the earlier engine, and the files and tools they name (`src/`, `contracts/`, `docs/VALIDATION.md`, the `kb_*` tools) are in git at the tag `v0.5.0`.
+
 ## Unreleased
+
+### 2026-11-10 - 0.6.0: a rebuild around principles, accounts and plain files
+
+Why: the owner asked for the architecture to be assessed from scratch, with the direction left to the agent and the old version kept. The first real book ingest under 0.5 had produced 425 notes that restated a 134,000-word book in 84,000 words, with 583 relationship records, 448 passage records that copied text the library already held, and no page that stated the book's principles. The assessment (`docs/REBUILD.md`) found the cause in the unit of knowledge, a small note per point per source, and not in any bug. Version 0.6 replaces the design. Version 0.5 is kept as the tag `v0.5.0` and the branch `records-engine-0.5`.
+
+- **The library is plain Markdown.** `knowledge/<domain>/<topic>/TOPIC.md` holds a subject's frame and principles; `accounts/<name>.md` holds one idea each, cited to pages; `sources/<id>/` holds the original, its extracted text and a map; `ideas/` holds candidate inventions. The files are the only copy. History is git. The format is in `plugin/skills/know-fu/references/format.md`.
+- **A principles layer.** Each topic page states 6 to 15 principles, each with a statement, why it holds, where it breaks, which sources hold it, and the accounts it governs. The checker refuses a principle with no boundary and one that governs no account.
+- **The delta rule.** An ingest keeps what a strong general model wouldn't already say and leaves the rest in the source, which stays searchable by page. The checker reports words compiled against words read and warns above 30%.
+- **One account per idea, revised in place.** A new source adds itself to the accounts it bears on. A disagreement becomes a `debate` account that both sides link to.
+- **A new engine with nothing to install.** `plugin/engine/` is TypeScript that Node 22.18 or newer runs directly, using `node:sqlite` for full-text search. No build, no npm packages, no Python environment, no C++ toolchain. The MCP server is written by hand.
+- **Nine tools replace sixteen:** `kf_status`, `kf_brief`, `kf_recall`, `kf_read`, `kf_connect`, `kf_source`, `kf_check`, `kf_note`, `kf_pin`. Every one also runs from a shell through `plugin/engine/cli.ts`.
+- **Recall** leads with the principles in play, loads the best accounts whole within a token budget, always names an account that disputes or qualifies a loaded one, lists other matches as one-line gists, and points into the source text. It takes a list of sub-questions.
+- **Extraction:** PDFs through Poppler, with page images and layout-preserving text on request; text and Markdown as sections; `.srt`, `.vtt` and timestamped transcripts as time units; EPUB, DOCX and HTML through pandoc; audio and video through an OpenAI-compatible transcription API, gated on a cost the owner approves, with a frame sampled each minute.
+- **The checker** verifies frontmatter (a strict subset of YAML that refuses what it can't represent), links, citations, quoted words against the source text, principles, source maps and sizes. It writes each principle's Governs line and the indexes from the accounts, so they can't drift.
+- **One library for every agent**, with one writer at a time: the home session, opened in the library folder. Other sessions read, and save notes to `inbox/`.
+- **Pinning.** `kf_pin` ties a topic to a project. A SessionStart hook then puts that topic's principles, a sentence each, into every session there, and the gate lets the tools run there without invoking the skill.
+- **Guides:** `SKILL.md` and three references (`ingest.md`, `format.md`, `use.md`) replace seven. They total about 6,000 tokens, down from about 19,000.
+- **Removed:** JSON records and schemas, releases, proposals, jobs and receipts, lifecycle plans and the deletion ledger, modules and per-folder access levels, the evaluation harness, the packet and progressive routes, QMD and both embedders, Docling and the Python converter environment, `kb_file` (a kept answer is now a note or a `case` account) and the `kb_idea` state machine (ideas are files with the same walls, enforced by the checker).
+- **Scripts:** `scripts/install-codex.mjs` replaces `install-plugin.mjs` and `configure-plugin.mjs`. Claude Code installs the plugin folder as it is. `scripts/check-release.mjs` now also checks that the three version numbers agree.
+- **Docs:** `README.md`, `AGENTS.md`, `docs/NORTH_STAR.md` (rewritten: intent, the theory, every owner decision with what became of it), `docs/REBUILD.md` (the assessment, the plan, the acceptance run), `plugin/docs/architecture.md`, `setup.md` and `lineage.md` (which now marks how each research finding was read). `ROADMAP.md`, `VALIDATION.md`, `PERFORMANCE.md`, `IMPLEMENTATION.md`, `MAINTENANCE.md` and `ACCEPTANCE.md` described the 0.5 engine and are gone from the working tree; they are in git at `v0.5.0`.
+- **Tests:** 19 pass, run with `npm test` and Node's own runner. They cover the frontmatter parser, extraction (a hand-built PDF, transcripts, a recording against a stand-in API), the checker's refusals, the derived parts, recall's ordering and its dispute rule, the home-session rule, the MCP handshake, the gate, the session hook and the command line. The PDF and recording tests skip where Poppler or FFmpeg isn't installed.
+- **Compatibility:** 0.6 doesn't read 0.5 libraries and changes nothing in them. The config file can hold both versions' settings. To bring a source across, ingest it again.
 
 ### 2026-10-20 - 0.5.0: a book ingest in under an hour instead of five
 

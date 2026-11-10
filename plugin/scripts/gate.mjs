@@ -1,6 +1,7 @@
-// Keeps Know Fu deliberate in Claude Code. The skill is manual-only, but the engine's tools are
-// listed in every chat where the plugin is on, so a model could call them without the skill.
-// This hook opens the tools only after the user has invoked /know-fu:know-fu in the chat.
+// Keeps Know Fu deliberate in Claude Code. The skill is manual-only, but the engine's tools are listed
+// in every chat where the plugin is on, so a model could call them without the skill. This hook opens
+// the tools only after the user has invoked /know-fu:know-fu in the chat, or in a project the owner
+// pinned a topic to.
 //   node gate.mjs prompt   (UserPromptSubmit) notes an invocation typed by the user
 //   node gate.mjs tool     (PreToolUse on Know Fu's tools) denies the call until the chat is open
 // Setting "deliberate_use": false in ~/.know-fu/config.json turns the gate off.
@@ -25,10 +26,11 @@ try {
   if (mode === 'prompt') {
     if (typed.test(String(event.prompt ?? ''))) open(marker);
   } else if (mode === 'tool') {
-    if (!deliberate() || fs.existsSync(marker) || invokedInTranscript(event.transcript_path)) {
+    const config = settings();
+    if (config.deliberate_use === false || fs.existsSync(marker) || pinned(config, event.cwd) || invokedInTranscript(event.transcript_path)) {
       open(marker);
     } else {
-      deny("Know Fu only runs when the user asks for it. The user hasn't invoked /know-fu:know-fu in this chat, so its tools stay closed. If the user wants the library, ask them to start their request with /know-fu:know-fu.");
+      deny("Know Fu only runs when the user asks for it. The user hasn't invoked /know-fu:know-fu in this chat and no topic is pinned to this project, so its tools stay closed. If the user wants the library, ask them to start their request with /know-fu:know-fu.");
     }
   }
 } catch (error) {
@@ -41,13 +43,27 @@ function open(marker) {
   fs.writeFileSync(marker, new Date().toISOString());
 }
 
-function deliberate() {
+function settings() {
   try {
-    const file = process.env.KNOW_FU_CONFIG || path.join(os.homedir(), '.know-fu', 'config.json');
-    return JSON.parse(fs.readFileSync(file, 'utf8')).deliberate_use !== false;
+    return JSON.parse(fs.readFileSync(process.env.KNOW_FU_CONFIG || path.join(os.homedir(), '.know-fu', 'config.json'), 'utf8'));
   } catch {
-    return true;
+    return {};
   }
+}
+
+// Two agents can spell one folder two ways (slashes, drive-letter case), so compare a normalized form.
+function same(a, b) {
+  const norm = p => {
+    const full = path.resolve(p).replace(/\\/g, '/').replace(/\/+$/, '');
+    return process.platform === 'win32' ? full.toLowerCase() : full;
+  };
+  return norm(a) === norm(b);
+}
+
+function pinned(config, cwd) {
+  const project = process.env.CLAUDE_PROJECT_DIR || cwd;
+  if (!project) return false;
+  return Object.entries(config.pins ?? {}).some(([folder, topics]) => Array.isArray(topics) && topics.length > 0 && same(folder, project));
 }
 
 // The prompt hook can miss an invocation, for example one picked from a menu, so check the chat's own record too.

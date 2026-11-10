@@ -6,150 +6,108 @@
   <img src="assets/i-know-kung-fu.gif" width="800" alt="Neo opens his eyes after the knowledge upload: I know kung fu">
 </p>
 
-**Feed your AI books, papers and videos. Get back an expert you can question.**
+**Feed your AI books, papers and videos. Get back a collaborator that knows the subject.**
 
-Know Fu is a local research library for an AI coding agent like Codex. You hand it a source, and the agent actually reads it: every page, every figure that matters. It writes down what it learned as connected explanations, then goes back over the older ideas the new source changes. The next session starts from all of that. It can explain a mechanism, teach it in a sensible order, apply it to a case it's never seen, weigh two authors who disagree, and tell you what's worth reading next.
+Know Fu is a local research library for an AI coding agent such as Claude Code or Codex. You hand it a source of specialist knowledge. The agent reads all of it and compiles what it learned into a library of plain Markdown: a page of principles for each subject, accounts that hold the specifics, and the original text kept searchable underneath. The next source doesn't get filed beside the first. It revises what's already there, so the library gets sharper as it grows.
 
-The model's weights never change. What grows is a library the AI can reach cheaply: mechanisms, procedures, concepts, worked examples, near misses, judgments about conflicts and open questions, each one tied to the exact page it came from. The goal is that moment in *The Matrix* when Neo opens his eyes and says "I know kung fu". The method is less cinematic: careful reading and very good bookkeeping.
+Later, when you're building something (a tool, a strategy, a course, an invention), the agent loads the subject's principles and works from them, fetching a number, a procedure or a worked case when a decision needs one.
 
-[Set up with your AI](plugin/docs/setup-ai.md) · [Roadmap](docs/ROADMAP.md) · [North star](docs/NORTH_STAR.md) · [Architecture](plugin/docs/architecture.md) · [Lineage](plugin/docs/lineage.md) · [Change log](CHANGELOG.md)
+The model's weights never change. What changes is what it can reach, and how well that's organized. The goal is the moment in *The Matrix* when Neo opens his eyes and says "I know kung fu".
+
+[Set it up](plugin/docs/setup.md) · [How it works](plugin/docs/architecture.md) · [North star](docs/NORTH_STAR.md) · [Lineage](plugin/docs/lineage.md) · [Change log](CHANGELOG.md)
+
+## The idea
+
+Three things decide whether a library makes an AI better at a subject, and Know Fu is built around them.
+
+**Store what the model doesn't already know.** A frontier model knows what a compressor is and what overfitting means. What it lacks from a specialist source is the author's frame, the claims that surprise, the numbers, the conditions where the usual advice breaks, and the worked cases. An ingest keeps those and leaves the rest in the source, which stays one search away. A first book on a subject usually compiles to a tenth or a fifth of its length.
+
+**Organize by principle.** An expert sorts a problem by the principle that governs it, and can work out what to do in a case no book covered. So every topic has one page, small enough to read whole, that states the subject's principles: what each one says, why it's true, where it breaks, and which accounts are cases of it. That page is what the agent loads first.
+
+**Hold each idea once, and revise it.** An account is one idea (a mechanism, a method, a case, a reference table, a debate), cited to the page. When a second source speaks to the same idea, the account is revised and both sources are listed on it. When two sources disagree, both stay, with an account of what separates them. That is how a library compounds.
 
 ## How it works
 
 ```mermaid
 flowchart LR
-  S[Books, papers, video] --> E[Extraction: page text, page images, transcripts, frames]
-  E --> N[The AI reads every unit and writes notes]
-  N --> L[(Library: versioned records and prose)]
-  L -. reweave: new notes revise older accounts .-> N
-  L --> B[kb_brief]
-  L --> R[kb_recall]
-  L --> C[kb_connect]
-  B --> A[The AI explains, teaches, applies, invents]
-  R --> A
-  C --> A
-  A -- kb_file: good answers go back in, cited --> L
-  A -- kb_idea: candidate ideas, kept apart --> D[(Ideas and test results)]
-  D -. invent recall only .-> A
-  L --> V[Views: wiki, QMD search]
+  S[Book, paper, video] --> X[Engine: extract text into citable pages]
+  X --> R[Agent reads it all and maps it]
+  R --> P[Plan: which principles, which accounts, new or revised]
+  P --> W[Agent writes and revises Markdown files]
+  W --> C[Engine: check links, citations, quotes, principles]
+  C --> L[(Library: topic pages, accounts, sources, git history)]
+  L --> B[kf_brief: a topic's principles]
+  L --> Q[kf_recall: answer material for a question]
+  L --> O[kf_read: the original pages]
+  B --> A[Agent builds, explains, invents]
+  Q --> A
+  O --> A
 ```
 
-### Getting knowledge in
+The library is a folder of Markdown files, and the files are the library. You can open it in any editor and read it. Its history is in git, so every ingest is a commit you can inspect or undo.
 
-Taking in a source is a guided job, and the engine keeps the agent honest at each step. The file is copied once and never touched again. Then it's broken into units the agent can read: page text from two PDF parsers, page images, transcript chunks, video frames.
+```
+library/
+  INDEX.md
+  knowledge/audio/mixing/TOPIC.md           the subject's frame and principles
+  knowledge/audio/mixing/accounts/*.md      one idea each, cited to pages
+  sources/<id>/source.md                    a map of the source, and what it changed
+  sources/<id>/text.txt                     the extracted text, by page
+  ideas/                                    candidate inventions, kept apart from evidence
+```
 
-The agent reads every unit and writes notes in plain Markdown. A note says what the author claims, why it works, where it stops working, and gives an example. It links to ideas already in the library: this supports that, challenges that, qualifies that, builds on that. The engine turns the cited pages into located passages and checks every quoted phrase against the source text, so a misquote gets caught at the door.
+The engine is small and has nothing to install. It is TypeScript that Node 24 runs directly, with Node's built-in SQLite for search and Poppler for PDFs. It does the mechanical work: extraction, checking and search. The agent does the reading and the writing.
 
-Then comes the step that makes knowledge compound. The engine lists every older account the new notes touch, and the agent has to deal with each one: revise it, reaffirm it, or leave it flagged for review. A new source that quietly contradicts last month's explanation doesn't get to sit there unnoticed. Everything publishes together as one release.
+## Using it
 
-### Getting knowledge out
+Know Fu runs when you invoke it: `/know-fu:know-fu` in Claude Code, `$know-fu` in Codex.
 
-Most of the time it's three calls:
-
-- `kb_brief` at the start of a session. It loads each domain's primer, its most connected ideas, live disagreements and the questions worth answering next.
-- `kb_recall` for each real question. It returns the best explanations whole, the caveats and judgments that qualify them, and the pages they came from, packed to a token budget.
-- `kb_connect` when the question is how two ideas relate. It shows the chain of links between them, hop by hop, with the reason recorded for each link.
-
-When an answer is worth keeping, `kb_file` publishes it back as a cited synthesis. If anything it relied on changes later, it gets flagged for review.
-
-### Inventing
-
-Invention is what the library is ultimately for. `kb_recall` with `purpose:"invent"` loads the accounts that match, each with a line saying what it does in words another field could recognize. Then it adds a slate: ideas already on file (failed ones say why), accounts in other domains that could bridge across (only when you ask for that), and loose ends nobody has connected yet.
-
-New ideas go through `kb_idea` into their own lane, behind a set of walls. An idea rests on library accounts, but nothing can ever rest on an idea, and it never shows up when you're explaining, teaching or applying. Its status only moves when a result from your own tools comes in (a backtester, a mastering chain, a prototype), judged by a pass rule you declared before the run, with a count of how many variants were tried. Export hands the whole project, premises and results included, to those tools as JSON.
-
-## Why it's built this way
-
-A list of claims can't teach anybody. An expert knows why a claim holds, what it rests on and where it breaks, so Know Fu stores explanations and the links between them, with the claims underneath as evidence.
-
-Disagreement is information, not noise. When two sources conflict, both accounts stay, and a judgment records how they relate: different scope, one qualifies the other, a provisional preference, or genuinely unresolved. Nothing gets settled by which source is newer or louder. Where someone has assessed the evidence, recall puts both sides next to each other: how strong the support is, what kind of support it is, and how many independent sources stand behind it. It still won't pick a winner for you.
-
-Every claim can be checked. Records point to exact pages, quotes are verified against the extracted text, and the original file and page images stay available.
-
-Answering should get cheaper as the library grows, not pricier. On the three-paper test library, `kb_recall` sends about 6,000-11,000 tokens per answer, where the older route sent 18,000-80,000. In a blind comparison on ten frozen questions, graders rated its answers as good as the older route's: 10 of 10 passed, against 9 of 10. (That test ran on slightly larger briefings than today's; an audit fix made the size accounting honest and trimmed them by 5-10%.) [Validation](docs/VALIDATION.md) has the details and the limits.
-
-The canonical records own the meaning. The wiki and the QMD search index are generated views, and the links are read straight from the records. Delete a view and you lose nothing; rebuild it from the records.
-
-## Tools
+- **Ingest:** open a session in the library folder and say "ingest this book into audio/mixing". The agent follows the [ingest guide](plugin/skills/know-fu/references/ingest.md).
+- **Use:** in any project, invoke Know Fu and ask. The agent loads the topic's principles, then recalls specifics as it works.
+- **Pin:** pin a topic to a project, and every session there starts with that topic's principles already in context.
 
 | Tool | What it does |
 |---|---|
-| `kb_status` | Engine and library paths, current release, scope, job progress |
-| `kb_brief` | Session-start orientation per domain |
-| `kb_recall` | A budgeted answer briefing: explanations, caveats, sources, and what else exists |
-| `kb_connect` | Chains of links between two ideas, or what one idea reaches a few hops out |
-| `kb_read` | Full accounts, domain catalogues, source units, guides and schemas |
-| `kb_file` | Publish a worked answer as a cited synthesis |
-| `kb_idea` | Keep candidate inventions in their own lane: propose, declare a pass rule, record results, export |
-| `kb_ingest`, `kb_job` | Register a source and move its ingestion job through the stages |
-| `kb_write` | Write knowledge as Markdown notes (the preferred way to stage records) |
-| `kb_propose`, `kb_change` | Stage raw proposals; preview or publish a job |
-| `kb_maintain` | Reindex views, verify, export and restore, configure modules and bindings, change meanings |
-| `kb_lifecycle` | Archive, withdraw, reinstate or purge, by plan and authorization |
-| `kb_evaluate` | Frozen, isolated capability evaluations through Codex |
-| `kb_retrieve` | The older packet and progressive routes, kept around for comparison |
-
-`kb_propose`, `kb_change`, `kb_lifecycle`, `kb_evaluate` and `kb_retrieve` are specialist tools. An agent only sees them when the launcher sets `KB_ADVANCED_TOOLS`, which keeps everyday sessions about 550 tokens lighter.
+| `kf_status` | The library's location and contents, and what this session may do |
+| `kf_brief` | What the library covers, or one topic's frame and principles |
+| `kf_recall` | For a question: the principles in play, the best accounts in full, what disputes them, and where the sources speak to it |
+| `kf_read` | One account, principle or source page in full, including page images and video frames |
+| `kf_connect` | How two ideas link |
+| `kf_source` | Register a source and extract its text |
+| `kf_check` | Check the whole library, bring derived parts in step, commit |
+| `kf_note` | Save something worth keeping from any project to the library's inbox |
+| `kf_pin` | Pin a topic to a project |
 
 ## Getting started
 
-Clone the repository, open it in your coding assistant and say:
+Clone the repository, open it in your coding agent and say:
 
-> Read AGENTS.md and plugin/docs/setup-ai.md, then walk me through setting up Know Fu on this machine.
+> Read AGENTS.md and plugin/docs/setup.md, then set up Know Fu on this machine.
 
-The [setup walkthrough](plugin/docs/setup-ai.md) has your AI check what's installed, ask you a few choices with its question tool (where the library lives, its home folder, whether chats in your other projects may read it and save answers to it, media tools, specialist tools), then build, install and check everything in order. It takes about 3 GB of disk for books and papers; [setup](plugin/docs/setup.md#how-big-it-is) breaks that down.
-
-### Pick your agent
-
-Know Fu runs with Codex or Claude Code, from the same `plugin/` folder and the same skill. Claude Code installs by adding this checkout as a local plugin marketplace; Codex installs through a machine-local launcher. Both read Know Fu's settings from one file, `~/.know-fu/config.json`, which `scripts/configure-plugin.mjs` writes with a section per agent. Both need the engine built first, and the [setup walkthrough](plugin/docs/setup-ai.md) has the steps for each. Know Fu only runs when you invoke it (`/know-fu:know-fu` in Claude Code, `$know-fu:know-fu` in Codex). Every record notes which agent wrote it, so you can compare their work, and two agents can share one library as long as only one writes at a time.
-
-The [setup reference](plugin/docs/setup.md) separates what the system actually needs from choices one installation happened to make: where the library and runtime state live, native or WSL media tools, and API or local transcription. The [decision matrix](plugin/docs/setup-choices.md) lays out the options.
+You need Node 22.18 or newer (24 recommended) and git. Poppler is needed for PDFs, pandoc for EPUB and DOCX, FFmpeg and a transcription API for audio and video. There are no packages to install and nothing to build.
 
 ## Where it's at
 
-It works on the development machine: Windows 11 with QMD on the CPU, or an embedding API of your choice for semantic search. Since 12 October 2026 it needs no database server. Its first real book ingest ran on 17 October 2026, a 364-page book in both agents, and version 0.5.0 rebuilt the reading workflow after that run took hours. There are 203 automated tests and all pass; 5 of them need the Python document runtime and skip where it isn't installed. The whole pipeline has run end to end on technical papers, including a three-source test where later papers had to revise earlier understanding. An independent audit on 5 October 2026 found twelve defects the tests had missed; all are fixed, and each now has a regression test.
+Version 0.6 is a rebuild. Versions up to 0.5 stored hundreds of small notes per book as JSON records with typed relationship records between them. The first real book ingest showed what that produced: 425 notes that restated the book at 63% of its length, with no page that said what the book's principles were. [The rebuild record](docs/REBUILD.md) has the assessment and the reasoning, and the 0.5 engine is kept on the `records-engine-0.5` branch.
 
-What it hasn't done yet: ingest a long book or a full course with the new note format. A different machine needs its own dependency setup and checks, and local speech transcription is configurable but untested end to end. [Validation](docs/VALIDATION.md) and [performance](docs/PERFORMANCE.md) keep score on what's been shown and what hasn't.
-
-## Code versus your data
-
-This repository holds the engine and the plugin. Your library lives somewhere else.
-
-| Area | What it holds |
-|---|---|
-| `src/` | The engine: storage, publication, ingestion jobs, recall, brief, connect, lifecycle |
-| `contracts/schemas/` | The authoritative JSON schemas |
-| `plugin/` | The Codex skill, its guides, setup docs and bundled schema copies |
-| `scripts/` | Build, conversion and packaging helpers |
-| `test/` | Automated checks with fictional fixtures |
-| `docs/` | Intent, roadmap, validation, performance and maintenance |
-| Your library folder | Sources, records and prose, jobs, audit history, generated views. Outside Git |
-| Your state folder | Runtime configuration, the deletion ledger, model caches. Outside Git |
-
-Setup asks where each of these should go. The machine-local `plugin/.mcp.json` is generated and never committed. One thing worth remembering: back up the library and its deletion ledger together. An old library backup without the matching ledger could bring back material you deliberately purged.
+What has been shown, and what hasn't, is in [the rebuild record](docs/REBUILD.md#acceptance). It has been built and run on Windows 11. Audio and video transcription is written and tested against a stand-in server, and hasn't been run against a live provider.
 
 ## Working on the code
 
-Use the Node version pinned in `package.json` and install from the lockfile:
-
 ```sh
-npm ci
-npm run build
 npm test
-npm run format:check
-npm run check:package
 ```
 
-That builds and tests the engine. It doesn't install a graph server, a Python converter, model caches or a real library, and the document-conversion tests skip when Python is missing. Record changes in [CHANGELOG.md](CHANGELOG.md) and lessons worth keeping in [LESSONS.md](LESSONS.md). [Maintenance](docs/MAINTENANCE.md) maps each part of the code to the docs it affects. Before committing, run `npm run check:release -- --staged` and look over what you're about to push.
+That runs every test with Node's own test runner. There is no build and no dependency to install. [AGENTS.md](AGENTS.md) has the rules for changing the engine and the guides, and [LESSONS.md](LESSONS.md) has what this project learned the hard way.
 
 ## Built from
 
-TypeScript, JSON Schema with AJV, the MCP SDK, QMD, Poppler, Docling and FFmpeg. The coding agent does all the reasoning. Speech APIs are optional and billed separately, and there's no cloud database.
+TypeScript run by Node, `node:sqlite` with FTS5, Poppler, pandoc and FFmpeg. The coding agent does all the reasoning; the engine never calls a model. Transcription APIs are optional and billed separately.
 
-The ideas come from Karpathy's LLM Wiki, Ars Contexta's Reweave, rohitg00's LLM Wiki v2, discourse graphs and provenance practice, Scideator, HippoRAG's personalized PageRank, Vectorize's Hindsight, and [ste-bah](https://github.com/ste-bah)'s Memory Graph and Archon. Know Fu doesn't bundle any of those systems. The [lineage](plugin/docs/lineage.md) says what came from where.
+The ideas come from Karpathy's LLM Wiki, Ars Contexta's Reweave, research on how experts organize knowledge, and [ste-bah](https://github.com/ste-bah)'s Memory Graph and Archon. The [lineage](plugin/docs/lineage.md) says what came from where.
 
 ## Boundaries
 
-Ingestion isn't fine-tuning, and passing an evaluation isn't general expertise. A link between two records is a recorded connection, not proof. Research memory and operational or project memory stay separate. Promotion tiers and several agents writing to one library are decisions for later. There's no `analogous_to` link, by choice: an analogy worth keeping is stored as an idea.
+Ingesting a source isn't fine-tuning, and a library isn't expertise by itself: it is the footing for it. A link between two accounts is a recorded connection, not proof. Research memory stays separate from operational or project memory, which belongs in a different tool.
 
-The code is released under the [MIT licence](LICENSE). Dependencies keep their own licences. The README animation is third-party film imagery that the licence doesn't cover; see its [provenance note](assets/README.md). Private research, transcripts and credentials aren't part of the code.
+The code is released under the [MIT licence](LICENSE). The README animation is third-party film imagery that the licence doesn't cover; see its [provenance note](assets/README.md). Your library, sources and credentials are never part of the repository.

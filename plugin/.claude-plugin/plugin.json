@@ -1,8 +1,8 @@
 {
   "name": "know-fu",
   "displayName": "Know Fu",
-  "version": "0.5.0",
-  "description": "A local research library: ingest books, papers and videos, then explain, teach, apply and invent from what it holds.",
+  "version": "0.6.0",
+  "description": "A local research library your agent compiles from books, papers and videos, then explains, applies and invents from.",
   "author": {
     "name": "Know Fu"
   },
