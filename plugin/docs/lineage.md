@@ -35,7 +35,7 @@ Each row says how the finding was read. "Owner's research wiki" means the paper 
 | LLM-written context files were neutral to slightly harmful and cost over 20% more; they helped only when the repository's own docs were removed | [arXiv 2602.11988](https://arxiv.org/abs/2602.11988) | Owner's research wiki, grade B | The delta rule |
 | A strong model held steady under unrelated extra text and dropped with related text | A practitioner test on Claude Opus 5, in the owner's research wiki, grade C | Owner's research wiki | One account per idea, not many near-matching notes |
 | A wiki an LLM compiled beat single-round retrieval at connecting findings across papers, at many times the query tokens; splitting the question closed most of the gap | [arXiv 2605.18490](https://arxiv.org/abs/2605.18490) | Subagent web read | Compiling across sources; sub-questions in recall |
-| An agent using grep and file reads beat a strong embedding retriever on a research benchmark, degrading only past about 100,000 documents | [arXiv 2605.05242](https://arxiv.org/abs/2605.05242) | Subagent web read | Lexical search, no embeddings at this size |
+| An agent using grep and file reads beat a strong embedding retriever on a research benchmark, degrading only past about 100,000 documents | [arXiv 2605.05242](https://arxiv.org/abs/2605.05242) | Subagent web read | Keyword search first; embeddings as an optional second channel, since the same study shows the advantage fading as a collection grows |
 | Over a 709-page wiki, a capable agent never loaded the large index; a keyword-ranked tool returning page gists matched quality at 30% to 58% lower cost | [arXiv 2607.04576](https://arxiv.org/abs/2607.04576) | Subagent web read; an earlier version was read for the 1.1.0 plan on 2 October 2026 | Gists in recall; pinning loads principles, never the catalogue |
 | Atomic propositions were the worst retrieval unit tested; coherent chunks won (weak reader model) | [arXiv 2606.00881](https://arxiv.org/abs/2606.00881) | Subagent web read | The account as the unit |
 | Wikis compiled without checking scored far below raw context; a refinement pass against probes recovered most of the loss (weak model) | [arXiv 2605.07068](https://arxiv.org/abs/2605.07068) | Subagent web read | The probe check stage |
@@ -45,7 +45,7 @@ What the research doesn't show: no 2026 study tests a principles page against th
 
 ## Left out on purpose
 
-- **A graph database, typed relationship records, embeddings and a reranker.** See [how it works](architecture.md#why-there-are-no-embeddings).
+- **A graph database, typed relationship records and a reranker.** See [how it works](architecture.md#why-there-is-no-graph-database). Embeddings are an optional second channel over the compiled layer, not a required part.
 - **`analogous_to` links.** An analogy worth keeping is an idea, with both accounts as its premises (owner's decision, 6 October 2026).
 - **Confidence scores.** A number invites false precision. An account carries its `basis`, a principle says which sources hold it and whether they state it, and prose says what kind of evidence a source rests on.
 - **Automatic memory of sessions.** Know Fu holds what the owner chose to feed it. Operational and project memory belong in a separate tool.

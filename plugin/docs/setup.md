@@ -77,7 +77,22 @@ All in `~/.know-fu/config.json`. Set `KNOW_FU_CONFIG` to use a different file.
 | `deliberate_use` | `true` (the default) keeps the tools closed in a chat until the skill is invoked there. `false` opens them everywhere |
 | `pins` | Project folder to topic paths. Written by `kf_pin`; sessions in a pinned project start with those topics' principles in context |
 | `tools` | Full paths for `pdftotext`, `pdftoppm`, `ffmpeg`, `ffprobe`, `pandoc`, when PATH finds the wrong one or none |
+| `embedder` | Optional semantic search. See below |
 | `transcription` | See below |
+
+### Semantic search
+
+Keyword search works with no setup. To also find accounts by meaning, which helps most when a question uses different words from the library or comes from another field, add an OpenAI-compatible embeddings endpoint:
+
+```json
+"embedder": {
+  "base_url": "https://openrouter.ai/api/v1",
+  "model": "openai/text-embedding-3-small",
+  "api_key_file": "<a file that holds only the key>"
+}
+```
+
+`api_key_env` names an environment variable as an alternative to a file, and a local server such as Ollama needs no key. The next `kf_check` in the home session sends each principle, account and topic frame to that endpoint and stores the vectors in the library's `.knowfu` folder; after that only new or changed ones are sent. Each recall sends the question. Source text is never sent. `min_similarity` (default 0.74, measured on one hosted model) is how close a match must be before recall trusts meaning alone; set it per model. Remove the `embedder` block to turn it off.
 
 ### Audio and video
 

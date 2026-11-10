@@ -283,6 +283,25 @@ test('only the home session changes the library; any session can save a note', a
   }
 });
 
+test("the log and the commit say which agent made a change", async () => {
+  const fx = await builtLibrary();
+  const before = process.env.KB_ACTOR;
+  try {
+    process.env.KB_ACTOR = 'codex';
+    assert.match((await runTool('kf_check', { commit: 'ingest: the handbook' })).text, /committed [0-9a-f]{7}|not committed/);
+    assert.match(fs.readFileSync(path.join(fx.root, 'log.md'), 'utf8'), /\[codex\] ingest: the handbook/);
+    // A value that isn't a plain name is left out, never written into the log.
+    process.env.KB_ACTOR = 'x; rm -rf';
+    await runTool('kf_note', { title: 'A note', body: 'So there is something to commit.' });
+    await runTool('kf_check', { commit: 'second change' });
+    assert.match(fs.readFileSync(path.join(fx.root, 'log.md'), 'utf8'), /\d{4}-\d{2}-\d{2} second change/);
+  } finally {
+    if (before === undefined) delete process.env.KB_ACTOR;
+    else process.env.KB_ACTOR = before;
+    fx.cleanup();
+  }
+});
+
 test('with no config, every tool says how to set up instead of failing obscurely', async () => {
   const fx = freshLibrary();
   try {

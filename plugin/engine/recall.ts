@@ -2,6 +2,7 @@
 // and how two ideas connect (connect). Each returns Markdown sized for a model's context.
 import path from 'node:path';
 import type { Config } from './config.ts';
+import type { Semantic } from './embed.ts';
 import { asList, asText } from './frontmatter.ts';
 import { accountBySlug, accountPrinciples, isRetired, resolveLink, topicByPath } from './library.ts';
 import type { Account, Library, Principle, Topic } from './library.ts';
@@ -89,7 +90,7 @@ export type RecallOptions = {
 
 type Ranked = { hit: Hit; score: number };
 
-function rank(lib: Library, queries: string[], topic: string | undefined, ideas: boolean): { accounts: Ranked[]; principles: Ranked[]; ideaHits: Ranked[] } {
+function rank(lib: Library, queries: string[], topic: string | undefined, ideas: boolean, semantic?: Semantic | null): { accounts: Ranked[]; principles: Ranked[]; ideaHits: Ranked[] } {
   const merged = new Map<string, Ranked>();
   for (const query of queries) {
     const hits = search(lib, query, { tiers: ['principle', 'account', ...(ideas ? (['idea'] as const) : [])], limit: 30, topic });
@@ -103,6 +104,28 @@ function rank(lib: Library, queries: string[], topic: string | undefined, ideas:
         had.score = Math.max(had.score, normal) + 0.25 * Math.min(had.score, normal);
         had.hit.coverage = Math.max(had.hit.coverage, hit.coverage);
       } else merged.set(key, { hit, score: normal });
+    }
+  }
+  // The semantic channel, when there is one. Each match is scored by how far it stands above the library's
+  // average closeness to the question, so a channel that finds everything mildly similar adds nothing.
+  // A close match in meaning joins the ranking even when it shares none of the question's words.
+  if (semantic && semantic.top > semantic.mean) {
+    for (const [ref, found] of semantic.hits) {
+      if (found.tier === 'topic') continue;
+      const lift = (found.sim - semantic.mean) / (semantic.top - semantic.mean);
+      if (lift <= 0) continue;
+      const key = `${found.tier}:${ref}`;
+      const had = merged.get(key);
+      if (had) had.score += 0.8 * lift;
+      else if (lift >= 0.6) {
+        const account = found.tier === 'account' ? accountBySlug(lib, ref) : undefined;
+        const principle = found.tier === 'principle' ? findPrinciple(lib, ref) : null;
+        const home = account?.topic ?? principle?.topic.path ?? '';
+        if ((!account && !principle) || (topic && home !== topic)) continue;
+        const title = account ? asText(account.fm.title) : principle!.principle.title;
+        const summary = account ? asText(account.fm.summary) : principle!.principle.statement;
+        merged.set(key, { hit: { tier: found.tier, ref, topic: home, title, summary, score: 0, snippet: '', coverage: 0 }, score: 0.8 * lift });
+      }
     }
   }
   const all = [...merged.values()];
@@ -153,13 +176,13 @@ function disputes(lib: Library, loaded: Account[]): string[] {
   return [...lines.values()];
 }
 
-export function recall(lib: Library, options: RecallOptions): string {
+export function recall(lib: Library, options: RecallOptions, semantic?: Semantic | null): string {
   const queries = (Array.isArray(options.query) ? options.query : [options.query]).map(q => String(q ?? '').trim()).filter(Boolean);
   if (!queries.length) fail('INVALID', 'Give kf_recall a query: the question in plain words, or a list of sub-questions.');
   const topic = options.topic ? requireTopic(lib, options.topic).path : undefined;
-  const budget = Math.max(400, options.budget ?? 4000);
+  const budget = Math.max(400, options.budget ?? 6000);
   const seen = new Set(options.seen ?? []);
-  const { accounts, principles, ideaHits } = rank(lib, queries, topic, !!options.ideas);
+  const { accounts, principles, ideaHits } = rank(lib, queries, topic, !!options.ideas, semantic);
   const out: string[] = [`# Recall: ${queries.join(' / ')}`, ''];
   let spent = 0;
   const say = (text: string) => {
@@ -173,9 +196,27 @@ export function recall(lib: Library, options: RecallOptions): string {
     .filter(hit => hit.coverage >= 0.45)
     .slice(0, 5);
   const best = Math.max(0, ...accounts.slice(0, 5).map(r => r.hit.coverage), ...principles.slice(0, 3).map(r => r.hit.coverage));
-  if (best < 0.3) {
+  // Meaning can stand in for words: when no account shares the question's key terms but one is close in
+  // meaning, that is a vocabulary gap between the question and the library, not a gap in the library.
+  const byMeaning = best < 0.3 && !!semantic?.strong;
+  if (best < 0.3 && !byMeaning) {
     say(`Nothing in the compiled library${topic ? ` under ${topic}` : ''} clearly answers this${accounts.length ? ': the nearest accounts share only its common words' : ''}.`);
-    if (accounts.length) {
+    const leads = semantic
+      ? [...semantic.hits.entries()]
+          .filter(([, h]) => h.tier !== 'topic' && h.sim >= semantic.mean + 0.6 * (semantic.top - semantic.mean))
+          .sort((a, b) => b[1].sim - a[1].sim)
+          .slice(0, 4)
+      : [];
+    if (leads.length) {
+      // Useful when inventing or borrowing across fields: the library may hold the same idea under other words.
+      say('\n## Closest in meaning (a lead to follow, not an answer)\n');
+      for (const [ref, lead] of leads) {
+        const account = lead.tier === 'account' ? accountBySlug(lib, ref) : undefined;
+        const principle = lead.tier === 'principle' ? findPrinciple(lib, ref) : null;
+        if (account) say(`- \`${account.slug}\` (${asText(account.fm.kind)}, ${account.topic}): ${asText(account.fm.summary)}`);
+        else if (principle) say(`- principle \`${ref}\`: ${principle.principle.statement}`);
+      }
+    } else if (accounts.length) {
       say('\n## Nearest accounts (probably not about this)\n');
       for (const r of accounts.slice(0, 4)) {
         const account = accountBySlug(lib, r.hit.ref);
@@ -189,20 +230,19 @@ export function recall(lib: Library, options: RecallOptions): string {
     return out.join('\n');
   }
 
+  if (byMeaning) say("No account uses this question's key terms. What follows was matched by meaning, so check that it is about what you asked.\n");
+
   // Which accounts to load: the best ones, while they stay close to the top score and fit the budget.
   const top = accounts[0]?.score ?? 0;
   const loaded: Account[] = [];
   const listed: Ranked[] = [];
   const accountBudget = budget * 0.72;
-  // A few accounts that bear on the question serve better than many that are merely about the subject,
-  // so the count is capped as well as the size: three at the default budget, more only when the caller asks.
-  const maxLoaded = Math.max(1, Math.round(budget / 1300));
   let accountTokens = 0;
   for (const r of accounts) {
     const account = accountBySlug(lib, r.hit.ref);
     if (!account) continue;
     const size = tokens(account.body) + 40;
-    const wanted = options.load !== 'gists' && !seen.has(account.slug) && r.score >= top * 0.55 && loaded.length < maxLoaded && (loaded.length === 0 || accountTokens + size <= accountBudget);
+    const wanted = options.load !== 'gists' && !seen.has(account.slug) && r.score >= top * 0.55 && (loaded.length === 0 || accountTokens + size <= accountBudget);
     if (wanted) {
       loaded.push(account);
       accountTokens += size;
@@ -260,7 +300,7 @@ export function recall(lib: Library, options: RecallOptions): string {
     for (const hit of pageHits) if (spent < budget * 1.1) say(`- ${hit.ref}: ${hit.snippet}`);
     say('');
   }
-  out.push('---', `Loaded ${loaded.length} ${loaded.length === 1 ? 'account' : 'accounts'}, about ${spent} tokens. Open any listed account with kf_read ref "<name>".`);
+  out.push('---', `Loaded ${loaded.length} ${loaded.length === 1 ? 'account' : 'accounts'}, about ${spent} tokens. Open any listed account with kf_read ref "<name>".${semantic ? ' Ranked by words and by meaning.' : ''}`);
   return out.join('\n');
 }
 

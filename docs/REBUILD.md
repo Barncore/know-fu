@@ -171,7 +171,7 @@ The owner's instruction for this rebuild was to use judgment and say plainly wha
 | Settings in `~/.know-fu/config.json` (13 Oct) | Kept, new schema |
 | A domain is the only subject label (17 Oct) | Changed, following the owner's 23 October thinking: domain, then topic. A topic is a folder with a principles page, not a tag on notes |
 | Parallel readers, one writer (20 Oct) | Kept in spirit: readers write digests in parallel, and accounts are written from a plan |
-| Embedder is a setup choice; an API is acceptable (20 Oct) | Kept as optional. The local model and QMD go |
+| Embedder is a setup choice; an API is acceptable (20 Oct) | Kept: an optional semantic channel through an API. The local model and QMD go |
 | One library per agent; a shared library deferred (Codex thread) | Changed. One library for every agent. Plain files and one writer at a time make sharing safe |
 | Operational memory is a separate plugin | Unchanged |
 | Promotion tiers | Still parked |
@@ -290,11 +290,23 @@ Two Opus agents each answered the same nine tasks about chapters 5 to 7, at most
 
 **What changed because of it.** The 0.6 answerer reported that recall loaded four accounts when it needed one, and that for the uncovered subject recall offered source pages that shared only common words, "so they looked like evidence but weren't". Recall now loads at most three accounts at the default budget, scores how much of a question each hit covers with rare terms counting most, says plainly when nothing clearly matches, and offers a source page only when it covers most of the question.
 
+### 5. After the owner's review
+
+The owner read the result and made three points (recorded in the north star under 10 November). What changed in the build:
+
+- **Length.** The comparison's one worrying number was usefulness, 39 against 42, from an answerer that read 60% less. The first response to the answerer's feedback had been to load less, which was the wrong direction. Recall's default budget is now 6,000 tokens with no cap on the number of accounts, accounts may run to 1,500 words before the checker asks about them, and the guides say that length is not what to economize below the topic page.
+- **A semantic channel.** Optional, through any OpenAI-compatible embeddings endpoint, over principles, accounts and topic frames. Run live on the owner's library with a hosted embedding model: 24 texts embedded; a question phrased in other words ("my mix sounds washy and muddy when I add ambience") ranked the principle about additions differing from what they join first and loaded the reverb account; a question from another field (making one element stand out in a user interface) ranked the contrast principle first. Similarity did not separate a subject the library lacks (0.70) from ones it holds (0.74 to 0.77) by a wide margin, so a match below the bar is offered as a lead and never loaded as an answer.
+- **The agent's name on every commit and log line.**
+
+The comparison in section 4 ran before these changes. It has not been rerun.
+
 ### Not shown yet
 
 - A whole book, and the reader-subagent workflow for one. The run above was three chapters read by one agent.
 - A second source on the same topic. The compounding claim (accounts revised in place, principles sharpened) is designed and untested.
 - Whether a principles page improves long design sessions. The comparison was short answers.
+- Whether the semantic channel improves answers. It was checked on eight hand-written questions, not in a comparison.
+- Whether the relaxed length guidance produces better accounts. No ingest has run under it.
 - Pinning in a live session. The hook is tested with the same input the host sends, and hasn't been watched working in the desktop app.
 - Codex. The plugin carries its manifest and an install script; nothing was run in Codex, because installing there writes to the owner's Codex folder and needs his go-ahead.
 - Audio and video transcription against a live provider. It runs against a stand-in server in the tests.

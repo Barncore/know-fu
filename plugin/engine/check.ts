@@ -54,7 +54,7 @@ const SHAPES: Record<string, Shape> = {
   note: { required: ['type', 'title', 'date'], optional: ['from', 'topic'], lists: [], enums: {} },
 };
 
-const LIMITS = { accountMin: 80, accountMax: 900, summaryMax: 60, topicTokens: 5000, principlesMax: 15, retelling: 0.3 };
+const LIMITS = { accountMin: 80, accountMax: 1500, summaryMax: 60, topicTokens: 5000, principlesMax: 15, retelling: 0.5 };
 
 export type Report = {
   errors: Issue[];
@@ -249,7 +249,7 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
     const summary = asText(account.fm.summary);
     if (countWords(summary) > LIMITS.summaryMax) add({ level: 'warn', code: 'summary', message: `the summary runs ${countWords(summary)} words; a reader decides from it whether to open the account, so keep it under ${LIMITS.summaryMax}` });
     if (account.words < LIMITS.accountMin) add({ level: 'warn', code: 'size', message: `${account.words} words. Too thin to stand alone: fold it into the account it belongs with.` });
-    if (account.words > LIMITS.accountMax) add({ level: 'warn', code: 'size', message: `${account.words} words. If it holds two ideas a reader would look up separately, split it; if it retells the source, cut to what a strong general model wouldn't already say.` });
+    if (account.words > LIMITS.accountMax) add({ level: 'warn', code: 'size', message: `${account.words} words. Depth is welcome, but at this length check two things: does it hold two ideas a reader would look up separately (split it), and is part of it background any model already has (cut that part).` });
     const words = new Set(
       asText(account.fm.title)
         .toLowerCase()
@@ -298,7 +298,7 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
       accounts: citing.length,
     });
     if (covered.size && ratio > LIMITS.retelling)
-      add({ level: 'warn', code: 'retelling', message: `accounts citing this source total ${compiledWords} words against the ${mappedWords} words mapped so far: ${Math.round(ratio * 100)}%. Dense technical material can run this high, but check for retelling: keep what a strong general model wouldn't already say, since the original stays searchable.` });
+      add({ level: 'warn', code: 'retelling', message: `accounts citing this source total ${compiledWords} words against the ${mappedWords} words mapped so far: ${Math.round(ratio * 100)}%. Half the source's length is a lot to have kept. Check for retelling: an account explains an idea in full, but it doesn't repeat background any model already has, and the original stays searchable.` });
     if (status !== 'compiled') continue;
     const todo = source.body.split('\n').findIndex(l => l.trim().startsWith('TODO:'));
     if (todo >= 0) add({ level: 'error', code: 'source', line: source.bodyLine + todo, message: 'a TODO placeholder is still here; a compiled source has its About, Map and What it changed written' });
@@ -442,16 +442,18 @@ function git(root: string, args: string[]) {
   return spawnSync('git', args, { cwd: root, encoding: 'utf8' });
 }
 
-export function commitLibrary(root: string, message: string): string {
+export function commitLibrary(root: string, message: string, actor = (process.env.KB_ACTOR ?? '').trim().toLowerCase()): string {
+  // Every agent commits under the owner's git identity, so the log line and the commit say which agent it was.
+  const by = /^[a-z][a-z0-9-]{0,20}$/.test(actor) ? actor : '';
   if (!exists(path.join(root, '.git'))) {
     const init = git(root, ['init', '-q']);
     if (init.status !== 0) return `not committed: git init failed (${(init.stderr || '').trim() || 'is git installed?'})`;
   }
-  const line = `- ${today()} ${message.replace(/\s+/g, ' ').trim()}\n`;
+  const line = `- ${today()} ${by ? `[${by}] ` : ''}${message.replace(/\s+/g, ' ').trim()}\n`;
   const log = path.join(root, 'log.md');
   fs.appendFileSync(log, exists(log) ? line : `# Library log\n\nOne line per change, oldest first.\n\n${line}`);
   git(root, ['add', '-A']);
-  const commit = git(root, ['commit', '-q', '-m', message]);
+  const commit = git(root, ['commit', '-q', '-m', message, ...(by ? ['-m', `Written by: ${by}`] : [])]);
   if (commit.status !== 0) {
     const text = `${commit.stdout}${commit.stderr}`.trim();
     return /nothing to commit/i.test(text) ? 'nothing to commit' : `not committed: ${text.slice(0, 300)}`;

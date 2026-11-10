@@ -14,6 +14,17 @@ export type Config = {
   pins?: Record<string, string[]>;
   /** Full paths for tools that aren't on PATH, or where PATH finds the wrong one. */
   tools?: { pdftotext?: string; pdftoppm?: string; ffmpeg?: string; ffprobe?: string; pandoc?: string };
+  /** Optional semantic search over the compiled layer, through any OpenAI-compatible /embeddings endpoint. */
+  embedder?: {
+    base_url: string;
+    model: string;
+    api_key_file?: string;
+    api_key_env?: string;
+    /** Keep the first N dimensions. Only for models trained to allow it. */
+    dimensions?: number;
+    /** How close the best match must be before recall trusts meaning alone. Depends on the model. */
+    min_similarity?: number;
+  };
   transcription?: {
     endpoint: string;
     model: string;

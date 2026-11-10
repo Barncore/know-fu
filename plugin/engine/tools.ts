@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { checkLibrary, commitLibrary, formatReport } from './check.ts';
 import { configPath, isHome, loadConfig, pinsFor, projectDir, requireHome, saveConfig } from './config.ts';
 import type { Config } from './config.ts';
+import { embedderLabel, embedderOf, semanticSearch, syncVectors } from './embed.ts';
 import { findPoppler, findTool } from './extract.ts';
 import { formatFrontmatter, asText } from './frontmatter.ts';
 import { loadLibrary, topicByPath } from './library.ts';
@@ -85,6 +86,7 @@ function status(): string {
     `- PDF text and page images (Poppler): ${tryTool(() => findPoppler(config))}`,
     `- EPUB, DOCX, HTML (pandoc): ${tryTool(() => findTool(config, 'pandoc'))}`,
     `- audio and video (ffmpeg): ${tryTool(() => findTool(config, 'ffmpeg'))}`,
+    `- semantic search: ${embedderOf(config) ? embedderLabel(embedderOf(config)!) : 'off (keyword search only; add "embedder" to the config to turn it on)'}`,
     `- transcription API: ${config.transcription?.endpoint ? `${config.transcription.model} at ${new URL(config.transcription.endpoint).host}` : 'not configured (transcript files still work)'}`,
   );
   return out.join('\n');
@@ -148,13 +150,28 @@ export const TOOLS: Tool[] = [
       properties: {
         query: { description: 'The question in plain words, or a list of sub-questions.', anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }] },
         topic: str('Limit to one topic path.'),
-        budget: { type: 'number', description: 'Approximate tokens to return. Default 4000; raise it for broad synthesis.' },
+        budget: { type: 'number', description: 'Approximate tokens to return. Default 6000; lower it for a quick lookup, raise it for broad synthesis.' },
         load: { type: 'string', enum: ['accounts', 'gists'], description: '"gists" returns one line per matching account, to choose from before loading any.' },
         seen: { type: 'array', items: { type: 'string' }, description: 'Account names already in context, so they are not loaded again.' },
         ideas: { type: 'boolean', description: 'Also list matching ideas on file. Use when inventing.' },
       },
     },
-    run: args => ({ text: recall(loadLibrary(loadConfig().library), args as any) }),
+    run: async args => {
+      const config = loadConfig();
+      const lib = loadLibrary(config.library);
+      const queries = (Array.isArray(args.query) ? args.query : [args.query]).map((q: unknown) => String(q ?? '').trim()).filter(Boolean);
+      let semantic = null;
+      let note = '';
+      if (queries.length && embedderOf(config)) {
+        try {
+          semantic = await semanticSearch(lib, config, queries);
+        } catch (error: any) {
+          // Keyword search still answers when the embedder is down; say so, since the ranking is then words only.
+          note = `\n(Semantic search was unavailable for this call: ${error.message})`;
+        }
+      }
+      return { text: recall(lib, args as any, semantic) + note };
+    },
   },
   {
     name: 'kf_read',
@@ -238,10 +255,20 @@ export const TOOLS: Tool[] = [
       const config = loadConfig();
       const home = isHome(config) || process.env.KNOW_FU_WRITE_ANYWHERE === '1';
       if (args.commit) requireHome(config, 'Committing');
-      const work = () => {
+      const work = async () => {
         const report = checkLibrary(config.library, { fix: home });
-        if (home) syncIndex(loadLibrary(config.library));
-        let text = formatReport(report, { warnings: args.warnings !== false });
+        let embedded = '';
+        if (home) {
+          const lib = loadLibrary(config.library);
+          syncIndex(lib);
+          try {
+            const synced = await syncVectors(lib, config);
+            if (synced) embedded = `\n- semantic search: ${synced.total} principles, accounts and topics embedded${synced.embedded ? ` (${synced.embedded} new or changed)` : ''}`;
+          } catch (error: any) {
+            embedded = `\n- semantic search: not updated (${error.message})`;
+          }
+        }
+        let text = formatReport(report, { warnings: args.warnings !== false }) + embedded;
         if (args.commit) text += report.errors.length ? '\n\nNot committed: fix the errors first.' : `\n\n${commitLibrary(config.library, String(args.commit))}.`;
         return { text };
       };

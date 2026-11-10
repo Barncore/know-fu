@@ -27,7 +27,7 @@ The layers depend on each other in one useful way. The agent can compress hard w
 
 ## What gets stored: the delta
 
-The reader is a frontier model that already holds the common knowledge of most fields. An account earns its place by what it adds to that: the author's frame, surprising claims, numbers and thresholds, the order of steps, decision rules, failure modes, worked cases. The ingest guide gives the test as a question: would a strong general model, asked cold, already say this with this precision?
+The reader is a frontier model that already holds the common knowledge of most fields. This is a rule about what goes in, never about how long an account may be: an account is read on purpose by an agent that chose it, so it can explain its idea at whatever length the idea needs. The page that must stay short is the topic page, because it is read whole. An account earns its place by what it adds to what the model already holds: the author's frame, surprising claims, numbers and thresholds, the order of steps, decision rules, failure modes, worked cases. The ingest guide gives the test as a question: would a strong general model, asked cold, already say this with this precision?
 
 This matters for more than cost. Research on agent context files and self-written skills in 2026 found that text a model writes for itself, carrying what it already knew, was neutral or slightly harmful, while curated material helped most where the model's training was thin. A library of restated common knowledge would make an agent slower and no better.
 
@@ -46,7 +46,7 @@ The engine does what an agent is bad at or shouldn't spend tokens on. It never c
 | Extraction | `engine/extract.ts`, `sources.ts` | PDF to page text with Poppler; text and Markdown to sections; subtitles and timestamped transcripts to time units; EPUB, DOCX and HTML through pandoc; audio and video through a transcription API, with frames sampled once a minute. Page images and video frames on request |
 | Library model | `engine/library.ts`, `frontmatter.ts` | Reads the folder into memory: topics with their principles, accounts with their links and citations, sources with their units and maps |
 | Checker | `engine/check.ts` | Frontmatter, links, citations, quoted words against the source text, principles, source maps, sizes, and words compiled against words read. Writes the derived parts: each principle's Governs line, `_index.md`, `INDEX.md`. Commits to git |
-| Search | `engine/search.ts` | A SQLite full-text index under `.knowfu/`, rebuilt a file at a time when a file changes |
+| Search | `engine/search.ts`, `embed.ts` | A SQLite full-text index under `.knowfu/`, rebuilt a file at a time when a file changes. Optionally, vectors for the compiled layer |
 | Reading | `engine/recall.ts` | `brief`, `recall`, `read`, `connect` |
 | Serving | `engine/tools.ts`, `mcp.ts`, `cli.ts` | The nine tools, over MCP and from a shell |
 
@@ -60,9 +60,19 @@ Two rules hold whatever the budget. The best match is always delivered whole. An
 
 A list of sub-questions is ranked per sub-question and merged, so each one's best match is present. `load: "gists"` returns one line per match and loads nothing, for choosing before reading.
 
-### Why there are no embeddings
+### Search: words first, meaning as a second channel
 
-Search is lexical. Three things make that enough at this size. Every account has a title, a one-line summary and optional keywords written for finding it. The topic page tells the agent the library's own vocabulary before it searches. And the agent can rephrase. A 2026 study found an agent using grep and file reads beat a strong embedding retriever on a research benchmark, with the advantage fading only past a hundred thousand documents. A personal library won't get there. If lexical search starts missing in practice, an optional embedding channel is the next step, and the 0.5 branch has one.
+Keyword search does most of the work, for three reasons. Every account has a title, a one-line summary and optional keywords written for finding it. The topic page tells the agent the library's own vocabulary before it searches. And a recall scoped to a topic searches that topic's accounts, which stays a small set however large the library grows.
+
+Keywords fail in one place that matters: when the question and the library use different words for the same idea. That is the normal case for a question asked from another field, which is what invention looks like. So there is an optional semantic channel (`engine/embed.ts`). With an `embedder` set in the config, `kf_check` embeds each principle, account and topic frame through any OpenAI-compatible endpoint and keeps the vectors in `.knowfu/vectors.jsonl`. Recall then embeds the question and uses closeness in meaning three ways:
+
+- It adds to the ranking, scaled by how far a match stands above the library's average closeness to the question.
+- When no account shares the question's key terms but one is very close in meaning, recall loads it and says it was matched by meaning.
+- When the closest match isn't close enough to trust, recall still says the library has a gap, and lists the nearest matches as leads to follow.
+
+The last two differ because similarity separates related from unrelated well, and answered from merely related poorly. Measured on one model with one topic, questions the library answers in other words scored 0.74 to 0.77 at best, a subject it lacks scored 0.70, and unrelated questions scored under 0.60. So the bar for trusting meaning alone (`min_similarity`) is high, and it needs setting per model.
+
+Source pages aren't embedded. They are found by keyword and through the accounts that cite them. The vectors file is derived and can be deleted; nothing in the library's own files depends on it, so the embedding model can change without re-ingesting anything. If the embedder is unreachable, recall answers by keyword and says so.
 
 ### Why there is no graph database
 
@@ -72,7 +82,7 @@ Connections are written where a reader sees them: a link in a sentence, or a typ
 
 The Markdown files are the library. `INDEX.md`, each `_index.md` and the search index are generated and can be deleted. Each principle's Governs line is also generated, from the `principles` field of the accounts, so the topic page's links can't drift from the accounts.
 
-History is git. `kf_check` with a commit message writes a line to `log.md` and commits. Going back is `git revert`. Originals, page images and frames are left out of git by the library's `.gitignore`; they sit in the folder and don't change.
+History is git. `kf_check` with a commit message writes a line to `log.md` and commits, and both carry the name of the agent that did it, since every agent commits under the owner's git identity. Going back is `git revert`. Originals, page images and frames are left out of git by the library's `.gitignore`; they sit in the folder and don't change.
 
 One session writes at a time. The home session, opened in the library folder, is the only one that ingests or edits, and a lock file stops two of them overlapping. Any other session reads, and can save a note to `inbox/`. This is also why Claude Code and Codex can share one library.
 

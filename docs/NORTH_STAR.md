@@ -44,9 +44,9 @@ The owner asked for a first-principles foundation (23 October and 10 November 20
 
 The six rules that follow:
 
-1. Store the delta, never the retelling.
+1. Store the delta, never the retelling. This governs what goes in, not how long an account is.
 2. One account per idea, across sources, revised in place.
-3. Every topic has a principles page, small enough to load whole.
+3. Every topic has a principles page, small enough to load whole. Below it, depth is welcome.
 4. Keep the original searchable, so compression loses nothing.
 5. The files are the library: readable Markdown, links written in the prose, history in git.
 6. Code does what agents are bad at (extraction, search, checking). Agents do the reading and writing.
@@ -81,9 +81,15 @@ The owner asked for the architecture to be assessed from scratch, left the direc
 - Domain, then topic. A topic is a folder with a principles page. This changes the 17 October decision, following the owner's own 23 October thinking.
 - One library for every agent. This settles a question the owner had deferred.
 - A topic the owner pins to a project loads there without invoking the skill. Use is otherwise still deliberate.
-- No embeddings, local model, QMD, Docling or Python environment.
+- No local embedding model, QMD, Docling or Python environment. Embeddings through an API are an optional second search channel (see the owner's review below).
 
 The owner chose the size of the acceptance run: three chapters, within five subagents.
+
+After reading the result the same day, the owner corrected three things, and each changed the build:
+
+- **Performance, not cost.** "Cost wasn't really my worry anyway. I was more concerned about sluggish speeds or ineffective ingestion or retrieval at some point in the future, context bloat. I wanna optimize for performance." And on length: "Isn't the important thing that the searchable L1 bit is short? Can't the deeper stuff be longer since the AI will have deliberately selected that document to read anyway?" He is right, and the first 0.6 guides had drifted toward economy. The delta rule stays as a rule about what goes in. The pressure on account length is gone, the retelling warning moved from 30% to 50% and is described as a description and never a target, and recall loads whole accounts up to a larger default budget.
+- **Build for the size it will reach.** "I'm not building for this size, I'm building for futureproofed bigger size." Keyword search carries topic-scoped questions at any size, and fails on cross-field questions, which matter most for invention. The semantic channel is built, optional, and on in the owner's library.
+- **One shared library was always the intent.** Separate libraries per agent were only for the testing phase. Commits and log lines now name the agent that wrote them.
 
 Version 0.5 is kept as the tag `v0.5.0` and the branch `records-engine-0.5`.
 

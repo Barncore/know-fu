@@ -20,7 +20,7 @@ The model's weights never change. What changes is what it can reach, and how wel
 
 Three things decide whether a library makes an AI better at a subject, and Know Fu is built around them.
 
-**Store what the model doesn't already know.** A frontier model knows what a compressor is and what overfitting means. What it lacks from a specialist source is the author's frame, the claims that surprise, the numbers, the conditions where the usual advice breaks, and the worked cases. An ingest keeps those and leaves the rest in the source, which stays one search away. A first book on a subject usually compiles to a tenth or a fifth of its length.
+**Store what the model doesn't already know.** A frontier model knows what a compressor is and what overfitting means. What it lacks from a specialist source is the author's frame, the claims that surprise, the numbers, the conditions where the usual advice breaks, and the worked cases. An ingest keeps those and leaves the rest in the source, which stays one search away. This is about what goes in, not about brevity: an account can run as long as its idea needs. What stays short is the page of principles.
 
 **Organize by principle.** An expert sorts a problem by the principle that governs it, and can work out what to do in a case no book covered. So every topic has one page, small enough to read whole, that states the subject's principles: what each one says, why it's true, where it breaks, and which accounts are cases of it. That page is what the agent loads first.
 
@@ -56,7 +56,7 @@ library/
   ideas/                                    candidate inventions, kept apart from evidence
 ```
 
-The engine is small and has nothing to install. It is TypeScript that Node 24 runs directly, with Node's built-in SQLite for search and Poppler for PDFs. It does the mechanical work: extraction, checking and search. The agent does the reading and the writing.
+The engine is small and has nothing to install. It is TypeScript that Node 24 runs directly, with Node's built-in SQLite for keyword search, Poppler for PDFs, and an optional embeddings endpoint for search by meaning. It does the mechanical work: extraction, checking and search. The agent does the reading and the writing.
 
 ## Using it
 
@@ -104,7 +104,7 @@ That runs every test with Node's own test runner. There is no build and no depen
 
 ## Built from
 
-TypeScript run by Node, `node:sqlite` with FTS5, Poppler, pandoc and FFmpeg. The coding agent does all the reasoning; the engine never calls a model. Transcription APIs are optional and billed separately.
+TypeScript run by Node, `node:sqlite` with FTS5, Poppler, pandoc and FFmpeg. The coding agent does all the reasoning; the engine never calls a language model. Embedding and transcription APIs are optional and billed separately.
 
 The ideas come from Karpathy's LLM Wiki, Ars Contexta's Reweave, research on how experts organize knowledge, and [ste-bah](https://github.com/ste-bah)'s Memory Graph and Archon. The [lineage](plugin/docs/lineage.md) says what came from where.
 
