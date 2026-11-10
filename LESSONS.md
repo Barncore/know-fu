@@ -2,6 +2,18 @@
 
 Things this project learned the hard way, newest first. Each one says what happened and what to do differently.
 
+## 2026-11-10 - A required field gets filled, true or not
+
+The checker refuses a principle with no "Breaks when", because a principle with no boundary is a slogan. Authors rarely say where their own principle fails. So the first cold ingest wrote boundaries of its own and, on three lines, in the book's voice. Every number in that ingest was right; the fidelity check's findings were almost all here. When a format requires a field the source often doesn't supply, say what to write when it doesn't, and make the label ("Inferred:") part of the format. Otherwise the requirement manufactures the very thing the library exists to prevent.
+
+## 2026-11-10 - Test with a reader who has only the product
+
+An agent given nothing but the skill and a real source found twelve problems in eleven minutes that 19 passing tests and the author's own reading had not: a ratio measured against pages nobody had read, a template that contradicted the sentence under it, citations that looked checked and weren't. Two more came from an agent that only used the library to answer questions. None was a bug a unit test would catch. They were gaps between what the guide says and what the tool does, and only someone following the guide walks into those.
+
+## 2026-11-10 - Level is a result too
+
+The blind comparison put 0.6 and 0.5 level on answer quality for the three chapters tested, with the judge preferring the old library's answers slightly more often. 0.6 used fewer tokens and was far cheaper to build, and that is what the run showed. It would have been easy to report only the token numbers. Write down the comparison you ran, including the half that didn't go your way, and keep the claim to what was measured: a design can be right for reasons one test doesn't reach, and saying so honestly is what makes the next test worth running.
+
 ## 2026-11-10 - The unit of knowledge decides everything downstream
 
 Versions up to 0.5 stored a small note per point per source. The first real book came out as 425 notes totalling 63% of the book's length, joined by 583 relationship records, and the six notes that stated the book's organizing ideas were written on the agent's own initiative. Every later problem traced back to that unit: ingests were slow because there was so much to write, revision across sources was impractical at 400 notes a book, and retrieval returned many near-matches. Three weeks of fixes had gone into speed, ranking and staging, all downstream of it. Before tuning a pipeline, measure what it produces against what went in (words compiled against words read is one line of code) and ask whether the unit is the one a reader needs.

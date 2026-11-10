@@ -11,4 +11,10 @@ This folder is the whole product. A host (Claude Code or Codex) installs it as i
 | `.claude-plugin/`, `.codex-plugin/` | Each host's manifest |
 | `docs/` | [Setup](docs/setup.md), [how it works](docs/architecture.md), [lineage](docs/lineage.md) |
 
-Your library isn't here. It is a folder of your own, named in `~/.know-fu/config.json`. Start with [setup](docs/setup.md).
+In Claude Code (2.1.275 or later) it installs in one step:
+
+```
+/plugin install know-fu --marketplace Barncore/know-fu
+```
+
+Your library isn't here. It is a folder of your own, named in `~/.know-fu/config.json`. [Setup](docs/setup.md) creates it and covers Codex.

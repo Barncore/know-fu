@@ -211,6 +211,13 @@ test('recall leads with principles, loads the best account whole and carries wha
     assert.match(cooling, /In the sources[\s\S]*WKH s\.4/);
     const nothing = (await runTool('kf_recall', { query: 'zebra accordion' })).text;
     assert.match(nothing, /gap/);
+    // A question about something the library lacks shares common words with real accounts. It still gets
+    // told there is a gap, with no account loaded and no source passage offered as if it were evidence.
+    const lacking = (await runTool('kf_recall', { query: 'how do I wire a thermocouple and program an electric controller for the kiln', ideas: true })).text;
+    assert.match(lacking, /Nothing in the compiled library clearly answers this/);
+    assert.doesNotMatch(lacking, /## Accounts\n/);
+    assert.doesNotMatch(lacking, /## In the sources/);
+    assert.match((await runTool('kf_recall', { query: 'forty minute hold', ideas: true })).text, /No ideas on file match this\./);
     // Sub-questions: each one's best match is present.
     const both = (await runTool('kf_recall', { query: ['when to start body reduction', 'how long to hold at cone 9'], budget: 6000 })).text;
     assert.match(both, /### Body reduction only works before the body seals/);

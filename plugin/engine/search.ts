@@ -18,6 +18,8 @@ export type Hit = {
   summary: string;
   score: number;
   snippet: string;
+  /** 0 to 1: the share of the question's terms this hit contains, rare terms weighted most. */
+  coverage: number;
 };
 
 type Row = { path: string; tier: Tier; ref: string; topic: string; title: string; summary: string; keywords: string; body: string };
@@ -158,14 +160,30 @@ export function search(lib: Library, query: string, options: { tiers?: Tier[]; l
     const match = terms.map(t => `"${t}"`).join(' OR ');
     const rows = db
       .prepare(
-        `select docs.tier, docs.ref, docs.topic, docs.title, docs.summary, -bm25(fts, 8.0, 4.0, 5.0, 1.0) as score,
+        `select docs.id, docs.tier, docs.ref, docs.topic, docs.title, docs.summary, -bm25(fts, 8.0, 4.0, 5.0, 1.0) as score,
                 snippet(fts, 3, '', '', ' … ', 28) as snippet
          from fts join docs on docs.id = fts.rowid
          where fts match ? and docs.tier in (${marks})${topic}
          order by score desc limit ?`,
       )
       .all(match, ...tiers, ...(options.topic ? [options.topic] : []), options.limit ?? 20);
-    return rows.map((r: any) => ({ ...r, snippet: String(r.snippet ?? '').replace(/\s+/g, ' ').trim() }));
+    if (!rows.length) return [];
+    // Coverage: how much of the question a hit speaks to, with rare terms counting most. A term the library
+    // has nowhere is the rarest of all, so a question about something the library lacks scores low on every
+    // hit, however many of its common words appear. bm25 alone can't say that: it ranks, it doesn't judge.
+    const total = Number(db.prepare('select count(*) as n from docs').get().n) || 1;
+    const ids = rows.map((r: any) => r.id);
+    const inResults = `rowid in (${ids.map(() => '?').join(', ')})`;
+    const weights: number[] = [];
+    const matched = new Map<number, number>();
+    for (const term of terms) {
+      const df = Number(db.prepare('select count(*) as n from fts where fts match ?').get(`"${term}"`).n);
+      const weight = Math.log(1 + total / (df + 0.5));
+      weights.push(weight);
+      for (const row of db.prepare(`select rowid as id from fts where fts match ? and ${inResults}`).all(`"${term}"`, ...ids)) matched.set(row.id, (matched.get(row.id) ?? 0) + weight);
+    }
+    const all = weights.reduce((sum, w) => sum + w, 0) || 1;
+    return rows.map(({ id, ...r }: any) => ({ ...r, snippet: String(r.snippet ?? '').replace(/\s+/g, ' ').trim(), coverage: (matched.get(id) ?? 0) / all }));
   } finally {
     db.close();
   }

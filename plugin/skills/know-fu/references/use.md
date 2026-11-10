@@ -8,7 +8,9 @@ Start work in a subject by loading its topic page with `kf_brief`. The page is s
 
 Then work the way an expert does. Frame the task in terms of the principles: which ones bear on it, and which pull against each other here. When a decision needs a number, a procedure or a case, fetch it: `kf_recall` with the specific question, or `kf_read` on an account named in a principle's Governs line. Keep fetches narrow. A few accounts that bear on the decision serve better than many that are merely about the subject; loosely related text is the kind of context that degrades reasoning most.
 
-For a compound question, split it into the sub-questions an expert would ask and pass them to `kf_recall` as a list. Use `load: "gists"` to see one line per matching account before loading any, and `seen` to skip what you already hold.
+For a compound question, split it into the sub-questions an expert would ask and pass them to `kf_recall` as a list. By default recall loads up to three accounts whole; raise `budget` for broad synthesis. When you already hold the topic page, the cheapest route is often `load: "gists"` to see one line per matching account, then `kf_read` on the one or two you need. Pass `seen` to skip what you already hold.
+
+When recall says nothing in the library clearly answers a question, take it at its word. It has checked how much of the question the nearest accounts and source pages cover, with the question's rare terms counting most, so its "nearest accounts" in that case are near in vocabulary only.
 
 When the compiled layer doesn't settle something, the sources are underneath. `kf_recall` lists where the original text speaks to a question, and `kf_read` with a source key and a locator returns those pages. Read the original when a detail carries weight, when an account's paraphrase is ambiguous, or when the owner will act on a number.
 

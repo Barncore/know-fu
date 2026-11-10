@@ -201,13 +201,14 @@ Three things the research added that the first draft lacked: a probe check after
 - [x] Engine: search index and recall
 - [x] Engine: MCP server and CLI
 - [x] Plugin: skill, guides, hooks, launcher, manifests
-- [x] Tests (19)
+- [x] Tests (21)
 - [x] Docs and change log
-- [ ] Acceptance: a cold ingest of three chapters by an agent that has only the skill
-- [ ] Acceptance: fidelity check of the compiled accounts against the source
-- [ ] Acceptance: blind comparison of the 0.6 library against the 0.5 library
-- [ ] Installed on this machine
-- [ ] Pushed to `staging`
+- [x] Acceptance: a cold ingest of three chapters by an agent that has only the skill
+- [x] Acceptance: fidelity check of the compiled accounts against the source
+- [x] Acceptance: blind comparison of the 0.6 library against the 0.5 library
+- [x] Pushed to `staging`, with `records-engine-0.5`
+- [x] Installed for Claude Code on the development machine
+- [ ] Installed for Codex (waiting on the owner's go-ahead)
 
 ## Acceptance
 
@@ -262,7 +263,45 @@ A second Opus agent got the source text for the span and the compiled files, wit
 
 All thirteen findings were fixed in the library (commit `eda6d82` there). The cause was in the product: the checker requires a "Breaks when" on every principle, authors rarely give one, and nothing told the compiler to label its own. The ingest guide and the format guide now say to cite the page or start the line with "Inferred:".
 
+### 4. A blind comparison with the 0.5 library
+
+Two Opus agents each answered the same nine tasks about chapters 5 to 7, at most 300 words each. One reached the 0.6 library through its command line, following the 0.6 use guide. The other reached the 17 October 0.5 library through the 0.5 engine, following the 0.5 retrieval guide. The tasks were written from the chapters' section headings before either library's content for them was read: three design tasks, three lookups, a mechanism to explain, an invention, and one question the chapters don't cover. A third Opus agent, given both answer sets with the order shuffled per task and the source text, scored each answer from 1 to 5 on four measures and named the one it would hand to a tool-builder.
+
+| | 0.6 library | 0.5 library |
+|---|---|---|
+| Correct (of 45) | 43 | 41 |
+| Specific (of 45) | 40 | 40 |
+| Useful (of 45) | 39 | 42 |
+| Honest (of 45) | 43 | 42 |
+| Total (of 180) | 165 | 165 |
+| Tasks preferred | 3 | 5 (1 tie) |
+| Tokens the answerer used | 148,616 | 209,128 |
+| Tool calls | 52 | 83 |
+| Characters of library output read | about 101,000 | about 252,000 |
+| Time | 5 min 39 s | 7 min 16 s |
+
+**What this shows.** On answering questions from these chapters, the two libraries are level. The 0.6 answers were slightly more correct and the 0.5 answers slightly more useful, and the judge preferred the 0.5 answer more often. The 0.6 answerer got to the same total with 29% fewer tokens and 60% less text read, from a compiled layer of 7,300 words that took 11 minutes to build for these 70 pages, where the 0.5 library holds 84,000 words of notes for the whole 364-page book and took 5 h 33 min.
+
+**What it doesn't show.** It doesn't show 0.6 giving better answers than 0.5, and the build should be judged knowing that. Equal answers at lower cost is the measured result. The claims that 0.6 compounds across sources, and that a principles page improves design work over a long session, weren't tested here.
+
+**Where 0.6 lost, looked at one by one.** On two of the five tasks it lost, the specifics the judge credited to the 0.5 answer were in the 0.6 library and its answerer didn't use them: the singer-and-guitar procedure with its 20% left and 40% right panning, and the "sluggish compressor with a fast attack" option. That is one agent's choice of what to include, not a hole in the library. On one, the 0.5 answer drew on chapters the 0.6 library doesn't hold yet (the uncovered-subject task, where adjacent material from elsewhere in the book helped). On one the 0.6 answerer made an inference the book contradicts (that a long decay reads as a bigger space only with matching build-up; the figure on p.100 says otherwise). On one the 0.5 idea was simply better.
+
+**Limits.** One run, one judge, and the judge is a model. The answers' citation styles differ, so the judge could tell that the same agent wrote, say, X in one task and Y in another, though not which library was which. The 0.5 library covers the whole book and the 0.6 library three chapters. Nine tasks is a small sample: a difference of 5 to 3 is within what a second run could reverse.
+
+**What changed because of it.** The 0.6 answerer reported that recall loaded four accounts when it needed one, and that for the uncovered subject recall offered source pages that shared only common words, "so they looked like evidence but weren't". Recall now loads at most three accounts at the default budget, scores how much of a question each hit covers with rare terms counting most, says plainly when nothing clearly matches, and offers a source page only when it covers most of the question.
+
+### Not shown yet
+
+- A whole book, and the reader-subagent workflow for one. The run above was three chapters read by one agent.
+- A second source on the same topic. The compounding claim (accounts revised in place, principles sharpened) is designed and untested.
+- Whether a principles page improves long design sessions. The comparison was short answers.
+- Pinning in a live session. The hook is tested with the same input the host sends, and hasn't been watched working in the desktop app.
+- Codex. The plugin carries its manifest and an install script; nothing was run in Codex, because installing there writes to the owner's Codex folder and needs his go-ahead.
+- Audio and video transcription against a live provider. It runs against a stand-in server in the tests.
+- Any machine but the development one (Windows 11, Node 24).
+
 ## Log
 
 - 2026-11-10: read the north star, lessons, the 19 to 23 October audit thread and the owner's messages in the original Codex thread; profiled the Claude library from the first book ingest; wrote this document.
 - 2026-11-10: research subagent reported; design adjusted as in "What the research changed". Engine, plugin, guides, tests and docs written. The owner chose the acceptance run's size: three chapters, within five subagents.
+- 2026-11-10: acceptance run done (cold ingest, fidelity check, blind comparison); twelve friction findings, thirteen fidelity findings and two recall findings acted on. The working files of the run (reports, tasks, both answer sets, the blinded file, the key and the verdict) are kept with the owner's research, outside this repository.

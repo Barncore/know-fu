@@ -33,7 +33,7 @@ This creates the folders, a README for people, an `AGENTS.md` and `CLAUDE.md` fo
 
 ## 3. Install the plugin
 
-**Claude Code.** In a terminal:
+**Claude Code.** From a clone, in a terminal:
 
 ```sh
 claude plugin marketplace add <repo>
@@ -43,7 +43,9 @@ claude plugin marketplace add <repo>
 claude plugin install know-fu@know-fu
 ```
 
-Then restart the app or start a new session. The plugin is self-contained: Claude Code copies it, engine included, into its own plugin folder. To update later, pull the repository and run `claude plugin update know-fu@know-fu`.
+Or straight from GitHub, typed in a Claude Code session (2.1.275 or later): `/plugin install know-fu --marketplace Barncore/know-fu`.
+
+Then restart the app or start a new session. The plugin folder is self-contained, engine included, so it runs wherever Claude Code keeps it. To update later, pull the repository and run `claude plugin update know-fu@know-fu`.
 
 **Codex.** Run:
 

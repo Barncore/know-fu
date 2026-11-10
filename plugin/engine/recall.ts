@@ -98,8 +98,10 @@ function rank(lib: Library, queries: string[], topic: string | undefined, ideas:
       const key = `${hit.tier}:${hit.ref}`;
       const had = merged.get(key);
       // A match for several sub-questions rises, but each sub-question's best match keeps a full score.
-      if (had) had.score = Math.max(had.score, normal) + 0.25 * Math.min(had.score, normal);
-      else merged.set(key, { hit, score: normal });
+      if (had) {
+        had.score = Math.max(had.score, normal) + 0.25 * Math.min(had.score, normal);
+        had.hit.coverage = Math.max(had.hit.coverage, hit.coverage);
+      } else merged.set(key, { hit, score: normal });
     }
   }
   const all = [...merged.values()];
@@ -164,13 +166,25 @@ export function recall(lib: Library, options: RecallOptions): string {
     spent += tokens(text) + 1;
   };
 
-  const pageHits = search(lib, queries.join(' '), { tiers: ['map', 'page'], limit: 5 });
-  if (!accounts.length && !principles.length) {
-    say(`Nothing in the compiled library matches${topic ? ` within ${topic}` : ''}.`);
+  // A source passage is offered only when it holds most of what the question asks about. A page that shares
+  // a common word or two looks like evidence and isn't.
+  const pageHits = search(lib, queries.join(' '), { tiers: ['map', 'page'], limit: 8 })
+    .filter(hit => hit.coverage >= 0.45)
+    .slice(0, 5);
+  const best = Math.max(0, ...accounts.slice(0, 5).map(r => r.hit.coverage), ...principles.slice(0, 3).map(r => r.hit.coverage));
+  if (best < 0.3) {
+    say(`Nothing in the compiled library${topic ? ` under ${topic}` : ''} clearly answers this${accounts.length ? ': the nearest accounts share only its common words' : ''}.`);
+    if (accounts.length) {
+      say('\n## Nearest accounts (probably not about this)\n');
+      for (const r of accounts.slice(0, 4)) {
+        const account = accountBySlug(lib, r.hit.ref);
+        if (account) say(`- \`${account.slug}\` (${asText(account.fm.kind)}, ${account.topic}): ${asText(account.fm.summary)}`);
+      }
+    }
     if (pageHits.length) {
-      say('\n## In the sources\n\nThe original text has these matches. Read them with kf_read (ref = the source key, loc = the locator).\n');
+      say('\n## In the sources\n\nThe original text does speak to it here. Read these with kf_read (ref = the source key, loc = the locator).\n');
       for (const hit of pageHits) say(`- ${hit.ref}: ${hit.snippet}`);
-    } else say('The sources have no match either. Say that the library has a gap here, and name what source would fill it. Other wording may still find it: try the terms a source would use.');
+    } else say('\nThe source text has no close match either. Treat this as a gap: say the library does not cover it, and name the kind of source that would. If the library may use other words for it, try those.');
     return out.join('\n');
   }
 
@@ -179,12 +193,15 @@ export function recall(lib: Library, options: RecallOptions): string {
   const loaded: Account[] = [];
   const listed: Ranked[] = [];
   const accountBudget = budget * 0.72;
+  // A few accounts that bear on the question serve better than many that are merely about the subject,
+  // so the count is capped as well as the size: three at the default budget, more only when the caller asks.
+  const maxLoaded = Math.max(1, Math.round(budget / 1300));
   let accountTokens = 0;
   for (const r of accounts) {
     const account = accountBySlug(lib, r.hit.ref);
     if (!account) continue;
     const size = tokens(account.body) + 40;
-    const wanted = options.load !== 'gists' && !seen.has(account.slug) && r.score >= top * 0.4 && (loaded.length === 0 || accountTokens + size <= accountBudget);
+    const wanted = options.load !== 'gists' && !seen.has(account.slug) && r.score >= top * 0.55 && loaded.length < maxLoaded && (loaded.length === 0 || accountTokens + size <= accountBudget);
     if (wanted) {
       loaded.push(account);
       accountTokens += size;
@@ -236,7 +253,7 @@ export function recall(lib: Library, options: RecallOptions): string {
       say(`- \`${idea.slug}\` [${asText(idea.fm.status)}]: ${asText(idea.fm.summary)}`);
     }
     say('');
-  }
+  } else if (options.ideas) say('No ideas on file match this.\n');
   if (pageHits.length && spent < budget) {
     say('## In the sources\n\nWhere the original text speaks to this, for detail or to check a claim (kf_read with ref = the key, loc = the locator).\n');
     for (const hit of pageHits) if (spent < budget * 1.1) say(`- ${hit.ref}: ${hit.snippet}`);

@@ -90,7 +90,9 @@ You need Node 22.18 or newer (24 recommended) and git. Poppler is needed for PDF
 
 Version 0.6 is a rebuild. Versions up to 0.5 stored hundreds of small notes per book as JSON records with typed relationship records between them. The first real book ingest showed what that produced: 425 notes that restated the book at 63% of its length, with no page that said what the book's principles were. [The rebuild record](docs/REBUILD.md) has the assessment and the reasoning, and the 0.5 engine is kept on the `records-engine-0.5` branch.
 
-What has been shown, and what hasn't, is in [the rebuild record](docs/REBUILD.md#acceptance). It has been built and run on Windows 11. Audio and video transcription is written and tested against a stand-in server, and hasn't been run against a live provider.
+What has been shown so far is small and specific. An agent given only the skill ingested three chapters of a book (70 pages) in 11 minutes and passed the checker; a separate fidelity check found every number right, and found a handful of places where the compiler's inference read as the author's view, which the guides now guard against. In a blind comparison on nine tasks, answers from the 0.6 library and from the 0.5 library scored level (165 of 180 each), with the 0.6 side using 29% fewer tokens and a compiled layer a fraction of the size. Not yet shown: a whole book, a second source revising the first, and a long design session working from a principles page. [The rebuild record](docs/REBUILD.md#acceptance) has the details and the limits.
+
+It has been built and run on Windows 11. Audio and video transcription is written and tested against a stand-in server, and hasn't been run against a live provider.
 
 ## Working on the code
 
