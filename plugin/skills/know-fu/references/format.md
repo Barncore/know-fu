@@ -122,11 +122,11 @@ Sections inside an account are optional and yours to choose; a method often want
 
 ## Citations and quotes
 
-A citation is a source key and a locator in square brackets: `[WKH p.112]`, `[WKH p.112-118]`, `[NOTES s.3]` for a section of a text file, `[ATK 12:34]` or `[ATK 12:34-15:00]` for a recording. Pages are the file's physical pages, counted from 1, which is what `kf_read` shows; note a printed-page offset in the source's About section if it helps.
+A citation is a source key and a locator in square brackets: `[WKH p.112]`, `[WKH p.112-118]`, `[NOTES s.3]` for a section of a text file, `[ATK 12:34]` or `[ATK 12:34-15:00]` for what a recording said, and `[ATK 12:36 screen]` for what its screen showed at that moment. Pages are the file's physical pages, counted from 1, which is what `kf_read` shows; note a printed-page offset in the source's About section if it helps.
 
 Put the citation right after what it supports. Cite every specific: a number, a rule, a claim someone might check.
 
-Text in double quotes immediately before a citation is a quotation, and the checker verifies that those words are in that part of the source, give or take a page. Mark a cut with `…`. To paraphrase, leave the quotation marks off. Quote sparingly: for a definition, a rule stated exactly, or wording that matters.
+Text in double quotes immediately before a citation is a quotation, and the checker verifies that those words are in that part of the source, give or take a page. Mark a cut with `…`. To paraphrase, leave the quotation marks off. Words quoted before a screen citation are words printed on the screen, which no transcript holds: the checker verifies that a frame at that time was opened, and asks that a frame cited from an account or a topic page be kept. Quote sparingly: for a definition, a rule stated exactly, or wording that matters.
 
 ## Links and connections
 
@@ -170,6 +170,6 @@ What the idea is, why it might work given its premises, what would show it is wr
 
 ## What the checker enforces
 
-Errors block a commit: malformed or unknown frontmatter, a link or citation that points at nothing, quoted words that aren't in the source, a cited key missing from `sources`, a principle with no statement, Why, Breaks when or Held by, a principle that governs no account, an account naming a principle that doesn't exist, knowledge linking to an idea, a compiled source with placeholders or with pages no digest covers, an exhibit record with no kept frame or no time in its heading, two things with one name.
+Errors block a commit: malformed or unknown frontmatter, a link or citation that points at nothing, quoted words that aren't in the source, a cited key missing from `sources`, a principle with no statement, Why, Breaks when or Held by, a principle that governs no account, an account naming a principle that doesn't exist, knowledge linking to an idea, a compiled source with placeholders or with pages no digest covers, an exhibit record with no kept frame or no time in its heading, a screen citation at a moment no frame was opened, a page whose summary is still the placeholder, two things with one name.
 
-Warnings are judgment calls, each worded as the question to answer: a stretch of video where the screen changed three or more times and the digest has no Frames line, a Frames line naming a frame nobody opened, a kept frame with no record, an account under 80 or over 1,500 words, a summary over 60 words, an account under no principle, a principle governing a single account, two accounts with nearly the same title, a topic page too long to read whole, and accounts citing a source that total more than 35% of the length of what was read.
+Warnings are judgment calls, each worded as the question to answer: a stretch of video where the screen changed three or more times and the digest has no Frames line, a Frames line naming a frame nobody opened, a kept frame with no record, a screen citation in an account whose frame isn't kept, an account under 80 or over 1,500 words, a summary over 60 words, an account under no principle, a principle governing a single account, two accounts with nearly the same title, a topic page too long to read whole, and accounts citing a source that total more than 35% of the length of what was read.

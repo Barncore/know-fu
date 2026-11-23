@@ -27,7 +27,7 @@ The order matters here, because each step tells you what the next should spend o
 1. **Read the whole transcript and look at every filmstrip sheet** before you open a single frame at reading size. A sheet costs about what two full frames cost, so seeing all of them is cheap, and it shows you which charts appear, when the speaker returns to one, and where the picture changes while the words say little. You can't ask for what you don't know is there.
 2. **Choose where to look**, stretch by stretch (next section).
 3. **Open the frames in batches**, several calls in one step, in time order, with the transcript for that stretch beside them. Loading frames one at a time costs far more, because each step re-reads everything you have loaded.
-4. **Write each stretch's digest as you finish it**, with its Frames line, so an interruption loses one stretch.
+4. **Write each stretch's digest as you finish it**, with its Frames line, so an interruption loses one stretch. These digests are the Map the ingest guide asks for at its second stage; the plan, the accounts and the topic page come after it, as that guide says.
 
 One reader takes a whole recording, because a lesson sets up at minute five what it pays off at minute forty.
 
@@ -36,24 +36,26 @@ One reader takes a whole recording, because a lesson sets up at minute five what
 Three reasons to open a frame at reading size:
 
 - **The words lean on the picture.** "This low here", "see how it reacts", a level pointed at and never named, a comparison between two things on screen, a number read off the chart. The test: can you restate the point with its specifics, without the picture? If you can't, look. Sentences that sound complete often aren't: "price takes the liquidity and reverses" doesn't say which low, on which timeframe, at what price.
-- **The filmstrip shows something the words skipped.** A drawing finished while the speaker said filler, an arrow never mentioned, the chart as it stood just before the speaker left it. The last frame before a change of chart is usually the one with every mark on it.
+- **The filmstrip shows something the words skipped.** A drawing finished while the speaker said filler, an arrow never mentioned, the chart as it stood just before the speaker left it. The last frame before a change of chart is usually the one with every mark on it. A menu, a legend or a tool panel that opens for a few seconds is worth a look too: it often lists the author's own names for things, which the speech uses and never spells out.
 - **The transcript is in doubt.** A term that reads wrong, a number, a "not" that changes the rule. A label on screen can settle what the audio can't.
 
 Don't open every filmstrip frame. Near-repeats teach nothing, and a pile of similar pictures makes each one harder to read well.
 
+One thing no frame can show: where a speaker points with the cursor when nothing is drawn. "This low here" with a moving pointer leaves no mark. Open the frames either side, read what the next sentences say about it, and if it is still unclear, write that the words point at something the picture doesn't settle.
+
 ## Reading a frame
 
-Write down what the picture shows as data, not as an impression. For a chart: the instrument, the timeframe, the date range, each mark with where it sits (date and price, or the label beside it), and what was drawn in what order when the order is the point. For a tool's window: the control, its setting and its unit.
+Write down what the picture shows as data, not as an impression. For a chart: the instrument, the timeframe, the date range, each mark with where it sits (date and price, or the label beside it), and what was drawn in what order when the order is the point. For a tool's window: the control, its setting and its unit. An edited video often crops the chart so its header and axes are gone. Then say what isn't visible, and when you take the instrument or the date from somewhere else (another frame, a post shown on screen), say where.
 
-Say how each number was read: **printed** when it is text on the screen (an axis tag, a label, a readout), **off the axis** when you judged a position between gridlines, with the tolerance, and **from data** when you checked it against an outside record. Where exact values matter and an outside record exists, such as exchange prices, check against it and say that you did. A model reading a chart leans on what it remembers of that market; when a number comes from memory and not from the frame, say that too.
+Say how each number was read: **printed** when it is text on the screen (an axis tag, a label, a readout), **off the axis** when you judged a position between gridlines, with the tolerance, and **from data** when you checked it against an outside record. Where exact values matter and an outside record exists, such as exchange prices, check against it with whatever market-data tool your session has and say that you did; with no such tool, say the value was not checked. For a worked example with a real date, this check is worth making even when nothing looks wrong: it turns the example into a case someone can test against, and it settles what a speaker misremembers, such as which day it was. A model reading a chart leans on what it remembers of that market; when a number comes from memory and not from the frame, say that too.
 
-When a detail is in doubt, crop it with `box`. Small text, a price digit, whether a candle's wick or its body crossed a line, a thin or faint line: these are read from the crop, never guessed from the full frame. A webcam box, subtitles or a pop-up can cover part of the picture, so a mark missing under one is not a mark that isn't there.
+When a detail is in doubt, crop it with `box`. Choose the box from the frame at reading size, not from a filmstrip thumbnail, where a guess easily lands on the wrong region. Small text, a price digit, whether a candle's wick or its body crossed a line, a thin or faint line: these are read from the crop, never guessed from the full frame. A webcam box, subtitles or a pop-up can cover part of the picture, so a mark missing under one is not a mark that isn't there.
 
 A mark on one chart is a case. It becomes a rule only when the speaker states it as one, or when several cases agree, and the account says which.
 
 ## Speech, screen and inference
 
-Keep them apart in the digest and the accounts: what the speaker **said** (cite the sentence's time), what the screen **showed** (cite the frame's time), and what you **inferred** from the two. A projection drawn past the last candle is a forecast, not a result. When the audio and the picture disagree, give both and say which you could verify.
+Keep them apart in the digest and the accounts: what the speaker **said** (cite the sentence's time, `[KEY 12:31]`), what the screen **showed** (cite the frame's time with the word screen, `[KEY 12:36 screen]`), and what you **inferred** from the two. Words printed on the screen, such as a legend, a note on the chart or a label, can be quoted in double quotes before a screen citation. The checker can't read pixels, so it checks that a frame at that time was opened, and for a citation in an account or on the topic page it asks that the frame be kept. A projection drawn past the last candle is a forecast, not a result. When the audio and the picture disagree, give both and say which you could verify.
 
 ## The Frames line
 
@@ -64,11 +66,11 @@ End each digest with one:
 - **Frames:** none: the speaker is on camera for this whole stretch
 ```
 
-`kf_check` compares the line with what happened. It warns when the screen changed three or more times in a stretch whose digest has no Frames line, and when the line names a frame nobody opened. The line is how the owner can tell a stretch that was looked at from one that was written from the words alone.
+List each frame by the time the tool gave it, which for `view: "screen"` is the time of the frame and not of the sentence. A note in brackets after a time is fine. `kf_check` compares the line with what happened. It warns when the screen changed three or more times in a stretch whose digest has no Frames line, and when the line names a frame that was never made. It can tell that a frame was made, not that it was looked at: `view: "screen"` often makes two, so list only the ones you read. The line is how the owner can tell a stretch that was looked at from one that was written from the words alone.
 
 ## Exhibits
 
-When a claim in an account rests on what a frame shows, keep the frame: `kf_source` with `action: "keep"`, the source key and the time (and `box` to keep a crop too). A kept frame stays in the source's `exhibits` folder. Every other frame is a cache that can be cleared, and a large video is never copied into the library, so a kept frame is the only picture sure to be there later.
+When a claim in an account rests on what a frame shows, keep the frame: `kf_source` with `action: "keep"`, the source key and the time. With `box` it keeps that crop and the frame it was cut from. A kept frame stays in the source's `exhibits` folder. Every other frame is a cache that can be cleared, and a video file over 300 MB is left where it was and not copied into the library, so a kept frame is the only picture sure to be there later.
 
 Then write its record on the source page, under `## Exhibits`:
 
@@ -81,7 +83,9 @@ Then write its record on the source page, under `## Exhibits`:
 - **Supports:** [[sweep-before-entry]]
 ```
 
-(The example is invented to show the shape.) Write the record so a reader who never opens the image still has its content. In accounts, cite the moment as `[KEY 12:36]`; `kf_read` with `view: "image"` at that time returns the kept frame. Keep the few frames that carry a claim, not every frame you opened.
+(The example is invented to show the shape.) Write the record so a reader who never opens the image still has its content. One record covers a moment: the frame and any crops kept from it, so name each crop's region in the record.
+
+Say each thing once. Text read off the screen word for word, such as a table or the notes on a chart, lives in the exhibit record. The digest for that stretch says the exhibit exists and what it is for. The account states the idea, gives the few values it needs, and cites the moment. Copying a table into the map, the record and an account makes three copies that drift apart when one is edited, and it is how a twenty-minute lesson turns into a library longer than its transcript. `kf_check` counts the words in exhibit records as source that was read, so what the screen showed doesn't count against the accounts as retelling; repeating it does. In accounts, cite the moment as `[KEY 12:36 screen]`; `kf_read` with `view: "image"` at that time returns the kept frame. Keep the few frames that carry a claim, not every frame you opened.
 
 ## Long recordings
 

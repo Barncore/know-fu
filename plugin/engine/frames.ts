@@ -341,7 +341,8 @@ const stamp = (seconds: number) => String(Math.round(seconds * 10)).padStart(7, 
  * A crop is cut from the original frame, never from the resized one, and enlarged when it is small.
  */
 export function frameImage(config: Config, video: string, seconds: number, outDir: string, box?: [number, number, number, number]): string {
-  const name = `t${stamp(seconds)}${box ? `-c${box.map(v => Math.round(v)).join('-')}` : ''}.jpg`;
+  // Tenths of a percent in the name, so two boxes that differ by half a percent are two files.
+  const name = `t${stamp(seconds)}${box ? `-c${box.map(v => Math.round(v * 10)).join('-')}` : ''}.jpg`;
   const target = path.join(outDir, name);
   if (exists(target)) return target;
   fs.mkdirSync(outDir, { recursive: true });
@@ -361,5 +362,6 @@ export function frameImage(config: Config, video: string, seconds: number, outDi
 /** Seconds a cached frame file shows, or null when the name isn't a frame. */
 export function frameSecond(file: string): number | null {
   const m = /^t(\d{7})(?:-c[\d-]+)?\.jpg$/.exec(file);
+  // (A crop's name carries its box after "-c"; the time is the same as the frame it was cut from.)
   return m ? Number(m[1]) / 10 : null;
 }

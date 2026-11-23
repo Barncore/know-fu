@@ -26,7 +26,7 @@ export type Unit = {
 };
 
 export type Link = { to: string; anchor: string; verb: string; note: string; line: number };
-export type Cite = { key: string; loc: string; line: number; quote?: string };
+export type Cite = { key: string; loc: string; line: number; quote?: string; screen?: boolean };
 
 export type Doc = {
   file: string;
@@ -97,9 +97,11 @@ export function withoutCode(text: string): string {
 
 const WIKILINK = /\[\[([^\]|#\n]*)(?:#([^\]|\n]+))?(?:\|[^\]\n]*)?\]\]/g;
 // [KEY p.12], [KEY p.12-15], [KEY s.3], [KEY 12:34], [KEY 1:02:03-1:05:00]
-export const CITE = /\[([A-Z][A-Z0-9]{1,11}) ((?:p|s)\.\d+(?:-\d+)?|\d{1,2}:\d{2}(?::\d{2})?(?:-\d{1,2}:\d{2}(?::\d{2})?)?)\]/g;
+// A time may end in " screen": [KEY 12:36 screen] cites what the picture showed at that moment, where
+// [KEY 12:36] cites what was said. The two are checked differently, since printed words aren't in a transcript.
+export const CITE = /\[([A-Z][A-Z0-9]{1,11}) ((?:p|s)\.\d+(?:-\d+)?|\d{1,2}:\d{2}(?::\d{2})?(?:-\d{1,2}:\d{2}(?::\d{2})?)?)( screen)?\]/g;
 const QUOTED = /["“]([^"“”\n]{12,600})["”]\s*$/;
-const BARE_LOC = /\[((?:p|s)\.\d+(?:-\d+)?|\d{1,2}:\d{2}(?::\d{2})?(?:-\d{1,2}:\d{2}(?::\d{2})?)?)\]/g;
+const BARE_LOC = /\[((?:p|s)\.\d+(?:-\d+)?|\d{1,2}:\d{2}(?::\d{2})?(?:-\d{1,2}:\d{2}(?::\d{2})?)?)( screen)?\]/g;
 
 export function splitSections(body: string, bodyLine: number, level = 2): Section[] {
   const mark = '#'.repeat(level) + ' ';
@@ -147,7 +149,7 @@ function scan(body: string, bodyLine: number): { links: Link[]; cites: Cite[] } 
     for (const m of line.matchAll(CITE)) {
       const before = line.slice(0, m.index ?? 0);
       const quote = QUOTED.exec(before)?.[1];
-      cites.push({ key: m[1], loc: m[2], line: n, ...(quote ? { quote } : {}) });
+      cites.push({ key: m[1], loc: m[2], line: n, ...(quote ? { quote } : {}), ...(m[3] ? { screen: true } : {}) });
     }
   });
   return { links, cites };
@@ -323,7 +325,7 @@ export function loadLibrary(root: string): Library {
         .forEach((line, i) => {
           for (const m of line.matchAll(BARE_LOC)) {
             const quote = QUOTED.exec(line.slice(0, m.index ?? 0))?.[1];
-            source.cites.push({ key: source.key, loc: m[1], line: doc.bodyLine + i, ...(quote ? { quote } : {}) });
+            source.cites.push({ key: source.key, loc: m[1], line: doc.bodyLine + i, ...(quote ? { quote } : {}), ...(m[2] ? { screen: true } : {}) });
           }
         });
     lib.sources.push(source);

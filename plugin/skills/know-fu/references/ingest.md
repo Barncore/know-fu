@@ -93,7 +93,7 @@ State each principle in words another field could recognize, so it can travel: s
 
 The same honesty applies to each line under a principle, and most of all to "Breaks when". Authors rarely say where their own principle fails, and the page still needs a boundary, so that line is where a compiler is most tempted to write its own view in the author's voice. When the source gives the boundary, cite the page. When it doesn't, say so and begin with "Inferred:". The same goes for a Tensions line: "the book's answer is…" needs a page that says it is the book's answer, and a practice the author reports from others is reported as theirs. The first cold test of this guide got every number right and got exactly this wrong, on three lines.
 
-Aim for 6 to 15 principles per topic. More than that and a reader can't hold the page; look for the ones that are cases of another.
+Aim for 6 to 15 principles per topic once it rests on a book or several sources. More than that and a reader can't hold the page; look for the ones that are cases of another. A first short source, such as one twenty-minute lesson, may honestly hold three or four: write those, and say at the top of the page that it rests on one short source.
 
 ## Accounts
 
@@ -125,7 +125,9 @@ A page flagged `ocr` was a scan read by OCR. Its words are mostly right and its 
 
 A recording can be added by its link: pass the link as `file`. Call `kf_source` with `action: "info"` and the link first. It shows the length, the cost to transcribe and the page's description, which often names the terms worth sending. A video added by link may come with `captions.txt` in its source folder, the page's own captions: read the same minute there when a word in the transcript is in doubt, and remember that automatic captions are a second machine's guess, not the truth.
 
-When you add a recording, give `kf_source` its `topic` if the topic exists, and `terms`: the speaker's name, the method's own labels, tickers, and any term of art you can see in the title or description that the topic doesn't hold yet. They go to the transcriber, which then hears them; without them a coined term comes back as the nearest common word. A transcribed recording has one sentence per line, each starting with the time it was spoken.
+A recording's transcript is cut into units of about two minutes. Your map follows the lesson's own parts, and its headings may start and end anywhere inside those units. A principle that is stated only on the screen is held as "stated on screen", with the frame's time.
+
+When you add a recording, give `kf_source` its `topic` if the topic exists, and `terms`: the speaker's name, the method's own labels, tickers, and any term of art you can see in the title or description that the topic doesn't hold yet. They go to the transcriber, which then hears them; without them a coined term comes back as the nearest common word. Send only terms you have reason to think are spoken: a file on disk has no description to read, and a term you guessed can pull the transcript toward a word nobody said. The author can be corrected on the source page afterwards if the recording names the speaker differently. A transcribed recording has one sentence per line, each starting with the time it was spoken.
 
 For a recording, citations are timestamps like `[KEY 12:34]`. Transcripts mishear names, numbers and terms of art, so check those before quoting them. When the recording has a screen that carries content (a chart, slides, a tool's window), read the video guide before you start (`kf_read` ref "guide:video", or `references/video.md`): it covers the filmstrips made when the video was added, choosing where to look, the Frames line each digest ends with, and keeping the frames an account relies on.
 

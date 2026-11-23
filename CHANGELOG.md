@@ -6,6 +6,23 @@ Entries before 0.6.0 describe the earlier engine, and the files and tools they n
 
 ## Unreleased
 
+### 2026-11-23 - 0.11.0: what two readers of a real video found
+
+Why: the video path had never been used end to end. Two readers, each given only the skill and a throwaway library, ingested the same twenty-minute lesson, and a third graded both against the video without knowing how they differed. Both finished with no checker errors and both caught content the transcript doesn't hold. Each listed twenty points of friction, most of them shared, and the grader found what both missed. The changes below are those findings.
+
+- **A screen citation.** `[KEY 12:36 screen]` cites what the picture showed, where `[KEY 12:36]` cites what was said. Words quoted before a screen citation are words printed on the screen, which no transcript holds: both readers got quote errors for a printed table and a chart's notes, and paraphrased to get past the checker. The checker now verifies that a frame at that time was opened (an error if not), and warns when an account or topic page cites a frame that isn't kept.
+- **The retelling measure counts what the screen showed.** Words in a source's exhibit records count as source read. Both readers said the 35% warning doesn't fit a video whose accounts carry a printed table and a chart's notes; one trimmed a good account to pass it and the other left it at 74%. The grader found about half of the longer library's extra length was repetition: the same table and notes copied into the map, the exhibit record and an account. The 35% line is unchanged, and the video guide now says to write each thing once and where.
+- **Keeping a crop keeps the frame it was cut from.** Before, `keep` with `box` kept only the crop, and asking for the frame at that time returned the cache copy.
+- **The cost of transcription is reported** when a recording is added: the provider's figure when it gives one, or the estimate, against what was approved.
+- **The Frames line** no longer reads times inside a bracketed note or after "none".
+- **A placeholder summary is an error.** `new` writes "TODO" as a page's summary, and registering a source committed it unnoticed.
+- **Filmstrip listing** returns the sheets themselves when there are six or fewer, and the crop's box is shown and named as given, to a tenth of a percent.
+- **Guides.** SKILL.md names the video guide. The video guide gains: the digests are the map and come before the plan; what to write when a cropped chart hides its axes; that a cursor pointing at nothing drawn can't be resolved from a frame; choosing a crop from the frame at reading size; listing frames by the time the tool gave; opening menus and legends that appear briefly (both readers skipped one that named the author's whole vocabulary); checking a dated example against outside data; and one record per moment. The ingest guide gains: map headings follow the lesson's parts and may cut across units; how many principles a short first source holds; how to hold a principle stated only on screen; and to send the transcriber only terms likely to be spoken. The format guide covers the screen citation.
+- Measured in the test (the owner's research, outside this repository): the two readers took 11 and 19 minutes and 260,000 and 352,000 tokens. The grader checked fifteen claims in each library against the video and found 12 and 13 fully supported, with one minor wrong claim in the first and none in the second. Of seventeen things the video shows only on its screen, the two libraries held 12 and 15.
+- Tests: 32 pass, with new cases for the screen citation, the Frames line, a kept crop, and the placeholder summary.
+- Compatibility: `[KEY 12:36 screen]` is new syntax; existing citations are unchanged. The retelling ratio of a video source with exhibit records comes out lower than before.
+- Not shown: the reader effort levels were compared on one run each.
+
 ### 2026-11-23 - 0.10.0: a video by its link, and scanned pages read by OCR
 
 Why: both were on the owner's list of dependencies to add now. A video on the web had to be downloaded by hand before it could be added, and a scanned PDF came in as blank pages with a note to run OCR elsewhere, which 0.5 had done itself.

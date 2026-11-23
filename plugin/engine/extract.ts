@@ -431,6 +431,8 @@ async function extractMedia(config: Config, file: string, workDir: string, maxCo
   const plan = chunkPlan(seconds);
   let sent = keyTerms(terms);
   let refused = false;
+  let charged = 0;
+  let unpriced = false;
   const cues: Cue[] = [];
   const used = new Set<string>();
   for (const chunk of plan) {
@@ -470,12 +472,19 @@ async function extractMedia(config: Config, file: string, workDir: string, maxCo
       fs.writeFileSync(done, raw);
       return JSON.parse(raw);
     };
-    const got = chunkCues(await reply(), chunk, chunk.index === plan.length - 1);
+    const answer = await reply();
+    if (Number.isFinite(Number(answer?.usage?.cost))) charged += Number(answer.usage.cost);
+    else unpriced = true;
+    const got = chunkCues(answer, chunk, chunk.index === plan.length - 1);
     used.add(got.from);
     cues.push(...got.cues);
   }
   const spoken = cues.filter(c => c.text).sort((a, b) => a.start - b.start);
   const out = timeUnits(spoken, `${t.model} via ${new URL(t.endpoint).host}`, used.has('words') ? { lineSpan: 0, dedupe: false } : { dedupe: false });
+  // The owner approved a ceiling; say what it came to. A provider's own figure is better than the estimate when it gives one.
+  out.notes.push(
+    `Transcription: ${!unpriced && charged > 0 ? `the provider reported ${charged.toFixed(3)} ${currency} for ${plan.length} ${plan.length === 1 ? 'chunk' : 'chunks'}` : `estimated at ${priced ? `${cost.toFixed(3)} ${currency}` : 'an unknown cost'}; the provider reported no figure`}, against ${maxCost} approved. Replies saved earlier are reused and not paid for again.`,
+  );
   if (used.has('words')) out.notes.push('Each line is one sentence with the time its first word was spoken, so a frame can be aimed at it.');
   if (used.has('text')) out.notes.push('The transcription model returned no timestamps: each five-minute stretch has one timestamp, and a few words repeat where two stretches meet.');
   if (sent.length) out.notes.push(`${sent.length} key terms were sent to the transcriber: ${sent.slice(0, 12).join(', ')}${sent.length > 12 ? ', …' : ''}.`);

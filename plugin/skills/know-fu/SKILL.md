@@ -27,7 +27,7 @@ Reason from the principles, and reach for accounts when a decision needs a numbe
 
 ## Ingesting a source
 
-Only in the home session. Read [ingest.md](references/ingest.md) and [format.md](references/format.md) first, every time: the method is what makes an ingest compile understanding instead of retelling the source, and the checker enforces the format.
+Only in the home session. Read [ingest.md](references/ingest.md) and [format.md](references/format.md) first, every time, and [video.md](references/video.md) too when the source is a video with a screen: the method is what makes an ingest compile understanding instead of retelling the source, and the checker enforces the format.
 
 An ingest is finished when the topic page states the subject's principles better than it did, the accounts hold what a strong general model wouldn't already say, the source is mapped end to end, and `kf_check` passes and is committed. A source that adds little is a fine result when you say why.
 

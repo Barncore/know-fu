@@ -77,6 +77,8 @@ function frontmatterIssues(doc: Doc, type: string, add: (i: Omit<Issue, 'file'>)
   const declared = asText(doc.fm.type);
   if (declared !== type) add({ level: 'error', code: 'frontmatter', message: `type is "${declared || '(missing)'}" but a file here is a ${type}` });
   for (const key of shape.required) if (!(key in doc.fm)) add({ level: 'error', code: 'frontmatter', message: `missing "${key}"` });
+  // A page made with "new" starts with a placeholder summary, and a summary is what a reader chooses by.
+  if (/^TODO\b/.test(asText(doc.fm.summary))) add({ level: 'error', code: 'frontmatter', message: 'the summary is still the placeholder; write one line on what this covers' });
   for (const key of Object.keys(doc.fm))
     if (!shape.required.includes(key) && !shape.optional.includes(key))
       add({ level: 'error', code: 'frontmatter', message: `unknown field "${key}"; a ${type} takes ${[...shape.required, ...shape.optional].join(', ')}` });
@@ -99,9 +101,26 @@ function nearText(source: Source, from: number, to: number): string {
   return squash(parts.join('\n'));
 }
 
-function citationIssues(lib: Library, doc: Doc, add: (i: Omit<Issue, 'file'>) => void): Set<string> {
+/** `lasting` is for knowledge pages: what they cite on a screen should be a kept frame, so a later reader can open it. */
+function citationIssues(lib: Library, doc: Doc, add: (i: Omit<Issue, 'file'>) => void, lasting = false): Set<string> {
   const used = new Set<string>();
   for (const cite of doc.cites) {
+    if (cite.screen) {
+      // What a screen showed can't be checked against a transcript. What can be checked is that someone looked.
+      const source = sourceByKey(lib, cite.key);
+      if (!source) {
+        add({ level: 'error', code: 'citation', line: cite.line, message: `[${cite.key} ${cite.loc} screen] cites a source key that isn't in the library` });
+        continue;
+      }
+      used.add(cite.key);
+      const at = parseTime(cite.loc);
+      if (at === null) add({ level: 'error', code: 'citation', line: cite.line, message: `[${cite.key} ${cite.loc} screen] needs one moment, like [${cite.key} 12:36 screen]` });
+      else if (!framesLooked(source).some(t => Math.abs(t - at) <= 1))
+        add({ level: 'error', code: 'citation', line: cite.line, message: `[${cite.key} ${cite.loc} screen] cites the screen at a moment no frame was opened. Open it with kf_read view "image" or "screen" and cite the time of the frame you read.` });
+      else if (lasting && !keptExhibits(source).some(t => Math.abs(t - at) <= 1))
+        add({ level: 'warn', code: 'exhibit', line: cite.line, message: `[${cite.key} ${cite.loc} screen] rests on a frame that isn't kept. Keep it with kf_source action "keep", so a later reader can open what this cites.` });
+      continue;
+    }
     const source = sourceByKey(lib, cite.key);
     if (!source) {
       add({ level: 'error', code: 'citation', line: cite.line, message: `[${cite.key} ${cite.loc}] cites a source key that isn't in the library (keys: ${lib.sources.map(s => s.key).join(', ') || 'none'})` });
@@ -197,7 +216,7 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
     const add = adder(topic.rel);
     frontmatterIssues(topic, 'topic', add);
     linkIssues(lib, topic, topic.path, 'knowledge', add);
-    citationIssues(lib, topic, add);
+    citationIssues(lib, topic, add, true);
     const accounts = lib.accounts.filter(a => a.topic === topic.path && !isRetired(a));
     const frame = section(topic.sections, 'Frame');
     if (!frame?.text) add({ level: 'error', code: 'topic', message: `${frame ? 'the "## Frame" section is empty' : 'no "## Frame" section'}: write a few paragraphs on how this subject hangs together` });
@@ -232,7 +251,7 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
     frontmatterIssues(account, 'account', add);
     const topic = lib.topics.find(t => t.path === account.topic);
     linkIssues(lib, account, account.topic, 'knowledge', add);
-    const cited = citationIssues(lib, account, add);
+    const cited = citationIssues(lib, account, add, true);
     const listed = new Set(asList(account.fm.sources));
     for (const key of listed) if (!keys.has(key)) add({ level: 'error', code: 'sources', message: `sources lists "${key}", which isn't a source key in the library` });
     for (const key of cited) if (!listed.has(key)) add({ level: 'error', code: 'sources', message: `the text cites ${key} but "sources" doesn't list it; add ${key} to sources` });
@@ -285,7 +304,10 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
       if (entry.from >= 0 && countWords(entry.text) < 25) add({ level: 'warn', code: 'map', line: entry.line, message: `the digest under "${entry.title}" is nearly empty` });
     }
     const mappedWords = covered.size ? [...covered].reduce((sum, i) => sum + source.units[i].words, 0) : source.sourceWords;
-    const ratio = mappedWords ? compiledWords / mappedWords : 0;
+    // A video's words are not only spoken. What its screen showed reaches the library through the exhibit records,
+    // so those count as source read: accounts that carry a printed table or a chart's notes aren't retelling the speech.
+    const screenWords = covered.size ? countWords(section(source.sections, 'Exhibits')?.text ?? '') : 0;
+    const ratio = mappedWords ? compiledWords / (mappedWords + screenWords) : 0;
     const gaps = source.units.map((u, i) => (covered.has(i) || u.flags.includes('blank') ? -1 : i)).filter(i => i >= 0);
     sourceStats.push({
       id: source.id,
@@ -315,7 +337,9 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
             add({ level: 'warn', code: 'frames', line: entry.line, message: `the screen changed ${changes} times during "${entry.title}" and its digest has no "- **Frames:**" line. List the frames you opened (like 12:36, 13:02), or write "none" and why.` });
           continue;
         }
-        for (const m of line[1].matchAll(/\b(\d{1,2}(?::\d{2}){1,2})\b/g)) {
+        // "none: …" gives a reason, and a note in brackets explains a frame; neither is a list of frames.
+        const listed = /^\s*none\b/i.test(line[1]) ? '' : line[1].replace(/\([^)]*\)/g, ' ');
+        for (const m of listed.matchAll(/\b(\d{1,2}(?::\d{2}){1,2})\b/g)) {
           const at = parseTime(m[1]);
           if (at !== null && !looked.some(t => Math.abs(t - at) <= 1))
             add({ level: 'warn', code: 'frames', line: entry.line, message: `the digest under "${entry.title}" lists a frame at ${m[1]}, but no frame near that time was opened. Open it with kf_read view "image" or "screen", or take it off the line.` });
@@ -339,7 +363,7 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
         if (!recorded.some(at => Math.abs(t - at) < 1)) add({ level: 'warn', code: 'exhibit', message: `a frame at ${formatTime(t)} was kept as an exhibit, but "## Exhibits" has no "### ${formatTime(t)} …" record for it` });
     }
     if (covered.size && ratio > LIMITS.retelling)
-      add({ level: 'warn', code: 'retelling', message: `accounts citing this source total ${compiledWords} words against the ${mappedWords} words mapped so far: ${Math.round(ratio * 100)}%. That is a lot of the source to have kept. Check for retelling: an account explains an idea in full, but it doesn't repeat background any model already has, and the original stays searchable.` });
+      add({ level: 'warn', code: 'retelling', message: `accounts citing this source total ${compiledWords} words against the ${mappedWords} words mapped so far${screenWords ? ` and ${screenWords} words of exhibit records` : ''}: ${Math.round(ratio * 100)}%. That is a lot of the source to have kept. Check for retelling: an account explains an idea in full, but it doesn't repeat background any model already has, and the original stays searchable.` });
     if (status !== 'compiled') continue;
     const todo = source.body.split('\n').findIndex(l => l.trim().startsWith('TODO:'));
     if (todo >= 0) add({ level: 'error', code: 'source', line: source.bodyLine + todo, message: 'a TODO placeholder is still here; a compiled source has its About, Map and What it changed written' });

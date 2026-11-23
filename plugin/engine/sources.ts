@@ -316,7 +316,12 @@ export function viewUnit(config: Config, source: Source, loc: string | undefined
   if (view === 'filmstrip') {
     if (!track?.sheets.length) fail('NOT_FOUND', `${source.key} has no filmstrips. Ask for a frame by time with view "image", or the screen for a sentence with view "screen".`);
     const span = (s: { times: number[] }) => `${formatTime(s.times[0])}-${formatTime(s.times.at(-1)!)}`;
-    if (!loc) return { text: [`${source.key}: ${track.candidates.length} moments where the screen changed and settled, on ${track.sheets.length} sheets. Open each with loc "1" to "${track.sheets.length}".`, ...track.sheets.map((s, i) => `- sheet ${i + 1}: ${span(s)} (${s.times.length} frames)`)].join('\n') };
+    if (!loc)
+      return {
+        text: [`${source.key}: ${track.candidates.length} moments where the screen changed and settled, on ${track.sheets.length} sheets. loc "1" to "${track.sheets.length}" returns one sheet with the time of each thumbnail.`, ...track.sheets.map((s, i) => `- sheet ${i + 1}: ${span(s)} (${s.times.length} frames)`)].join('\n'),
+        // A short recording's sheets come back together; a long one's are asked for by number, so they don't all load at once.
+        paths: track.sheets.length <= 6 ? track.sheets.map(s => path.join(framesDir(source), s.file)) : undefined,
+      };
     const asTime = parseTime(loc);
     const index = /^\d+$/.test(loc) ? Number(loc) - 1 : asTime === null ? -1 : Math.max(0, track.sheets.findLastIndex(s => s.times[0] <= asTime));
     const sheet = track.sheets[index];
@@ -343,7 +348,7 @@ export function viewUnit(config: Config, source: Source, loc: string | undefined
     };
   }
   const cut = box ? parseBox(box) : undefined;
-  return { text: `${source.key} ${formatTime(seconds)}${cut ? `, the region ${cut.map(v => Math.round(v)).join(',')} (percent: left, top, width, height), cut from the original frame` : ''}`, paths: [frameFor(config, source, file, seconds, cut)] };
+  return { text: `${source.key} ${formatTime(seconds)}${cut ? `, the region ${cut.join(',')} (percent: left, top, width, height), cut from the original frame` : ''}`, paths: [frameFor(config, source, file, seconds, cut)] };
 }
 
 /**
@@ -356,10 +361,15 @@ export function keepExhibit(config: Config, source: Source, loc: string, box?: s
   if (!isVideo(file)) fail('UNSUPPORTED', `${source.key} isn't a video. A PDF page is always there to view again, so it needs no keeping.`);
   const seconds = parseTime(loc);
   if (seconds === null) fail('INVALID', `Name the moment to keep, like "12:34"; got "${loc}".`);
-  const made = frameImage(config, file, seconds, framesDir(source), box ? parseBox(box) : undefined);
   fs.mkdirSync(exhibitsDir(source), { recursive: true });
-  const target = path.join(exhibitsDir(source), path.basename(made));
-  if (!exists(target)) fs.copyFileSync(made, target);
+  const keep = (made: string) => {
+    const to = path.join(exhibitsDir(source), path.basename(made));
+    if (!exists(to)) fs.copyFileSync(made, to);
+    return to;
+  };
+  // A crop is kept with the frame it was cut from, so the detail can always be seen in its place.
+  const whole = keep(frameImage(config, file, seconds, framesDir(source)));
+  const target = box ? keep(frameImage(config, file, seconds, framesDir(source), parseBox(box))) : whole;
   // A library made before exhibits existed doesn't leave them out of git yet.
   const ignore = path.join(config.library, '.gitignore');
   const line = 'sources/*/exhibits/';

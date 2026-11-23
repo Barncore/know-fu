@@ -319,14 +319,29 @@ test("a video's screen is mapped into filmstrips, served by sentence, cropped, k
     fs.writeFileSync(page, digest('- **Frames:** 0:05, 0:29\n'));
     assert.match(await warnings(), /lists a frame at 0:29, but no frame near that time was opened/);
     assert.doesNotMatch(await warnings(), /lists a frame at 0:05/);
+    // A note in brackets and a "none" reason may mention times without listing frames.
+    fs.writeFileSync(page, digest('- **Frames:** 0:05 (the box before it moves at 0:29)\n'));
+    assert.doesNotMatch(await warnings(), /\[frames\]/);
+    fs.writeFileSync(page, digest('- **Frames:** none: nothing changes between 0:29 and 0:33\n'));
+    assert.doesNotMatch(await warnings(), /\[frames\]/);
+    // Words printed on the screen aren't in the transcript. A screen citation is checked against the frames opened.
+    fs.writeFileSync(page, digest('- **Frames:** 0:05\n\nThe frame is labelled "words that only the picture could carry" [0:05 screen].\n'));
+    assert.doesNotMatch(await warnings(), /\[quote\]|\[citation\]/);
+    fs.writeFileSync(page, digest('- **Frames:** 0:05\n\nThe frame is labelled "words that only the picture could carry" [0:29 screen].\n'));
+    assert.match(await warnings(), /\[citation\][^\n]*cites the screen at a moment no frame was opened/);
     // An exhibit record needs its kept frame, and a kept frame is served from where it was kept.
     fs.writeFileSync(page, digest('- **Frames:** 0:05\n', '\n## Exhibits\n\n### 0:05 The box on the left\n\nA black box at the left of a white frame, with nothing else drawn on it and no labels or axes of any kind.\n'));
     assert.match(await warnings(), /\[exhibit\][^\n]*has no kept frame/);
-    const kept = await runTool('kf_source', { action: 'keep', ref: 'BOX', loc: '0:05' });
+    // Keeping a crop keeps the frame it was cut from as well.
+    const kept = await runTool('kf_source', { action: 'keep', ref: 'BOX', loc: '0:05', box: '0,25,50,50' });
     assert.match(kept.image!, /exhibits/);
+    assert.equal(fs.readdirSync(path.join(fx.root, 'sources', 'box-lesson', 'exhibits')).length, 2);
     assert.doesNotMatch(await warnings(), /\[exhibit\]/);
     fs.rmSync(path.join(fx.root, 'sources', 'box-lesson', 'frames'), { recursive: true });
     assert.match((await runTool('kf_read', { ref: 'BOX', view: 'image', loc: '0:05' })).image!, /exhibits/);
+    // A page left with the placeholder summary that "new" writes is an error, not a silent commit.
+    write(fx.root, 'knowledge/trading/DOMAIN.md', '---\ntype: domain\ntitle: Trading\nsummary: "TODO: one line on what this domain covers."\n---\n# Trading\n');
+    assert.match(await warnings(), /summary is still the placeholder/);
   } finally {
     fx.cleanup();
   }
