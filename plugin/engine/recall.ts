@@ -262,7 +262,7 @@ export function recall(lib: Library, options: RecallOptions, semantic?: Semantic
   }
   if (inPlay.size) {
     say('## Principles in play\n');
-    for (const { topic: t, principle: p } of [...inPlay.values()].slice(0, 7)) say(`- **${p.title}** (\`${t.path}#${p.id}\`; ${p.support}, ${independentSupport(lib, p)} independent ${independentSupport(lib, p) === 1 ? 'source' : 'sources'}): ${p.statement}${p.breaks ? ` *Breaks when:* ${p.breaks}` : ''}${p.merit ? ` *Merit:* ${p.merit}` : ''}`);
+    for (const { topic: t, principle: p } of [...inPlay.values()].slice(0, 7)) say(`- **${p.title}** (\`${t.path}#${p.id}\`; ${p.support}, ${independentSupport(lib, p)} separate ${independentSupport(lib, p) === 1 ? 'source' : 'sources'}): ${p.statement}${p.breaks ? ` *Breaks when:* ${p.breaks}` : ''}${p.merit ? ` *Merit:* ${p.merit}` : ''}`);
     say('');
   }
 

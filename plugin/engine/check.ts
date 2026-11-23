@@ -8,6 +8,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { asList, asText } from './frontmatter.ts';
 import {
+  CITE,
   CONNECTION_VERBS,
   STANCES,
   SUPPORT_KINDS,
@@ -23,6 +24,7 @@ import {
   splitSections,
   unitLabel,
   unitText,
+  withoutCode,
 } from './library.ts';
 import type { Note, Doc, Library, Principle, Source, Topic } from './library.ts';
 import { SOURCE_KINDS, framesLooked, keptExhibits, screenTrack } from './sources.ts';
@@ -108,7 +110,12 @@ function frontmatterIssues(doc: Doc, type: string, add: (i: Omit<Issue, 'file'>)
 /** Text around a cited unit: the units it names plus one either side, since a sentence can run over a page break. */
 function nearText(source: Source, from: number, to: number): string {
   const parts: string[] = [];
-  for (let i = Math.max(0, from - 1); i <= Math.min(source.units.length - 1, to + 1); i++) parts.push(unitText(source, i));
+  for (let i = Math.max(0, from - 1); i <= Math.min(source.units.length - 1, to + 1); i++) {
+    // A transcript line starts with the time it was spoken. That mark isn't part of what was said, and left in
+    // it would sit between two sentences and fail any quotation that runs across them.
+    const text = unitText(source, i);
+    parts.push(source.units[i].kind === 'time' ? text.replace(/^\[\d{1,2}:\d{2}(?::\d{2})?\]\s*/gm, '') : text);
+  }
   return squash(parts.join('\n'));
 }
 
@@ -181,12 +188,34 @@ function linkIssues(lib: Library, doc: Doc, fromTopic: string | undefined, zone:
   }
 }
 
+/**
+ * Words in double quotes read as a source's own words, and only a quotation with a citation right after it can be
+ * checked. A longer quotation with no citation before its sentence ends is a paraphrase in quote marks, or a
+ * quotation nobody can find.
+ */
+function looseQuotes(doc: Doc, add: (i: Omit<Issue, 'file'>) => void) {
+  const cite = new RegExp(CITE.source);
+  withoutCode(doc.body)
+    .split('\n')
+    .forEach((line, i) => {
+      // Every quotation on the line is matched, short ones too, so an opening mark is never paired with the wrong close.
+      for (const m of line.matchAll(/["“]([^"“”\n]{1,600})["”]/g)) {
+        if (countWords(m[1]) < 5) continue;
+        const rest = line.slice((m.index ?? 0) + m[0].length);
+        const stop = rest.search(/[.!?](\s|$)/);
+        if (!cite.test(stop < 0 ? rest : rest.slice(0, stop)))
+          add({ level: 'warn', code: 'quote', line: doc.bodyLine + i, message: `"${m[1].slice(0, 60)}${m[1].length > 60 ? '…' : ''}" is in quote marks with no citation after it. If these are a source's exact words, cite where it says them, like [KEY 12:34]. If they are your wording, drop the quote marks.` });
+      }
+    });
+}
+
 /** A principle file: what it says, why, where it stops, how well its logic holds, and what each source brings to it. */
 function principleIssues(lib: Library, p: Principle, keys: Map<string, string>, add: (i: Omit<Issue, 'file'>) => void) {
   frontmatterIssues(p, 'principle', add);
   if (!isSlug(p.id)) add({ level: 'error', code: 'name', message: `"${p.id}" isn't a valid name: use lower-case words joined by hyphens` });
   linkIssues(lib, p, p.topic, 'knowledge', add);
   const cited = citationIssues(lib, p, add, true);
+  looseQuotes(p, add);
   if (countWords(p.statement) < 6) add({ level: 'error', code: 'principle', message: 'no statement: say the principle in a sentence or two at the top of the file, before the "- **Why:**" line' });
   if (!p.why) add({ level: 'error', code: 'principle', message: 'no "- **Why:**" line saying what makes it true' });
   if (!p.breaks) add({ level: 'error', code: 'principle', message: 'no "- **Breaks when:**" line. A principle with no boundary is a slogan; say where it stops holding.' });
@@ -279,6 +308,7 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
     const topic = lib.topics.find(t => t.path === note.topic);
     linkIssues(lib, note, note.topic, 'knowledge', add);
     const cited = citationIssues(lib, note, add, true);
+    looseQuotes(note, add);
     const listed = new Set(asList(note.fm.sources));
     for (const key of listed) if (!keys.has(key)) add({ level: 'error', code: 'sources', message: `sources lists "${key}", which isn't a source key in the library` });
     for (const key of cited) if (!listed.has(key)) add({ level: 'error', code: 'sources', message: `the text cites ${key} but "sources" doesn't list it; add ${key} to sources` });
@@ -382,7 +412,8 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
           add({ level: 'error', code: 'exhibit', line: exhibit.line, message: `the exhibit "${exhibit.title}" has no kept frame. Keep it with kf_source action "keep", ref "${source.key}", loc "${formatTime(at)}".` });
         if (countWords(exhibit.text) < 15) add({ level: 'warn', code: 'exhibit', line: exhibit.line, message: `the record under "${exhibit.title}" is nearly empty. Say what the frame shows, so a reader who never opens it still has its content.` });
       }
-      for (const t of kept)
+      // A moment may have several kept files (the frame and its crops). One record covers the moment, so ask once.
+      for (const t of [...new Set(kept.map(Math.floor))])
         if (!recorded.some(at => Math.abs(t - at) < 1)) add({ level: 'warn', code: 'exhibit', message: `a frame at ${formatTime(t)} was kept as an exhibit, but "## Exhibits" has no "### ${formatTime(t)} …" record for it` });
     }
 
@@ -455,7 +486,9 @@ function writeIfChanged(file: string, text: string): boolean {
   return true;
 }
 
-const noteLine = (a: Note) => `- [[${a.slug}]] (${asText(a.fm.kind)}): ${asText(a.fm.summary)}`;
+// A note's title, not its summary: one note sits under several principles, and its summary copied into each made
+// principle files heavy to load (a grader measured it). The summary is one kf_read away.
+const noteLine = (a: Note) => `- [[${a.slug}]] (${asText(a.fm.kind)}): ${asText(a.fm.title)}`;
 const count = (n: number, one: string, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 
 /** The topic page's list of principles: a line each, in the order the page already had. */
@@ -464,7 +497,7 @@ export function principleList(lib: Library, topic: Topic): string[] {
     const sources = independentSupport(lib, p);
     const notes = notesUnder(lib, p).length;
     const summary = p.summary.replace(/\s+/g, ' ').trim();
-    return `- [${p.title}](principles/${p.id}.md): ${summary}${/[.!?]$/.test(summary) ? '' : '.'} (${p.support || 'support not stated'}; ${count(sources, 'independent source')}; ${count(notes, 'note')})`;
+    return `- [${p.title}](principles/${p.id}.md): ${summary}${/[.!?]$/.test(summary) ? '' : '.'} (${p.support || 'support not stated'}; ${count(sources, 'separate source')}; ${count(notes, 'note')})`;
   });
   if (!out.length) out.push('None yet.');
   const placed = new Set(topic.principles.flatMap(p => notesUnder(lib, p).map(n => n.slug)));

@@ -69,8 +69,8 @@ test('a well-formed library passes, and the derived parts are brought in step', 
     const principle = () => fs.readFileSync(path.join(fx.root, topic, 'principles/heat-work-matures-ware.md'), 'utf8');
     // The topic page lists each principle in a line: what it says, the kind of support it has, and what stands behind it.
     // The talk only qualifies the first principle, so it doesn't count as a source that supports it.
-    assert.match(page(), /- \[Heat work matures ware\]\(principles\/heat-work-matures-ware\.md\): Ware matures by .* \(reasoned argument; 1 independent source; 2 notes\)/);
-    assert.match(page(), /- \[Atmosphere decides colour\].* \(bare assertion; 1 independent source; 1 note\)/);
+    assert.match(page(), /- \[Heat work matures ware\]\(principles\/heat-work-matures-ware\.md\): Ware matures by .* \(reasoned argument; 1 separate source; 2 notes\)/);
+    assert.match(page(), /- \[Atmosphere decides colour\].* \(bare assertion; 1 separate source; 1 note\)/);
     // Each principle file lists the notes that rest on it.
     assert.match(principle(), /## Notes\n\n<!-- Generated[^\n]*-->\n\n- \[\[hold-at-cone-9\]\] \(method\): [^\n]*\n- \[\[hold-or-stop-at-cone-9\]\] \(debate\)/);
     assert.match(fs.readFileSync(path.join(fx.root, 'INDEX.md'), 'utf8'), /2 principles, 3 notes, 2 sources/);
@@ -162,7 +162,13 @@ test('the checker catches what breaks a library', async () => {
     write(fx.root, 'ideas/ten-minute-hold.md', '---\ntype: idea\ntitle: A ten minute hold\nsummary: A short hold might even the chamber and keep ash runs.\nstatus: candidate\npremises: [hold-at-cone-9, no-such-note]\nupdated: 2026-11-10\n---\nTry it.\n');
     // Knowledge may never rest on an idea.
     write(fx.root, `${notes}/leans-on-idea.md`, base.replace('Hold forty minutes once cone 9 bends', 'Leaning on an idea is refused').replace('- see also [[body-reduction-window]]', '- supports [[ten-minute-hold]]'));
+    // Words in quote marks with no citation after them can't be checked: a paraphrase dressed as the source's words.
+    write(fx.root, `${notes}/loose-quote.md`, base.replace('Hold forty minutes once cone 9 bends', 'Quote marks around a paraphrase').replace('\n## Connections', 'The handbook says "a kiln should always be held for a very long time" and leaves it there.\n\n## Connections'));
     const report = checkLibrary(fx.root);
+    assert.deepEqual(codes(report.warnings.filter(w => w.file.endsWith('loose-quote.md') && w.code === 'quote')), ['quote']);
+    assert.equal(report.warnings.filter(w => w.file.endsWith('hold-at-cone-9.md') && w.code === 'quote').length, 0, 'a quotation with its citation is left alone');
+    // Sources by one author share a family unless told otherwise, so they count once as support.
+    assert.equal(loadLibrary(fx.root).sources.find(s => s.key === 'WKH')!.fm.family, 'mara-venn');
     const at = (file: string) => report.errors.filter(e => e.file.endsWith(file));
     assert.deepEqual(codes(at('misquote.md')), ['quote']);
     assert.deepEqual(codes(at('broken.md')).sort(), ['citation', 'citation', 'frontmatter', 'link', 'principle', 'sources']);
@@ -258,7 +264,7 @@ test('recall leads with principles, loads the best note whole and carries what d
     const principles = text.indexOf('## Principles in play');
     const notes = text.indexOf('## Notes');
     assert.ok(principles > 0 && notes > principles, 'principles come before notes');
-    assert.match(text, /\*\*Heat work matures ware\*\* \(`ceramics\/wood-firing#heat-work-matures-ware`; reasoned argument, 1 independent source\)[^\n]*\*Merit:\*/);
+    assert.match(text, /\*\*Heat work matures ware\*\* \(`ceramics\/wood-firing#heat-work-matures-ware`; reasoned argument, 1 separate source\)[^\n]*\*Merit:\*/);
     assert.match(text.slice(notes), /### Hold forty minutes once cone 9 bends/);
     assert.match(text, /can differ by two cones from firebox to chimney/);
     // The debate that qualifies the hold is either loaded or named as a dispute; it is never silently dropped.

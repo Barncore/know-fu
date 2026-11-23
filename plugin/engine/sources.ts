@@ -41,7 +41,7 @@ export type AddOptions = {
 export function topicTerms(lib: Library, topicPath: string): string[] {
   const topic = lib.topics.find(t => t.path === topicPath.replace(/^\/+|\/+$/g, ''));
   if (!topic) fail('NOT_FOUND', `No topic "${topicPath}". Topics: ${lib.topics.map(t => t.path).join(', ') || 'none yet'}. Leave topic out for a recording on a new subject, and pass its terms in "terms".`);
-  const vocabulary = [...(section(topic.sections, 'Vocabulary')?.raw ?? '').matchAll(/^\s*[-*]\s+\*\*(.+?)\*\*/gm)].map(m => m[1].replace(/[:.]\s*$/, ''));
+  const vocabulary = [...(section(topic.sections, 'Vocabulary')?.raw ?? '').matchAll(/^\s*[-*]\s+\*\*(.+?)\*\*/gm)].flatMap(m => m[1].replace(/[:.]\s*$/, '').split(/\s+\/\s+/));
   const keywords = [topic, ...lib.notes.filter(a => a.topic === topic.path && !isRetired(a))].flatMap(doc => asList(doc.fm.keywords));
   return [...vocabulary, ...keywords];
 }
@@ -159,7 +159,8 @@ export async function addSource(config: Config, options: AddOptions) {
       kind,
       authors: options.authors ?? [],
       year: options.year,
-      family: options.family ?? id,
+      // One teacher's lessons share an origin, so by default they share a family and count once as support.
+      family: options.family ?? (slugify(options.authors?.[0] ?? '') || id),
       url: options.url,
       added: today(),
       status: 'registered',

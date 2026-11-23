@@ -6,6 +6,30 @@ Entries before 0.6.0 describe the earlier engine, and the files and tools they n
 
 ## Unreleased
 
+### 2026-11-24 - 0.12.1: what the first real run of the new layout found
+
+Why: 0.12.0 had not been used. Two readers, each with only the skill, ingested the same two videos as the 0.11 test into a fresh library, the second reader adding to what the first left. A third, told nothing about which design was expected to win, tried both libraries on three cases and checked about twenty claims in each against the videos and exchange data.
+
+What the run showed (the owner's research, outside this repository): the second source went into all three existing principles and produced two new ones, with one principle's limit moving from the reader's inference to a limit the second source states. The grader would hand the 0.12 library to an agent to build from: "a clear win, not a landslide". It scored it higher on correctness (no wrong claim in 21 checked, against one misreading repeated in four files), on saying how far to trust each idea (5 against 3), and on completeness. It found the Merit judgments it checked fair. Against the new layout: it took about 50% more reading to answer one routine case, and principle files will grow with every source.
+
+Changes from the three reports:
+
+- **Lighter principle files.** The generated `## Notes` list shows each note's title, not its summary. One note sits under several principles, and its summary was being copied into each. The guides now say an evidence entry holds what that source adds in a few lines, one line when it only agrees, and that the reason is written once, in Why.
+- **"Separate sources", not "independent".** The count on the topic page and in `kf_recall` can't know whether two sources are independent. The grader pointed out that two teachers of one school agreeing is weaker than the word suggested. The ingest guide now asks the reader to say so in the Merit line.
+- **A source's `family` defaults to its first author**, so one teacher's lessons count once without anyone remembering to set it. It was the source's own id.
+- **A quotation with no citation is flagged.** A reader put its own paraphrase in quote marks inside a Merit line and nothing caught it. The checker now warns about quoted words, five or more, with no citation before the sentence ends.
+- **A quotation may run across two transcript sentences.** The time each line starts with was counted as part of the text and failed the check.
+- **One warning per kept moment.** A frame kept with two crops produced the same "no record" warning three times.
+- **Dates are local.** New pages were dated by UTC, a day behind for part of the owner's day.
+- **Key terms.** A vocabulary label written "A / B" is sent to the transcriber as two terms.
+- **`source keep` with a crop** says that the whole frame was kept too.
+- **Guides.** Command-line forms of the video calls; exhibits have no budget, so a claim that rests on the picture cites the screen; a replayed chart's last bar is still forming; say which values were checked against outside data instead of "every price"; one bracket holds one citation; a `debate` note is for positions that need laying side by side, not for every qualification; keep a principle's file name when its statement is rewritten; a summary carries one reason and one limit.
+
+- Tests: 33 pass, with new cases for the unsupported quotation, a quotation across two sentences, and the default family.
+- Compatibility: the family default applies to sources added from now on. Sources already registered keep the family they have.
+- Not shown: the "Checking with a fresh reader" stage as written. A reader that is itself a subagent can't start one, so both readers skipped it, and the grader's cases stood in for it. One run per design, so small differences in the scores are noise.
+- Documentation: the four guides, architecture and README.
+
 ### 2026-11-24 - 0.12.0: a file per principle, and ideas weighed on the way in
 
 Why: after two videos went into one test library the owner read it and asked for a different shape. The topic page was growing toward the problem it was built to solve, eight of nine detail files reported a source instead of holding an idea, and nothing said how good any idea's reasoning was. The decisions are in the north star under 24 November.

@@ -66,7 +66,7 @@ Two to four paragraphs on how the subject hangs together: what a practitioner is
 
 ## Principles
 
-- [Heat work matures ware](principles/heat-work-matures-ware.md): Ware matures by temperature held over time, so the schedule matters as much as the peak, until the chamber is too uneven for one schedule. (reasoned argument; 1 independent source; 2 notes)
+- [Heat work matures ware](principles/heat-work-matures-ware.md): Ware matures by temperature held over time, so the schedule matters as much as the peak, until the chamber is too uneven for one schedule. (reasoned argument; 1 separate source; 2 notes)
 
 ## Tensions
 
@@ -85,7 +85,7 @@ Two to four paragraphs on how the subject hangs together: what a practitioner is
 - Does a ten minute hold keep the ash runs?
 ```
 
-Everything under `## Principles` is written by `kf_check` from the principle files: each one's title, its `summary`, its `support`, how many independent sources state or imply it, and how many notes rest on it. Don't write there. The one thing that is yours is the order: put the lines in the order a reader should meet them, foundations first, and the checker keeps it. A new principle is added at the end. Notes that name no principle are listed under the principles, so nothing is hidden.
+Everything under `## Principles` is written by `kf_check` from the principle files: each one's title, its `summary`, its `support`, how many separate sources state or imply it (sources that share a `family` count once), and how many notes rest on it. Don't write there. The one thing that is yours is the order: put the lines in the order a reader should meet them, foundations first, and the checker keeps it. A new principle is added at the end. Notes that name no principle are listed under the principles, so nothing is hidden.
 
 Frame is required. Add the other sections as the topic earns them. Vocabulary is for terms the sources use in their own way, not a glossary of the field. Open questions holds what the sources leave unanswered.
 
@@ -128,9 +128,9 @@ Accepts the mechanism and refuses the conclusion that every shelf must mature: t
 
 The opening paragraph is the statement. **Why**, **Breaks when** and **Merit** are required. Merit is your weighing of the logic, in a sentence or three: does the reason follow, what is the strongest objection, where is the support thin. Start a line with "Inferred:" where it is your reading and not the source's.
 
-`## Evidence` has one entry per source that bears on the principle, headed with the source's key and how it stands: `states it`, `implies it` (you read it out of what the source does), `qualifies it` or `disputes it`. Under the heading, say what that source brings and cite where. For what no single source holds, head an entry `### Synthesis` and say which sources it joins; for the owner's own results, `### Owner`.
+`## Evidence` has one entry per source that bears on the principle, headed with the source's key and how it stands: `states it`, `implies it` (you read it out of what the source does), `qualifies it` or `disputes it`. Under the heading, say what that source brings that the principle didn't already have: a reason, a case, a number, a limit. Keep it to a few lines. A source that only agrees gets one line and its citation. The reason itself is written once, in Why, and detail belongs in a note. For what no single source holds, head an entry `### Synthesis` and say which sources it joins; for the owner's own results, `### Owner`.
 
-`## Connections` is optional. Don't write a `## Notes` section: `kf_check` adds one, listing the notes whose `principles` name this file, and rewrites it on every run. To put a note under a principle, add the principle's id to the note's `principles`.
+`## Connections` is optional. Don't write a `## Notes` section: `kf_check` adds one, listing by title the notes whose `principles` name this file, and rewrites it on every run. To put a note under a principle, add the principle's id to the note's `principles`.
 
 ## A note
 
@@ -160,9 +160,9 @@ Sections inside a note are optional and yours to choose; a method often wants "W
 
 A citation is a source key and a locator in square brackets: `[WKH p.112]`, `[WKH p.112-118]`, `[NOTES s.3]` for a section of a text file, `[ATK 12:34]` or `[ATK 12:34-15:00]` for what a recording said, and `[ATK 12:36 screen]` for what its screen showed at that moment. Pages are the file's physical pages, counted from 1, which is what `kf_read` shows; note a printed-page offset in the source's About section if it helps.
 
-Put the citation right after what it supports. Cite every specific: a number, a rule, a claim someone might check.
+Put the citation right after what it supports. Cite every specific: a number, a rule, a claim someone might check. One bracket holds one citation; for two places write two brackets, `[WKH p.31] [ATK 1:10]`.
 
-Text in double quotes immediately before a citation is a quotation, and the checker verifies that those words are in that part of the source, give or take a page. Mark a cut with `…`. To paraphrase, leave the quotation marks off. Words quoted before a screen citation are words printed on the screen, which no transcript holds: the checker verifies that a frame at that time was opened, and asks that a frame cited from a principle, a note or a topic page be kept. Quote sparingly: for a definition, a rule stated exactly, or wording that matters.
+Text in double quotes immediately before a citation is a quotation, and the checker verifies that those words are in that part of the source, give or take a page. Mark a cut with `…`. To paraphrase, leave the quotation marks off. Words quoted before a screen citation are words printed on the screen, which no transcript holds: the checker verifies that a frame at that time was opened, and asks that a frame cited from a principle, a note or a topic page be kept. Quote sparingly: for a definition, a rule stated exactly, or wording that matters. Double quotes are for a source's exact words and nothing else, in every line including Merit: a paraphrase in quote marks reads as the source speaking. The checker warns about a quotation of five words or more with no citation after it.
 
 ## Links and connections
 
@@ -180,7 +180,7 @@ A link in running text is a mention. A link in a bullet under `## Connections` i
 
 A video with a screen adds two things, both described in the video guide. Each map entry ends with a `- **Frames:**` line naming the frames that were opened, like `12:36, 13:02`, or `none` and why. And an optional `## Exhibits` section holds one `### 12:36 What the frame shows` heading for each frame kept with `kf_source` action "keep", with its record underneath: what it shows, its marks as data with how each number was read, what was said, and what it supports.
 
-Set `status: compiled` when all three are written. `family` groups sources that share an origin, such as a book and its author's talk on the same material, or two lessons by one teacher, so they count once when the topic page says how many independent sources hold a principle. Use `owner` for the owner's own notes.
+Set `status: compiled` when all three are written. `family` groups sources that share an origin, such as a book and its author's talk on the same material, or two lessons by one teacher, so they count once when the topic page says how many separate sources hold a principle. It defaults to the first author's name, which is right for one teacher's lessons. Set it by hand when two authors share an origin (a student teaching a mentor's method) or one author's works really are independent studies. Use `owner` for the owner's own notes.
 
 ## Ideas
 
@@ -208,6 +208,6 @@ What the idea is, why it might work given its premises, what would show it is wr
 
 Errors block a commit: malformed or unknown frontmatter, a link or citation that points at nothing, quoted words that aren't in the source, a cited key missing from a note's `sources`, a principle with no statement, Why, Breaks when or Merit, a principle whose `support` isn't one of the kinds, a principle with no evidence entry, an evidence entry that doesn't say how its source stands or cites nothing from it, a note naming a principle that doesn't exist, knowledge linking to an idea, a compiled source with placeholders or with pages no map entry covers, an exhibit record with no kept frame or no time in its heading, a screen citation at a moment no frame was opened, a page whose summary is still the placeholder, two things with one name, and a topic still laid out the way Know Fu was before 0.12.
 
-Warnings are judgment calls, each worded as the question to answer: a stretch of video where the screen changed three or more times and the map entry has no Frames line, a Frames line naming a frame nobody opened, a kept frame with no record, a screen citation whose frame isn't kept, a principle that cites a source it has no evidence entry for, a note under 80 or over 1,500 words, a summary over 60 words, a note under no principle, two notes with nearly the same title, a topic page too long to read whole, and a topic near 40 principles.
+Warnings are judgment calls, each worded as the question to answer: a stretch of video where the screen changed three or more times and the map entry has no Frames line, a Frames line naming a frame nobody opened, a kept frame with no record, a screen citation whose frame isn't kept, a principle that cites a source it has no evidence entry for, a quotation of five words or more with no citation after it, a note under 80 or over 1,500 words, a summary over 60 words, a note under no principle, two notes with nearly the same title, a topic page too long to read whole, and a topic near 40 principles.
 
 A library made before 0.12 is moved with `node <plugin>/engine/cli.ts migrate` (`--dry-run` shows what it would do). It moves each principle into its own file and renames `accounts/` to `notes/`. It can't judge, so it leaves each principle's `support`, Merit line and evidence entries as TODO for a reader to write.

@@ -26,7 +26,7 @@ Three things decide whether a library makes an AI better at a subject, and Know 
 
 **Hold each idea once, and add to it.** When a second source speaks to an idea the library holds, it goes into that principle's file as a new evidence entry, and the principle is sharpened in place. When two sources disagree, both stay, with a note of what separates them. A note is one piece of detail behind the principles (a mechanism, a method, a case, a reference table, a debate, a definition), cited to the page. That is how a library compounds.
 
-**Weigh what goes in.** A library that repeats its sources hands over a teacher's confident assertion looking the same as a tested result. So as each principle is written, the agent judges its logic the way a sharp colleague would: does the reason follow, what is the strongest objection, where is the support thin. The principle carries that in a Merit line, names the kind of support it has (from a review of studies down to a bare assertion), and the front page shows how many independent sources hold it.
+**Weigh what goes in.** A library that repeats its sources hands over a teacher's confident assertion looking the same as a tested result. So as each principle is written, the agent judges its logic the way a sharp colleague would: does the reason follow, what is the strongest objection, where is the support thin. The principle carries that in a Merit line, names the kind of support it has (from a review of studies down to a bare assertion), and the front page shows how many separate sources hold it.
 
 ## How it works
 

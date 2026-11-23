@@ -96,7 +96,12 @@ export function isInside(child: string, parent: string): boolean {
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 }
 
-export const today = () => new Date().toISOString().slice(0, 10);
+/** Today's date where the owner is. The UTC date is a day behind for part of every day east of Greenwich. */
+export const today = () => {
+  const now = new Date();
+  const two = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
+};
 
 export function listDirs(dir: string): string[] {
   if (!exists(dir)) return [];

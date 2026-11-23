@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { checkLibrary } from '../plugin/engine/check.ts';
 import { loadConfig } from '../plugin/engine/config.ts';
 import { captionCues, chunkPlan, cuesFromWords, findPoppler, findTesseract, findTool, keyTerms, timeUnits } from '../plugin/engine/extract.ts';
 import { parseFrontmatter } from '../plugin/engine/frontmatter.ts';
@@ -256,6 +257,14 @@ test('a recording is sent in padded chunks with key terms, and each sentence kee
     assert.match(text, /\[4:56\] Sell-side liquidity sits below\./);
     assert.match(text, /\[5:04\] Then price sweeps it\./);
     assert.ok(added.notes.some(n => /4 key terms were sent/.test(n)));
+    // A quotation may run across two sentences: the time each line starts with isn't part of what was said.
+    const page = path.join(fx.root, 'sources', 'structure-lesson', 'source.md');
+    const before = fs.readFileSync(page, 'utf8');
+    fs.writeFileSync(page, before + '\nThe lesson ends: "Sell-side liquidity sits below. Then price sweeps it." [4:56-5:04]\n');
+    assert.deepEqual(checkLibrary(fx.root).errors.filter(e => e.code === 'quote'), []);
+    fs.writeFileSync(page, before + '\nThe lesson ends: "Sell-side liquidity sits above. Then price sweeps it." [4:56-5:04]\n');
+    assert.equal(checkLibrary(fx.root).errors.filter(e => e.code === 'quote').length, 1);
+    fs.writeFileSync(page, before);
     // A model that refuses key terms still transcribes, and the report says so.
     fs.rmSync(path.join(fx.root, 'sources', 'structure-lesson'), { recursive: true });
     fs.rmSync(path.join(fx.root, '.knowfu', 'transcribe'), { recursive: true, force: true });

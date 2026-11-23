@@ -221,7 +221,7 @@ export const TOOLS: Tool[] = [
         kind: { type: 'string', enum: ['book', 'paper', 'article', 'video', 'audio', 'course', 'transcript', 'notes', 'other'] },
         id: str('Folder name for the source, lower-case words joined by hyphens. Derived from author and title when omitted.'),
         key: str('Short citation key, capitals and digits, such as WKH. Derived from the title when omitted.'),
-        family: str("Sources that share an origin share a family and count once as support. Use \"owner\" for the owner's own notes. Defaults to the source's own id."),
+        family: str("Sources that share an origin share a family and count once as support. Use \"owner\" for the owner's own notes. Defaults to the first author, so one teacher's lessons count once, or to the source's own id when no author is given."),
         url: str('Where the source lives online, if anywhere.'),
         max_cost: { type: 'number', description: 'For audio and video: the most the owner has approved spending on transcription, in the configured currency.' },
         topic: str('For audio and video: the topic it belongs to, like "audio/mixing". Its vocabulary goes to the transcriber as key terms.'),
@@ -257,7 +257,7 @@ export const TOOLS: Tool[] = [
         const source = findSource(loadLibrary(config.library), String(args.ref));
         const kept = await withLock(config, 'keeping an exhibit', async () => keepExhibit(config, source, String(args.loc), args.box ? String(args.box) : undefined));
         return {
-          text: `Kept ${source.key} ${args.loc} as an exhibit: ${kept}\nWrite its record under "## Exhibits" in ${path.join(source.dir, 'source.md')}, as a "### ${args.loc} <what it shows>" heading (the format guide has the fields). kf_read with view "image" at this time now returns the kept copy.`,
+          text: `Kept ${source.key} ${args.loc} as an exhibit: ${kept}${args.box ? " (the crop, and the whole frame it was cut from beside it)" : ""}\nWrite its record under "## Exhibits" in ${path.join(source.dir, 'source.md')}, as a "### ${args.loc} <what it shows>" heading (the format guide has the fields). kf_read with view "image" at this time now returns the kept copy.`,
           image: kept,
         };
       }

@@ -16,7 +16,7 @@ Know Fu 0.6 takes a third shape, the one an expert's knowledge has: a few princi
 
 | Layer | File | What it holds | When it's read |
 |---|---|---|---|
-| Topic page | `knowledge/<domain>/<topic>/TOPIC.md` | A frame for the subject, then every principle in one generated line: its summary, its kind of support, how many independent sources hold it, how many notes rest on it. Then tensions, a decision map, vocabulary, open questions | Whole, when work on the subject starts |
+| Topic page | `knowledge/<domain>/<topic>/TOPIC.md` | A frame for the subject, then every principle in one generated line: its summary, its kind of support, how many separate sources hold it, how many notes rest on it. Then tensions, a decision map, vocabulary, open questions | Whole, when work on the subject starts |
 | Principles | `…/principles/<id>.md` | One principle each: statement, why, where it breaks, a Merit line weighing its logic, an evidence entry per source saying what that source brings, and a generated list of the notes under it | When a decision leans on it |
 | Notes | `…/notes/<name>.md` | The detail behind the principles, one idea each: a mechanism, method, case, reference table, debate or definition, with its numbers and page citations | The few a task needs |
 | Source map | `sources/<id>/source.md` | One line for every stretch of the source, with page ranges, and what the source changed in the library | When looking for where a source covers something |
@@ -44,7 +44,7 @@ The owner wants the library to stand behind what it holds, so the reader judges 
 
 - **A Merit line**, in the reader's words: does the reason follow, what is the strongest objection, where is the support thin.
 - **The kind of support**, one of seven from `review of studies` down to `bare assertion`, plus `our inference` for what no source states. It describes the evidence and is not a score. 0.5 rated evidence on a strength scale and 91% of notes came out "moderate", so a scale told nobody anything.
-- **A count of independent sources**, made by the engine from the evidence entries and the sources' `family` field, so two lessons by one teacher count once.
+- **A count of separate sources**, made by the engine from the evidence entries and the sources' `family` field, so two lessons by one teacher count once. It says "separate" and not "independent", because two teachers of one school agreeing is weaker than it looks, and only the reader can say that, in the Merit line.
 
 The topic page shows the kind and the count beside each principle, and `kf_recall` prints the Merit line with every principle it puts in play. There is deliberately no second pass that audits or scores an ingest. The weighing happens on the way in, by the reader that has the source open.
 
