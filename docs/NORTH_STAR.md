@@ -64,7 +64,7 @@ The six rules that follow:
 | Reachable at several levels | Principles, accounts, source map, source text. Each is an entry point |
 | One owner of meaning | The Markdown files. Indexes and the search database are generated |
 | Readable by a person | The owner can open the library and read it without a tool |
-| Local and cheap to run | Files and local software. No server, no GPU, no installed dependencies. Paid APIs are optional and gated |
+| Local, and stronger for it | Files and local software on the owner's machine, with no server to run and nothing that needs a dedicated GPU. A dependency is welcome when a test shows it improves ingestion, retrieval or checking. It is optional and found at runtime, the way FFmpeg and Poppler are, so a clean clone still runs without it. Paid APIs are optional and gated |
 | Judge capability, not plumbing | Counts of accounts and links prove nothing. Compare answers and designs made with the library against ones made without it |
 
 "Every ingest makes it smarter" is the objective, not a promise. A redundant source may add little, and a weak one may end up qualified. The useful question after an ingest is what understanding changed.
@@ -72,6 +72,22 @@ The six rules that follow:
 ## Decisions
 
 Newest first. Each entry is the owner's decision unless it says otherwise.
+
+### 23 November 2026: dependencies are welcome when they earn their place
+
+The 0.6 rebuild wrote "no installed dependencies" into the commitments table and "never needs a package" into AGENTS.md. Both were the agent's choice. The owner never asked for either, and reversed them when he found out (punctuation tidied):
+
+> I was completely okay with dependencies. The local element is the point, dependencies are what weaponizes that. I'm completely okay with dependencies if it means better performance. I don't want dependencies for the sake of it, but I'm not against it if it's better.
+
+And on what he had asked the rebuild for: "I wanted optimization as in improving it." Lighter was never the goal.
+
+The rule now: a dependency is welcome when a test shows it improves ingestion, retrieval or checking. It is optional and found at runtime, so a clean clone still runs without it. What the owner agreed on the same day:
+
+- **Add now:** the video tools 0.5 had and 0.6 dropped (a crop from the native frame, a filmstrip of candidate frames, padded audio chunks, word-level timestamps), yt-dlp for video links, and OCR for scanned PDFs.
+- **Test first:** a layout-aware PDF converter for tables and formulas, and a reranker.
+- **Leave out:** a graph database (his own 12 October decision stands) and a local embedding model (the hosted one is better and already on).
+
+A review on this date compared 0.7 with 0.5 and found capability the rebuild had removed without listing it. The list is in [the rebuild record](REBUILD.md#correction-23-november-2026-capability-the-rebuild-dropped-without-listing).
 
 ### 10 November 2026: the rebuild
 
@@ -81,7 +97,7 @@ The owner asked for the architecture to be assessed from scratch, left the direc
 - Domain, then topic. A topic is a folder with a principles page. This changes the 17 October decision, following the owner's own 23 October thinking.
 - One library for every agent. This settles a question the owner had deferred.
 - A topic the owner pins to a project loads there without invoking the skill. Use is otherwise still deliberate.
-- No local embedding model, QMD, Docling or Python environment. Embeddings through an API are an optional second search channel (see the owner's review below).
+- No local embedding model, QMD, Docling or Python environment. Embeddings through an API are an optional second search channel (see the owner's review below). The blanket rule behind this bullet, no installed dependencies, was reversed on 23 November.
 
 The owner chose the size of the acceptance run: three chapters, within five subagents.
 
@@ -135,8 +151,9 @@ From the first design conversations: a machine-oriented library with a readable 
 
 For each material change, be ready to say which capability it improves, what understanding it might lose, and what you would observe if it worked. Keep the established intent, current implementation facts and unaccepted proposals separate. A conversation summary, an old recommendation or a convenient default never quietly overrides a decision recorded here. When the owner changes a decision, record the reason here.
 
-Three failure modes to watch, because each has already happened once:
+Four failure modes to watch, because each has already happened once:
 
+- **Stripping.** A change makes the system lighter by removing something it could do. "Optimize" means better at its job. Before a change removes or replaces a capability, list what the system will no longer do and get the owner's yes.
 - **Retelling.** The compiled layer grows toward the size of its sources. Watch the ratio the checker prints.
 - **Machinery.** A component is added to guard against a risk a single-user library doesn't have. Ask what a person with one library and git would need.
 - **Slogans.** The principles page fills with statements that are true of everything. Each principle needs a boundary and accounts it governs.

@@ -2,6 +2,12 @@
 
 Things this project learned the hard way, newest first. Each one says what happened and what to do differently.
 
+## 2026-11-23 - A rebuild lists what it removes, capability by capability
+
+The owner asked for the 0.5 design to be assessed and improved. The 0.6 rebuild read "improve" as "make lighter", adopted "no installed dependencies" as a rule of its own, and wrote that rule into the north star's commitments as if the owner had set it. The rebuild record listed the machinery it dropped. It didn't list the capability that went with it: scene-change frames with a frame at least every 20 seconds, a crop from the native frame, contact sheets, padded audio chunks, word-level timestamps, a second transcription model, and OCR for scanned PDFs. The blind comparison tested book questions only, so nothing showed the loss. The owner found it two weeks later when he came back to video.
+
+Before a rebuild, write an inventory of what the current version can do, read from its code and not from its docs. Carry each item forward, or list it as removed with the reason, and get the owner's yes on the removals. Test every kind of source the old version handled, not only the kind the rebuild was about. And keep the agent's preferences out of the owner's list of decisions: a rule the owner didn't make says so where it is written.
+
 ## 2026-11-10 - A required field gets filled, true or not
 
 The checker refuses a principle with no "Breaks when", because a principle with no boundary is a slogan. Authors rarely say where their own principle fails. So the first cold ingest wrote boundaries of its own and, on three lines, in the book's voice. Every number in that ingest was right; the fidelity check's findings were almost all here. When a format requires a field the source often doesn't supply, say what to write when it doesn't, and make the label ("Inferred:") part of the format. Otherwise the requirement manufactures the very thing the library exists to prevent.
@@ -29,6 +35,8 @@ The reader of this library is a frontier model. 71 of the 0.5 library's records 
 ## 2026-11-10 - Nothing to install is a feature worth designing for
 
 A clean clone of 0.5 needed a C++ toolchain for one native module, a 1.1 GB Python environment for PDF tables, and a build step whose output could go stale. 0.6 runs TypeScript directly in Node, uses Node's built-in SQLite, and reads a table by looking at the page image. The plugin folder is the whole product, so a host can copy it anywhere and it runs. Check what the runtime already ships before adding a dependency.
+
+Corrected on 23 November 2026: this lesson holds for plumbing and was applied too widely. Replacing a native module with Node's built-in SQLite lost nothing. Applying "nothing to install" to capability lost the video tools and OCR. The owner's rule is that a dependency is welcome when a test shows it improves the engine, as long as it is optional and a clean clone still runs without it.
 
 ## 2026-11-10 - Derive what can drift
 

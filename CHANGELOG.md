@@ -6,6 +6,16 @@ Entries before 0.6.0 describe the earlier engine, and the files and tools they n
 
 ## Unreleased
 
+### 2026-11-23 - Dependencies are welcome when they earn their place
+
+Why: the 0.6 rebuild adopted "no installed dependencies" as a rule and wrote it into the north star's commitments and AGENTS.md. The owner never asked for it. He found it when planning new video ingestion, and reversed it: "I'm completely okay with dependencies if it means better performance." A review the same day found that the rebuild had also dropped capability without listing it.
+
+- `docs/NORTH_STAR.md`: the "Local and cheap to run" commitment is now "Local, and stronger for it". A new decision dated 23 November records the rule (a dependency is optional, found at runtime, and earns its place by a measured gain) and what the owner agreed to add now, test first and leave out. "Stripping" joins the failure modes to watch.
+- `AGENTS.md`: the instruction to never add a package is replaced by how to add a dependency, and by a rule to list what a change removes and get the owner's yes first.
+- `docs/REBUILD.md`: a correction section lists the 0.5 capability that 0.6 dropped without recording it (video frames and crops, transcription with several models and word timestamps, OCR, the reranker).
+- `LESSONS.md`: a new lesson on listing what a rebuild removes, and a correction on the "nothing to install" lesson.
+- Documentation only. No runtime, format or library change, and nothing under `plugin/` changed, so the version stays 0.7.1. The README, `package.json` and the plugin's architecture and lineage pages still say the engine has nothing to install, which is true of 0.7.1; they change when the first dependency lands.
+
 ### 2026-11-10 - 0.7.1: the retelling warning at 35%
 
 Why: 0.7.0 moved the warning from 30% to 50%. The owner pointed out that 50% is close to the 63% retelling the rebuild exists to prevent, and set it at 35%. The 1,500-word account limit stays.

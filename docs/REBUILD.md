@@ -312,8 +312,25 @@ The comparison in section 4 ran before these changes. It has not been rerun.
 - Audio and video transcription against a live provider. It runs against a stand-in server in the tests.
 - Any machine but the development one (Windows 11, Node 24).
 
+## Correction, 23 November 2026: capability the rebuild dropped without listing
+
+A review compared the 0.7 engine with the 0.5 code at the tag `v0.5.0` (`src/media.ts`, `src/visuals.ts`, `src/qmd-search.ts`). The table of earlier decisions above and the "Dropped without a replacement" line under it left these out:
+
+| Area | 0.5 | 0.6 and 0.7 |
+|---|---|---|
+| Video frames | Frames at 2 per second filtered to scene changes (threshold 0.12), with one at least every 20 seconds | One frame a minute, 960 px wide |
+| Video detail | A crop in source pixels, contact sheets, the decoded time of each native frame | One full frame on request |
+| Transcription | Several models per recording, five-minute chunks with 8 seconds of overlap, word and segment timestamps, a unit comparing the models' wording, a review of each join | One model, no overlap, segment timestamps grouped to one stamp per 30 seconds |
+| Scanned PDFs | A forced-OCR profile | A note telling the owner to run OCR first |
+| Search | A local reranker through QMD | None |
+
+Docling and the local embedding model are in the original list, with reasons. The acceptance run tested book chapters only, so it could not show any of the rows above.
+
+The statement in "The architecture" that the engine "has no installed dependencies" describes 0.6 as built. It was the agent's design choice. The owner reversed it as a rule on 23 November 2026, and [the north star](NORTH_STAR.md#23-november-2026-dependencies-are-welcome-when-they-earn-their-place) records what he decided.
+
 ## Log
 
+- 2026-11-23: the owner reviewed the dependency rule and reversed it; the correction above was added.
 - 2026-11-10: read the north star, lessons, the 19 to 23 October audit thread and the owner's messages in the original Codex thread; profiled the Claude library from the first book ingest; wrote this document.
 - 2026-11-10: research subagent reported; design adjusted as in "What the research changed". Engine, plugin, guides, tests and docs written. The owner chose the acceptance run's size: three chapters, within five subagents.
 - 2026-11-10: acceptance run done (cold ingest, fidelity check, blind comparison); twelve friction findings, thirteen fidelity findings and two recall findings acted on. The working files of the run (reports, tasks, both answer sets, the blinded file, the key and the verdict) are kept with the owner's research, outside this repository.

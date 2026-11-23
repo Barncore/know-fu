@@ -7,7 +7,7 @@ Start with `docs/NORTH_STAR.md` before you change the architecture, ingestion or
 | Path | What it holds |
 |---|---|
 | `plugin/` | Everything a host installs: the engine, the skill and its guides, the hooks, the launcher, the docs |
-| `plugin/engine/` | The engine. TypeScript that Node runs directly: no build, no dependencies |
+| `plugin/engine/` | The engine. TypeScript that Node runs directly, with no build step |
 | `plugin/skills/know-fu/` | `SKILL.md` and the three guides an agent follows: `ingest.md`, `format.md`, `use.md` |
 | `plugin/scripts/` | `launch.mjs` (starts the MCP server), `gate.mjs` (deliberate use), `session.mjs` (pinned topics) |
 | `test/` | Tests, with an invented fixture library built in a temp folder |
@@ -22,7 +22,11 @@ Follow `plugin/docs/setup.md`. Ask the owner where the library should live befor
 
 ## Changing the engine
 
-The Markdown files are the library, and `plugin/skills/know-fu/references/format.md` is the contract for them. The checker (`engine/check.ts`) enforces that contract, so a format change is a change to the guide, the checker and a test together. The engine never calls a model and never needs a package: keep it that way, because "nothing to install" is what makes a clean clone work.
+The Markdown files are the library, and `plugin/skills/know-fu/references/format.md` is the contract for them. The checker (`engine/check.ts`) enforces that contract, so a format change is a change to the guide, the checker and a test together. Code does extraction, search and checking, and the agent does the reading and writing.
+
+A dependency (a command-line tool, a package, a local or hosted model) is welcome when a test shows it improves ingestion, retrieval or checking. The owner decided this on 23 November 2026, and the north star records it. Make each one optional: find it at runtime and say what is missing, the way `findTool` does for FFmpeg, so a clean clone still runs without it. Record what it bought in the change log, with the measurement.
+
+Before a change removes or replaces something the engine can do, list what it will no longer do and get the owner's yes. The 0.6 rebuild dropped the 0.5 video tools and OCR without listing them, and the owner found out two weeks later.
 
 Type stripping only removes types. Use `import type` for types, write `.ts` in import paths, and avoid enums, namespaces and parameter properties.
 
