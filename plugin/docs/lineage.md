@@ -6,7 +6,7 @@ Know Fu borrowed ideas from many places and depends on almost none of them. This
 
 ## What the code runs on
 
-Node (22.18 or newer) with its built-in `node:sqlite`, and three optional command-line tools: Poppler for PDFs, pandoc for EPUB, DOCX and HTML, and FFmpeg for audio and video. Nothing else. No code was copied from the projects below.
+Node (22.18 or newer) with its built-in `node:sqlite`, and optional command-line tools, each found at runtime and each needed only for what it does: Poppler for PDFs, pandoc for EPUB, DOCX and HTML, FFmpeg for audio and video, yt-dlp for video links, and Tesseract for scanned PDF pages. It also calls two hosted models when they are configured: one for transcription and one for embeddings. No code was copied from the projects below.
 
 ## Where the ideas came from
 

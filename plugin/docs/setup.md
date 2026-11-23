@@ -14,8 +14,12 @@ These steps install Know Fu for Claude Code or Codex and create a library. An ag
 | pandoc | EPUB, DOCX, HTML | `pandoc -v` |
 | FFmpeg and FFprobe | Audio and video | `ffmpeg -version` |
 | A transcription API key | Audio and video without a transcript | See "Audio and video" below |
+| yt-dlp | Adding a video by its link | `yt-dlp --version` |
+| Tesseract with its English data | Scanned PDF pages | `tesseract --list-langs` must list `eng` |
 
-Only Node and git are required. Add the others when you first need them. There are no packages to install and nothing to build.
+Only Node and git are required. Add the others when you first need them, and `kf_status` shows which it found. There are no packages to install and nothing to build. Each tool is found on PATH, or by its full path under `tools` in the config (`pdftotext`, `pdftoppm`, `ffmpeg`, `ffprobe`, `pandoc`, `ytdlp`, `tesseract`).
+
+On Windows, `scoop install yt-dlp tesseract` installs both. Scoop's Tesseract comes without language data: put `eng.traineddata` from the `tesseract-ocr/tessdata_fast` repository on GitHub into its `tessdata` folder, or run `scoop install tesseract-languages` for every language. To read scans in other languages, set `"ocr": {"languages": "eng+deu"}` in the config.
 
 On Windows, the `pdftotext` that Git for Windows puts on PATH is Xpdf's and won't work. Install Poppler with `winget install oschwartz10612.Poppler`. Know Fu looks in the winget folder by itself, so PATH order doesn't matter.
 
@@ -112,7 +116,9 @@ A transcript file (`.srt`, `.vtt`, or text with a timestamp at the start of each
 
 The model above is the owner's choice as of 23 November 2026, at 0.10 USD an hour of audio. Any model works that answers `verbose_json` with timestamps. Know Fu asks for word and segment timestamps and uses whichever the model does well: a model that returns a timed word list and few segments gets its sentences cut from the words, so each line of the transcript carries the time it was spoken. A model with no timestamps still transcribes, with one timestamp per five minutes. If you use OpenAI directly, note that `whisper-1`, its only model with timestamps, shuts down on 26 February 2027.
 
-Audio goes up in five-minute chunks with eight seconds of padding either side, and only the words inside each chunk's own five minutes are kept, because a model mishears the word at the edge of what it is given. `kf_source` takes a `topic` and a list of `terms` for a recording. The topic's vocabulary and keywords, with the terms, go to the model as key terms (`keyterms[]`), so it hears the subject's own words. A model that refuses key terms is asked again without them.
+Audio goes up in five-minute chunks with eight seconds of padding either side, and only the words inside each chunk's own five minutes are kept, because a model mishears the word at the edge of what it is given. `kf_source` takes a `topic` and a list of `terms` for a recording. The topic's vocabulary and keywords, with the terms, go to the model as key terms (`keyterms[]`), so it hears the subject's own words. A model that refuses key terms is asked again without them. A busy provider (429, or a server error) is asked again up to five times, waiting as long as it says.
+
+With yt-dlp installed, `kf_source` takes a video link in place of a file. `action: "info"` shows what the link points at first: its title, length, top resolution, whether the page has captions, the transcription cost, and the description, which often names the terms worth sending. Adding the link checks the cost against `max_cost` before anything is fetched, then downloads the video at the best size it has, up to 4K, and keeps it in the source's `original` folder whatever its size. Captions from the page, the uploader's own or automatic ones, are saved as `captions.txt` beside the transcript: a second hearing of the same words, to read where the transcript is in doubt.
 
 ## Moving or backing up a library
 

@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { loadConfig } from '../plugin/engine/config.ts';
-import { chunkPlan, cuesFromWords, findPoppler, findTool, keyTerms, timeUnits } from '../plugin/engine/extract.ts';
+import { captionCues, chunkPlan, cuesFromWords, findPoppler, findTesseract, findTool, keyTerms, timeUnits } from '../plugin/engine/extract.ts';
 import { parseFrontmatter } from '../plugin/engine/frontmatter.ts';
 import { loadLibrary, resolveLoc } from '../plugin/engine/library.ts';
 import { addSource } from '../plugin/engine/sources.ts';
@@ -113,6 +113,21 @@ test('captions that repeat as they scroll are kept once, and units meet end to s
   assert.equal(out.units.length, 2);
   assert.equal(out.units[0].end, out.units[1].n);
   assert.equal((out.texts[0].match(/welcome back/g) ?? []).length, 1);
+  // Automatic captions scroll: each line is shown again in the next cue as it moves up.
+  const rolling = [
+    'WEBVTT',
+    '00:00:00.160 --> 00:00:02.389 align:start position:0%\n \nif<00:00:00.320><c> you have</c><00:00:00.480><c> clicked</c>',
+    '00:00:02.389 --> 00:00:02.399 align:start position:0%\nif you have clicked\n ',
+    '00:00:02.399 --> 00:00:04.230 align:start position:0%\nif you have clicked\nyou<00:00:02.800><c> are probably</c><00:00:03.100><c> struggling</c>',
+    '00:00:04.230 --> 00:00:04.240 align:start position:0%\nyou are probably struggling\n ',
+  ].join('\n\n');
+  assert.deepEqual(
+    captionCues(rolling).map(c => [c.start, c.text]),
+    [
+      [0.16, 'if you have clicked'],
+      [2.399, 'you are probably struggling'],
+    ],
+  );
 });
 
 test('a recording is transcribed only after the owner approves the cost, and never paid for twice', async t => {
@@ -312,6 +327,101 @@ test("a video's screen is mapped into filmstrips, served by sentence, cropped, k
     assert.doesNotMatch(await warnings(), /\[exhibit\]/);
     fs.rmSync(path.join(fx.root, 'sources', 'box-lesson', 'frames'), { recursive: true });
     assert.match((await runTool('kf_read', { ref: 'BOX', view: 'image', loc: '0:05' })).image!, /exhibits/);
+  } finally {
+    fx.cleanup();
+  }
+});
+
+/** A PDF whose one page is a picture and nothing else, the way a scan is: the JPEG is embedded as it stands. */
+function scannedPdf(jpeg: Buffer, width: number, height: number): Buffer {
+  const content = 'q 612 0 0 792 0 0 cm /Im0 Do Q';
+  const parts: Buffer[] = [];
+  const offsets: number[] = [];
+  let length = 0;
+  const push = (chunk: Buffer | string) => {
+    const b = typeof chunk === 'string' ? Buffer.from(chunk, 'latin1') : chunk;
+    parts.push(b);
+    length += b.length;
+  };
+  const object = (n: number, body: (Buffer | string)[]) => {
+    offsets[n] = length;
+    push(`${n} 0 obj\n`);
+    body.forEach(push);
+    push('\nendobj\n');
+  };
+  push('%PDF-1.4\n');
+  object(1, ['<< /Type /Catalog /Pages 2 0 R >>']);
+  object(2, ['<< /Type /Pages /Kids [3 0 R] /Count 1 >>']);
+  object(3, ['<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /XObject << /Im0 5 0 R >> >> >>']);
+  object(4, [`<< /Length ${content.length} >>\nstream\n${content}\nendstream`]);
+  object(5, [`<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`, jpeg, '\nendstream']);
+  const xref = length;
+  push(`xref\n0 6\n0000000000 65535 f \n`);
+  for (let n = 1; n <= 5; n++) push(`${String(offsets[n]).padStart(10, '0')} 00000 n \n`);
+  push(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return Buffer.concat(parts);
+}
+
+test('a scanned PDF page is read by OCR when Tesseract is installed, and flagged', async t => {
+  const fx = freshLibrary();
+  try {
+    if (!has(() => findPoppler(loadConfig()))) return t.skip("Poppler isn't installed");
+    if (!findTesseract(loadConfig())) return t.skip("Tesseract with English data isn't installed");
+    // Make the scan: render a page of real text to a picture, and wrap the picture in a PDF with no text layer.
+    const typed = tinyPdf(['Thirty trades per free parameter is the floor for reading a backtest.']);
+    const render = spawnSync(findPoppler(loadConfig(), 'pdftoppm'), ['-jpeg', '-r', '150', '-f', '1', '-l', '1', '-'], { input: typed, maxBuffer: 1 << 26 });
+    if (render.status !== 0 || !render.stdout.length) return t.skip("this Poppler can't render a JPEG");
+    const pdf = path.join(fx.dir, 'scan.pdf');
+    fs.writeFileSync(pdf, scannedPdf(render.stdout, 1275, 1650));
+    const added = await addSource(loadConfig(), { file: pdf, title: 'A scanned paper', key: 'SCN', kind: 'paper' });
+    assert.ok(added.notes.some(n => /1 of 1 pages had no text layer and were read by OCR/.test(n)));
+    assert.deepEqual(added.worth_viewing, ['p.1']);
+    const source = loadLibrary(fx.root).sources[0];
+    assert.ok(source.units[0].flags.includes('ocr'));
+    assert.match((await runTool('kf_read', { ref: 'SCN', loc: 'p.1' })).text, /Thirty trades per free parameter/i);
+  } finally {
+    fx.cleanup();
+  }
+});
+
+test('a video link is fetched after the cost is approved, with its captions, and kept in the library', async t => {
+  const fx = freshLibrary();
+  try {
+    if (!has(() => findTool(loadConfig(), 'ffmpeg')) || !has(() => findTool(loadConfig(), 'ffprobe'))) return t.skip("FFmpeg isn't installed");
+    const made = path.join(fx.dir, 'made.mp4');
+    const synth = spawnSync(findTool(loadConfig(), 'ffmpeg'), ['-nostdin', '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=12', '-f', 'lavfi', '-i', 'color=c=white:s=320x180:r=10:d=12', '-pix_fmt', 'yuv420p', '-shortest', made], { stdio: 'ignore' });
+    if (synth.status !== 0) return t.skip("this FFmpeg can't synthesize a test video");
+    const raw = JSON.parse(fs.readFileSync(fx.config, 'utf8'));
+    fs.writeFileSync(fx.config, JSON.stringify({ ...raw, transcription: { endpoint: 'https://transcribe.invalid/v1/audio/transcriptions', model: 'vendor/words-model', api_key_file: write(fx.dir, 'key.txt', 'not-a-real-key'), cost_per_minute: 0.6 } }));
+    const link = 'https://video.invalid/watch?v=abc123';
+    const calls: string[] = [];
+    // Stands in for yt-dlp: answers the question about the page, and "downloads" by copying a file made here.
+    const ytdlp = (args: string[]) => {
+      if (args.includes('--dump-single-json')) {
+        calls.push('info');
+        return { status: 0, stderr: '', stdout: JSON.stringify({ id: 'abc123', title: 'Stops and targets', uploader: 'Ilo Carrow', upload_date: '20240815', duration: 12, webpage_url: link, description: 'A lesson on stops.', height: 1080, subtitles: { en: [{}] } }) };
+      }
+      calls.push('download');
+      const out = args[args.indexOf('-o') + 1];
+      fs.copyFileSync(made, out.replace('%(ext)s', 'mp4'));
+      fs.writeFileSync(out.replace('%(ext)s', 'en.vtt'), 'WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nA stop goes under the low.\n\n00:00:05.000 --> 00:00:09.000\nThe target is the range high.\n');
+      return { status: 0, stderr: '', stdout: '' };
+    };
+    const words = 'A stop goes under the low.'.split(' ').map((word, i) => ({ word, start: 1 + i * 0.3, end: 1.25 + i * 0.3 }));
+    const fetcher = (async () => new Response(JSON.stringify({ text: 'A stop goes under the low.', segments: [], words }), { status: 200 })) as typeof fetch;
+    // Twelve seconds at 0.60 a minute is 0.12. Until that is approved, nothing is downloaded.
+    await assert.rejects(addSource(loadConfig(), { file: link, key: 'STP', fetcher, ytdlp }), /estimated at 0\.12 USD[\s\S]*Nothing has been downloaded/);
+    assert.deepEqual(calls, ['info']);
+    const added = await addSource(loadConfig(), { file: link, key: 'STP', fetcher, ytdlp, max_cost: 0.2 });
+    assert.equal(added.original, 'copied into the library');
+    const source = loadLibrary(fx.root).sources[0];
+    assert.equal(source.fm.title, 'Stops and targets');
+    assert.equal(source.fm.url, link);
+    assert.equal(source.fm.year, '2024');
+    assert.ok(fs.existsSync(path.join(source.dir, 'original', 'stops-and-targets.mp4')));
+    assert.match(fs.readFileSync(path.join(source.dir, 'captions.txt'), 'utf8'), /\[0:01\] A stop goes under the low\. The target is the range high\./);
+    assert.ok(!fs.existsSync(path.join(fx.root, '.knowfu', 'downloads', 'abc123')), 'the download folder is cleared once the video is in the library');
+    await assert.rejects(addSource(loadConfig(), { file: link, key: 'STP2', fetcher, ytdlp, max_cost: 0.2 }), /already in the library as/);
   } finally {
     fx.cleanup();
   }

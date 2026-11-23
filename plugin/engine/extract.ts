@@ -108,15 +108,56 @@ export function pdfText(config: Config, file: string, options: { layout?: boolea
   return pages;
 }
 
+/** Tesseract, when it is installed with the data for the configured languages. Optional: null when it isn't there. */
+export function findTesseract(config: Config): string | null {
+  const configured = config.tools?.tesseract;
+  const exe = configured && exists(configured) ? configured : onPath('tesseract')[0];
+  if (!exe) return null;
+  const langs = spawnSync(exe, ['--list-langs'], { encoding: 'utf8', timeout: 20000 });
+  const have = `${langs.stdout ?? ''}${langs.stderr ?? ''}`.split(/\r?\n/).map(l => l.trim());
+  return (config.ocr?.languages ?? 'eng').split('+').every(l => have.includes(l)) ? exe : null;
+}
+
+/** Reads the pages of a PDF that have no text layer, from a 300 dpi rendering of each. Returns page index -> text. */
+function ocrPages(config: Config, file: string, pages: number[], tesseract: string): Map<number, string> {
+  const out = new Map<number, string>();
+  const pdftoppm = findPoppler(config, 'pdftoppm');
+  const pdf = fs.readFileSync(file);
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'kf-ocr-'));
+  try {
+    for (const index of pages) {
+      const page = String(index + 1);
+      const render = spawnSync(pdftoppm, ['-png', '-gray', '-r', '300', '-f', page, '-l', page, '-'], { input: pdf, maxBuffer: 1 << 28, timeout: 120000 });
+      if (render.status !== 0 || !render.stdout.length) continue;
+      const image = path.join(work, `p${page}.png`);
+      fs.writeFileSync(image, render.stdout);
+      const read = spawnSync(tesseract, [image, 'stdout', '-l', config.ocr?.languages ?? 'eng'], { encoding: 'utf8', maxBuffer: 1 << 26, timeout: 300000 });
+      if (read.status === 0 && countWords(read.stdout)) out.set(index, read.stdout);
+      fs.rmSync(image, { force: true });
+    }
+  } finally {
+    fs.rmSync(work, { recursive: true, force: true });
+  }
+  return out;
+}
+
 function extractPdf(config: Config, file: string): Extracted {
   const pages = pdfText(config, file);
   if (!pages.length) fail('EXTRACTION_FAILED', `pdftotext returned no pages for ${file}.`);
   const notes: string[] = [];
-  const blank = pages.filter(p => countWords(p) === 0).length;
-  if (blank / pages.length > 0.5)
-    notes.push(`${blank} of ${pages.length} pages have no text layer. This looks like a scanned PDF; run OCR on it first (for example ocrmypdf) and add the result.`);
-  const units: Unit[] = pages.map((text, i) => ({ loc: `p.${i + 1}`, kind: 'page', n: i + 1, line: 0, lines: 0, words: countWords(text), flags: pageFlags(text) }));
-  return { units, texts: pages.map(p => p.replace(/\s+$/, '')), extractor: 'poppler pdftotext', notes };
+  const blank = pages.map((p, i) => (countWords(p) === 0 ? i : -1)).filter(i => i >= 0);
+  // A page with no text layer is a picture of a page: a scan, or a figure that fills it. OCR reads the first kind.
+  const tesseract = blank.length ? findTesseract(config) : null;
+  const read = tesseract ? ocrPages(config, file, blank, tesseract) : new Map<number, string>();
+  for (const [index, text] of read) pages[index] = text;
+  if (read.size)
+    notes.push(`${read.size} of ${pages.length} pages had no text layer and were read by OCR (Tesseract). Each is flagged "ocr". OCR misreads characters, most often in numbers, so check a number or a quoted phrase against the page image before relying on it.`);
+  else if (blank.length / pages.length > 0.5)
+    notes.push(
+      `${blank.length} of ${pages.length} pages have no text layer. This looks like a scanned PDF, and no OCR tool was found${tesseract === null && onPath('tesseract').length ? ' with the language data it needs' : ''}. Install Tesseract with its English data (Windows: scoop install tesseract; macOS: brew install tesseract), or set tools.tesseract in ~/.know-fu/config.json, then delete this source's folder and add the file again.`,
+    );
+  const units: Unit[] = pages.map((text, i) => ({ loc: `p.${i + 1}`, kind: 'page', n: i + 1, line: 0, lines: 0, words: countWords(text), flags: [...pageFlags(text), ...(read.has(i) ? ['ocr'] : [])] }));
+  return { units, texts: pages.map(p => p.replace(/\s+$/, '')), extractor: read.size ? 'poppler pdftotext, tesseract for scanned pages' : 'poppler pdftotext', notes };
 }
 
 /** Renders one PDF page to a PNG and returns its path. Cached beside the source. */
@@ -199,6 +240,32 @@ function parseCues(text: string): Cue[] {
       .trim();
     if (body) cues.push({ start: seconds(m[1], m[2], m[3], m[4]), end: seconds(m[5], m[6], m[7], m[8]), text: body });
   }
+  return cues;
+}
+
+/**
+ * Cues from a caption file that scrolls. Automatic captions show two lines at once and repeat each line in the
+ * next cue as it moves up, so joining every cue's text says everything three times. Taking each line once, when
+ * it first appears, gives the words as spoken.
+ */
+export function captionCues(text: string): Cue[] {
+  const cues: Cue[] = [];
+  const stamp = /(\d{1,2}:)?(\d{2}):(\d{2})[.,](\d{1,3})\s*-->/;
+  let last = '';
+  for (const block of text.replace(/\r\n?/g, '\n').split(/\n{2,}/)) {
+    const lines = block.split('\n');
+    const at = lines.findIndex(l => stamp.test(l));
+    if (at < 0) continue;
+    const m = stamp.exec(lines[at])!;
+    const start = Number((m[1] ?? '0:').slice(0, -1)) * 3600 + Number(m[2]) * 60 + Number(m[3]) + Number(m[4].padEnd(3, '0')) / 1000;
+    for (const raw of lines.slice(at + 1)) {
+      const line = raw.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      if (!line || line === last) continue;
+      last = line;
+      cues.push({ start, end: start + 1, text: line });
+    }
+  }
+  cues.forEach((c, i) => (c.end = cues[i + 1]?.start ?? c.start + 5));
   return cues;
 }
 
@@ -374,15 +441,24 @@ async function extractMedia(config: Config, file: string, workDir: string, maxCo
       if (exists(done)) return JSON.parse(readText(done));
       const audio = path.join(workDir, name + '.mp3');
       execFileSync(ffmpeg, ['-nostdin', '-y', '-ss', String(chunk.start), '-t', String(chunk.end - chunk.start), '-i', file, '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', audio], { stdio: 'ignore', timeout: 600000 });
-      const form = new FormData();
-      form.append('model', t.model);
-      form.append('response_format', 'verbose_json');
-      for (const grain of ['word', 'segment']) form.append('timestamp_granularities[]', grain);
-      for (const term of sent) form.append('keyterms[]', term);
-      form.append('file', new Blob([fs.readFileSync(audio)]), path.basename(audio));
-      const response = await fetcher(t.endpoint, { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: form, signal: AbortSignal.timeout(600000) });
-      const raw = await response.text();
+      const bytes = fs.readFileSync(audio);
       fs.rmSync(audio, { force: true });
+      let response: Response;
+      let raw = '';
+      for (let attempt = 1; ; attempt++) {
+        const form = new FormData();
+        form.append('model', t.model);
+        form.append('response_format', 'verbose_json');
+        for (const grain of ['word', 'segment']) form.append('timestamp_granularities[]', grain);
+        for (const term of sent) form.append('keyterms[]', term);
+        form.append('file', new Blob([bytes]), path.basename(audio));
+        response = await fetcher(t.endpoint, { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: form, signal: AbortSignal.timeout(600000) });
+        raw = await response.text();
+        // A provider that is busy says so and names a wait. Two recordings added at once is enough to meet this.
+        if ((response.status !== 429 && response.status < 500) || attempt >= 5) break;
+        const wait = Number(response.headers.get('retry-after')) || 0;
+        await new Promise(r => setTimeout(r, Math.min(60, Math.max(wait, 2 * attempt)) * 1000));
+      }
       if (response.status === 400 && sent.length) {
         // A model that can't take key terms refuses the whole request. Its transcript is still worth having.
         sent = [];

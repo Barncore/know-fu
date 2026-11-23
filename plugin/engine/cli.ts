@@ -39,6 +39,7 @@ const HELP = `Know Fu command line. Commands:
   connect <from> [to]                 how two ideas link
   source add <file> | source list     register a source (--title, --authors "A; B", --year, --kind, --id, --key, --family, --url, --max-cost, --topic, --terms "a; b")
   source keep <key> <time>            keep a video frame as an exhibit (--box "x,y,w,h")
+  source info <link>                  what a video link points at, before adding it (source add takes a link too)
   check                               check the library (--commit "message", --errors-only)
   note --title "…" --body "…"         save a note to the inbox
   pin [topic]                         pin a topic to a project (--project, --remove)`;

@@ -15,6 +15,7 @@ knowledge/<domain>/<topic>/_index.md      generated: every account under its pri
 knowledge/<domain>/<topic>/accounts/<name>.md
 sources/<id>/source.md
 sources/<id>/text.txt, units.json         the extraction; never edit
+sources/<id>/captions.txt                 a fetched video's own captions, when the page had them; never edit
 sources/<id>/original/                    the file as added; never edit
 sources/<id>/pages/, frames/              page images; a video's screen map, filmstrips and opened frames (a cache)
 sources/<id>/exhibits/                    video frames kept because an account relies on them

@@ -13,7 +13,9 @@ export type Config = {
   /** Project folder -> topic paths whose principles load at session start in that project. */
   pins?: Record<string, string[]>;
   /** Full paths for tools that aren't on PATH, or where PATH finds the wrong one. */
-  tools?: { pdftotext?: string; pdftoppm?: string; ffmpeg?: string; ffprobe?: string; pandoc?: string };
+  tools?: { pdftotext?: string; pdftoppm?: string; ffmpeg?: string; ffprobe?: string; pandoc?: string; ytdlp?: string; tesseract?: string };
+  /** Languages for OCR of scanned PDF pages, as Tesseract names them. Default "eng"; "eng+deu" reads both. */
+  ocr?: { languages?: string };
   /** Optional semantic search over the compiled layer, through any OpenAI-compatible /embeddings endpoint. */
   embedder?: {
     base_url: string;

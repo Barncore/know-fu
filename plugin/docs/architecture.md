@@ -43,7 +43,7 @@ The engine does what an agent is bad at or shouldn't spend tokens on. It never c
 
 | Part | File | Job |
 |---|---|---|
-| Extraction | `engine/extract.ts`, `sources.ts` | PDF to page text with Poppler; text and Markdown to sections; subtitles and timestamped transcripts to time units; EPUB, DOCX and HTML through pandoc; audio and video through a transcription API, sent in padded chunks with the topic's vocabulary as key terms and returned one sentence per line with its time. Page images on request |
+| Extraction | `engine/extract.ts`, `sources.ts`, `links.ts` | PDF to page text with Poppler, and with Tesseract for pages that are scans; a video link fetched with yt-dlp, with the page's captions kept as a second transcript; text and Markdown to sections; subtitles and timestamped transcripts to time units; EPUB, DOCX and HTML through pandoc; audio and video through a transcription API, sent in padded chunks with the topic's vocabulary as key terms and returned one sentence per line with its time. Page images on request |
 | Video screen | `engine/frames.ts` | Maps what a video showed: the moments the picture changed and then held still, laid out as filmstrips. Serves any frame at reading size, a crop from the original frame, and the settled picture for a sentence |
 | Library model | `engine/library.ts`, `frontmatter.ts` | Reads the folder into memory: topics with their principles, accounts with their links and citations, sources with their units and maps |
 | Checker | `engine/check.ts` | Frontmatter, links, citations, quoted words against the source text, principles, source maps, sizes, and words compiled against words read. Writes the derived parts: each principle's Governs line, `_index.md`, `INDEX.md`. Commits to git |

@@ -6,7 +6,8 @@ import { checkLibrary, commitLibrary, formatReport } from './check.ts';
 import { configPath, isHome, loadConfig, pinsFor, projectDir, requireHome, saveConfig } from './config.ts';
 import type { Config } from './config.ts';
 import { embedderLabel, embedderOf, semanticSearch, syncVectors } from './embed.ts';
-import { findPoppler, findTool } from './extract.ts';
+import { findPoppler, findTesseract, findTool } from './extract.ts';
+import { findYtdlp, isLink, linkInfo } from './links.ts';
 import { formatFrontmatter, asText } from './frontmatter.ts';
 import { loadLibrary, topicByPath } from './library.ts';
 import { brief, connect, read, recall } from './recall.ts';
@@ -86,6 +87,8 @@ function status(): string {
     `- PDF text and page images (Poppler): ${tryTool(() => findPoppler(config))}`,
     `- EPUB, DOCX, HTML (pandoc): ${tryTool(() => findTool(config, 'pandoc'))}`,
     `- audio and video (ffmpeg): ${tryTool(() => findTool(config, 'ffmpeg'))}`,
+    `- video links (yt-dlp): ${tryTool(() => findYtdlp(config))}`,
+    `- scanned PDF pages (Tesseract OCR): ${findTesseract(config) ?? 'not found, or without its language data (scanned pages stay unread)'}`,
     `- semantic search: ${embedderOf(config) ? embedderLabel(embedderOf(config)!) : 'off (keyword search only; add "embedder" to the config to turn it on)'}`,
     `- transcription API: ${config.transcription?.endpoint ? `${config.transcription.model} at ${new URL(config.transcription.endpoint).host}` : 'not configured (transcript files still work)'}`,
   );
@@ -202,16 +205,16 @@ export const TOOLS: Tool[] = [
   {
     name: 'kf_source',
     description:
-      'Home session only. action "add" registers a file (PDF, text, Markdown, .srt/.vtt, EPUB/DOCX/HTML, audio or video) as a source: copies the original, extracts its text into citable pages, sections or time units, and writes sources/<id>/source.md to fill in. action "list" shows every source. action "keep" (ref, loc, optional box) keeps a video frame as an exhibit the write-up can rely on.',
+      'Home session only. action "add" registers a file (PDF, text, Markdown, .srt/.vtt, EPUB/DOCX/HTML, audio or video) as a source: copies the original, extracts its text into citable pages, sections or time units, and writes sources/<id>/source.md to fill in. action "list" shows every source. action "keep" (ref, loc, optional box) keeps a video frame as an exhibit the write-up can rely on. file can be a video link, fetched with yt-dlp; action "info" shows what a link points at before you add it.',
     inputSchema: {
       type: 'object',
       required: ['action'],
       properties: {
-        action: { type: 'string', enum: ['add', 'list', 'keep'] },
+        action: { type: 'string', enum: ['add', 'list', 'keep', 'info'] },
         ref: str('For "keep": the source key.'),
         loc: str('For "keep": the moment, like "12:34".'),
         box: str('For "keep": a crop, "x,y,w,h" in percent.'),
-        file: str('Full path of the file to add.'),
+        file: str('Full path of the file to add, or a video link.'),
         title: str("The source's title."),
         authors: { type: 'array', items: { type: 'string' } },
         year: str('Year published.'),
@@ -230,6 +233,23 @@ export const TOOLS: Tool[] = [
       if (args.action === 'list') {
         const lib = loadLibrary(config.library);
         return { text: lib.sources.length ? lib.sources.map(s => `${s.key} · ${s.id} · ${asText(s.fm.title)} (${asText(s.fm.kind)}; ${asText(s.fm.units)}; ${asText(s.fm.words)} words; ${asText(s.fm.status)})`).join('\n') : 'No sources yet.' };
+      }
+      if (args.action === 'info') {
+        if (!isLink(String(args.file ?? ''))) fail('INVALID', 'action "info" needs file: a video link.');
+        const info = linkInfo(config, String(args.file).trim());
+        const minutes = info.duration / 60;
+        const rate = config.transcription?.cost_per_minute;
+        return {
+          text: [
+            `${info.title}`,
+            `By ${info.uploader || 'unknown'}${info.date ? `, ${info.date.slice(0, 4)}-${info.date.slice(4, 6)}-${info.date.slice(6, 8)}` : ''}. ${Math.floor(minutes)} min ${Math.round(info.duration % 60)} s, up to ${info.height || '?'}p. Captions on the page: ${info.captions === 'own' ? "the uploader's own" : info.captions === 'automatic' ? 'automatic only' : 'none'}.`,
+            `Transcribing it would cost about ${rate !== undefined ? `${(minutes * rate).toFixed(2)} ${config.transcription?.currency ?? 'USD'}` : 'an unknown amount (set transcription.cost_per_minute)'}.`,
+            info.url,
+            '',
+            'Description from the page (names and terms in it are worth passing as "terms" when you add the link):',
+            info.description.slice(0, 2500) || '(none)',
+          ].join('\n'),
+        };
       }
       if (args.action === 'keep') {
         requireHome(config, 'Keeping an exhibit');
@@ -259,7 +279,7 @@ export const TOOLS: Tool[] = [
       if (added.blank) lines.push(`${added.blank} units have no text.`);
       if (added.worth_viewing.length)
         lines.push(
-          `${added.worth_viewing.length} units have a figure or table caption, number-heavy text, or sparse or damaged text, so their plain text may not carry everything. Each is flagged on its marker line when you read it (for example "(figure)"). Look at the ones that matter with kf_read view "image".`,
+          `${added.worth_viewing.length} units have a figure or table caption, number-heavy text, sparse or damaged text, or text read by OCR, so their plain text may not carry everything. Each is flagged on its marker line when you read it (for example "(figure)"). Look at the ones that matter with kf_read view "image".`,
         );
       if (added.sheets) lines.push(`The screen changed and settled at ${added.frames} moments, laid out on ${added.sheets} filmstrip ${added.sheets === 1 ? 'sheet' : 'sheets'}: kf_read ref "${added.key}" view "filmstrip".`);
       lines.push(

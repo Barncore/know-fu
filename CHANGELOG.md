@@ -6,6 +6,22 @@ Entries before 0.6.0 describe the earlier engine, and the files and tools they n
 
 ## Unreleased
 
+### 2026-11-23 - 0.10.0: a video by its link, and scanned pages read by OCR
+
+Why: both were on the owner's list of dependencies to add now. A video on the web had to be downloaded by hand before it could be added, and a scanned PDF came in as blank pages with a note to run OCR elsewhere, which 0.5 had done itself.
+
+- **Video links** (`plugin/engine/links.ts`). With yt-dlp installed, `kf_source` action "add" takes a link as `file`. The cost of transcribing it is checked against `max_cost` from the length the page reports, before anything is fetched. The video comes down at the best size it has, up to 4K, and is kept in the source's `original` folder whatever its size, since it has no other home. Title, uploader, year and link fill in the source's fields unless given. A download that was made and then stopped is reused on the next call.
+- **`kf_source` action "info"** shows a link's title, length, top resolution, captions, transcription cost and description before adding it, so the terms the description names can go to the transcriber.
+- **The page's captions as a second transcript.** When the page has English captions, the uploader's own or automatic, they are saved as `sources/<id>/captions.txt`. Automatic captions scroll and repeat each line in the next cue; each line is kept once, at the time it first appears (`captionCues`). The owner chose this over running a second transcription model.
+- **OCR for scanned PDF pages.** A page with no text layer is rendered at 300 dpi and read by Tesseract when it is installed with the data for the configured languages (`ocr.languages`, default `eng`). The page is flagged `ocr` and listed among the pages worth viewing, and the report says how many were read. Without Tesseract the page stays blank and the note says what to install.
+- **A busy transcription provider is asked again**, up to five times, waiting as long as it says. Found when a link was added while two other recordings were being transcribed: the provider answered 429 and the add failed.
+- `kf_status` lists yt-dlp and Tesseract with the other tools. The config takes `tools.ytdlp`, `tools.tesseract` and `ocr.languages`.
+- Shown live: one lesson of 19:37 added by its link (103 MB at 1080p, fetched, transcribed, mapped and committed in two and a half minutes, with automatic captions saved). The OCR test renders a page of text to a picture, wraps it in a PDF with no text layer, and reads the sentence back with Tesseract 5.5.
+- Docs: the setup guide (the two tools, how to install them on Windows, links, retries), the architecture and lineage pages, the ingest guide (`info` before adding a link, `captions.txt`, the `ocr` flag), the format guide's layout, and the north star (no second transcription model).
+- Tests: 32 pass. Two are new, and the caption test gained a scrolling case. The OCR test skips where Tesseract isn't installed.
+- Compatibility: no library format change beyond the optional `captions.txt`. Sources already in a library are untouched; a scanned PDF added before 0.10.0 stays blank until it is added again.
+- Limits: Tesseract reads clean scans well and tables poorly; a layout-aware converter is still to be tested. yt-dlp was tried on one YouTube link.
+
 ### 2026-11-23 - 0.9.0: a video's screen is mapped, served by sentence, and checked
 
 Why: a teaching video's content is largely on its screen, and 0.6 gave a reader one small frame a minute. The owner asked for frames to follow the transcript, and approved a division of work after a pilot: the reader chooses where to look, and code maps the screen and serves clean frames. This also brings back, in a new form, what 0.5 had and 0.6 dropped: frames that follow scene changes, a crop from the original frame, and sheets of thumbnails.

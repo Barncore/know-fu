@@ -3,12 +3,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Config } from './config.ts';
-import { assemble, extract, isMedia, isVideo, pdfPageImage, pdfText } from './extract.ts';
+import { assemble, captionCues, chunkPlan, extract, findTool, isMedia, isVideo, pdfPageImage, pdfText, timeUnits } from './extract.ts';
+import { download, isLink, linkInfo } from './links.ts';
+import type { Runner } from './links.ts';
 import { frameImage, frameSecond, loadTrack, mapScreen, parseBox, screenFor } from './frames.ts';
 import { formatFrontmatter, asList, asText } from './frontmatter.ts';
 import { isRetired, loadLibrary, resolveLoc, section, unitText, unitLabel } from './library.ts';
 import type { Library, Source } from './library.ts';
-import { countWords, exists, fail, fileSha, formatTime, isSlug, parseTime, slugify, today, writeJson, writeText } from './util.ts';
+import { countWords, exists, fail, fileSha, formatTime, isSlug, parseTime, readText, slugify, today, writeJson, writeText } from './util.ts';
 
 export type AddOptions = {
   file: string;
@@ -27,6 +29,8 @@ export type AddOptions = {
   /** For a recording: names and terms of art it uses, sent to the transcriber as key terms. */
   terms?: string[];
   fetcher?: typeof fetch;
+  /** Stands in for yt-dlp in tests. */
+  ytdlp?: Runner;
 };
 
 /**
@@ -63,9 +67,32 @@ function deriveKey(title: string, taken: Set<string>): string {
 export const SOURCE_KINDS = ['book', 'paper', 'article', 'video', 'audio', 'course', 'transcript', 'notes', 'other'];
 
 export async function addSource(config: Config, options: AddOptions) {
+  const lib = loadLibrary(config.library);
+  // A link is fetched first, and from there on it is a file like any other.
+  let fetched: { dir: string; captions?: string } | null = null;
+  if (isLink(options.file)) {
+    const link = options.file.trim();
+    const info = linkInfo(config, link, options.ytdlp);
+    const had = lib.sources.find(s => [link, info.url].includes(asText(s.fm.url)));
+    if (had) fail('EXISTS', `This link is already in the library as ${had.id} (${had.key}).`);
+    // Ask about the money before fetching anything, from the length the page reports.
+    const t = config.transcription;
+    if (!t?.endpoint || !t.model) fail('NOT_CONFIGURED', 'A video link is transcribed after it is fetched, and no transcription API is set. Add a "transcription" block to ~/.know-fu/config.json (the setup guide has a worked example).');
+    const cost = (chunkPlan(info.duration).reduce((sum, c) => sum + (c.end - c.start), 0) / 60) * (t.cost_per_minute ?? 0);
+    if (options.max_cost === undefined || cost > options.max_cost)
+      fail(
+        'SPEND_NOT_APPROVED',
+        `"${info.title}" runs ${formatTime(info.duration)}. Transcribing it is estimated at ${t.cost_per_minute !== undefined ? `${cost.toFixed(2)} ${t.currency ?? 'USD'}` : 'an unknown cost (set transcription.cost_per_minute)'} with ${t.model}. Ask the owner, then call again with max_cost set to the amount they approve. Nothing has been downloaded.`,
+      );
+    const downloads = path.join(config.library, '.knowfu', 'downloads', slugify(info.id) || 'video');
+    const got = download(config, info, downloads, findTool(config, 'ffmpeg'), options.ytdlp);
+    fetched = { dir: downloads, captions: got.captions };
+    // A channel name isn't a surname, so a fetched video's folder is named from its title alone.
+    const named = slugify((options.title ?? info.title).split(/[:—–(|]/)[0]).split('-').slice(0, 7).join('-');
+    options = { ...options, file: got.file, id: options.id ?? (named || undefined), title: options.title ?? info.title, authors: options.authors ?? (info.uploader ? [info.uploader] : undefined), year: options.year ?? (info.date.slice(0, 4) || undefined), url: options.url ?? info.url };
+  }
   const file = path.resolve(options.file);
   if (!exists(file) || !fs.statSync(file).isFile()) fail('NOT_FOUND', `No file at ${file}.`);
-  const lib = loadLibrary(config.library);
   const title = (options.title ?? path.basename(file, path.extname(file)).replace(/[._]+/g, ' ')).trim();
   const surname = options.authors?.[0]?.trim().split(/\s+/).at(-1) ?? '';
   // The folder name comes from the author and the title up to any subtitle, so it stays short enough to type in a link.
@@ -98,8 +125,17 @@ export async function addSource(config: Config, options: AddOptions) {
     writeJson(path.join(staging, 'units.json'), units);
     const size = fs.statSync(file).size;
     // Large recordings stay where they are; the library records where, and the hash proves which file it was.
-    const copied = size <= 300 * 1024 * 1024;
+    // A fetched video has no other home, so it is kept whatever its size.
+    const copied = !!fetched || size <= 300 * 1024 * 1024;
     if (copied) fs.copyFileSync(file, path.join(staging, 'original', path.basename(file)));
+    if (fetched?.captions) {
+      // The page's own captions are a second hearing of the same words, made by someone else's model or by a person.
+      const cues = captionCues(readText(fetched.captions));
+      if (cues.length) {
+        writeText(path.join(staging, 'captions.txt'), assemble(timeUnits(cues, 'page captions')).text);
+        extracted.notes.push("The page's own captions are saved beside the transcript as captions.txt. Where a word in the transcript is in doubt, read the same minute there.");
+      }
+    }
     let frames = 0;
     let sheets = 0;
     if (isVideo(file)) {
@@ -115,7 +151,7 @@ export async function addSource(config: Config, options: AddOptions) {
     const words = units.reduce((sum, u) => sum + u.words, 0);
     const noun = units[0].kind === 'page' ? 'pages' : units[0].kind === 'section' ? 'sections' : 'time units';
     const flagged = (flag: string) => units.filter(u => u.flags.includes(flag)).map(u => u.loc);
-    const visual = units.filter(u => u.flags.some(f => ['sparse', 'glyphs', 'figure', 'numeric'].includes(f))).map(u => u.loc);
+    const visual = units.filter(u => u.flags.some(f => ['sparse', 'glyphs', 'figure', 'numeric', 'ocr'].includes(f))).map(u => u.loc);
     const fm = formatFrontmatter({
       type: 'source',
       title,
@@ -152,6 +188,7 @@ export async function addSource(config: Config, options: AddOptions) {
     ].join('\n');
     writeText(path.join(staging, 'source.md'), fm + '\n' + body);
     fs.renameSync(staging, dir);
+    if (fetched) fs.rmSync(fetched.dir, { recursive: true, force: true });
     return {
       id,
       key,

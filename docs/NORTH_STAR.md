@@ -89,6 +89,8 @@ Removed with his agreement: the frame sampled once a minute. The filmstrip repla
 
 The owner's earlier video work used two OpenAI models per recording, one for accurate words and one for timestamps. OpenAI shuts the timestamp model, `whisper-1`, down on 26 February 2027. A test on one of the owner's trading lessons put one hosted model, MAI-Transcribe 2 through OpenRouter, level with the better of the pair on words and ahead of the other on timing, at about a sixth of the cost. The owner's decision: "Switch to MAI-Transcribe 2, lock it in."
 
+He later ruled out a second model run beside it: "I don't reckon we need a 2nd transcriber, MAI does the job. And if the video is from YouTube then Know Fu can grab the 2nd transcript from that anyway." A video added by link keeps the page's captions for that purpose.
+
 The same test found that the model hears a subject's terms when it is told them. The owner agreed that each recording should be transcribed with the vocabulary of the topic it joins, so transcripts improve as the library grows. Hosted transcription over local (September 2026) stands: no local model tested better.
 
 ### 23 November 2026: dependencies are welcome when they earn their place
