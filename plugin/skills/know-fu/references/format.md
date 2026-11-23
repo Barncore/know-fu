@@ -66,7 +66,7 @@ Two to four paragraphs on how the subject hangs together: what a practitioner is
 
 ## Principles
 
-- [Heat work matures ware](principles/heat-work-matures-ware.md): Ware matures by temperature held over time, so the schedule matters as much as the peak, until the chamber is too uneven for one schedule. (reasoned argument; 1 separate source; 2 notes)
+- [Heat work matures ware](principles/heat-work-matures-ware.md): Ware matures by temperature held over time, so the schedule matters as much as the peak, until the chamber is too uneven for one schedule. (reasoned argument; 1 separate source; qualified by 1; 2 notes)
 
 ## Tensions
 
@@ -82,12 +82,17 @@ Two to four paragraphs on how the subject hangs together: what a practitioner is
 
 ## Open questions
 
-- Does a ten minute hold keep the ash runs?
+- Does a ten minute hold keep the ash runs? Bears on [[#heat-work-matures-ware]]. A source that reports hold times against surface results would settle it.
+
+## Source keys
+
+- ATK: Ilo Carrow, "Against the long hold" (video)
+- WKH: Mara Venn, "The Wood Kiln Handbook" (book, 2019)
 ```
 
-Everything under `## Principles` is written by `kf_check` from the principle files: each one's title, its `summary`, its `support`, how many separate sources state or imply it (sources that share a `family` count once), and how many notes rest on it. Don't write there. The one thing that is yours is the order: put the lines in the order a reader should meet them, foundations first, and the checker keeps it. A new principle is added at the end. Notes that name no principle are listed under the principles, so nothing is hidden.
+Everything under `## Principles` is written by `kf_check` from the principle files: each one's title, its `summary`, its `support`, how many separate sources state or imply it (sources that share a `family` count once), how many dispute or qualify it, and how many notes rest on it. Don't write there. The one thing that is yours is the order: put the lines in the order a reader should meet them, foundations first, and the checker keeps it. A new principle is added at the end. Notes that name no principle are listed under the principles, so nothing is hidden.
 
-Frame is required. Add the other sections as the topic earns them. Vocabulary is for terms the sources use in their own way, not a glossary of the field. Open questions holds what the sources leave unanswered.
+Frame is required. Add the other sections as the topic earns them. Vocabulary is for terms the sources use in their own way, not a glossary of the field. Open questions holds what the sources leave unanswered. It is the one place gaps are kept, because the owner reads it to choose what to ingest next: say for each which principle it bears on and what kind of source or test would settle it. `kf_check` also writes a `## Source keys` list at the foot of the page, so any citation on the topic's pages can be read without opening another file.
 
 The page is meant to be read whole. Detail belongs in the principle files and the notes.
 
@@ -109,15 +114,17 @@ Ware matures by temperature held over time, so the schedule matters as much as t
 
 - **Why:** glaze and body reactions need time at temperature, and a cone measures both together [WKH p.31].
 - **Breaks when:** Inferred: a chamber so uneven that no single schedule suits every shelf. The handbook states no limit.
-- **Merit:** The reason follows from how a cone works, which any potter can watch. The handbook measures nothing, and a speaker who stops at cone 9 shows that maturity is not the only goal a firing can have.
+- **Merit:** The reason follows from how a cone works, which any potter can watch. Venn measures nothing, and Carrow, who stops at cone 9, shows that maturity is not the only goal a firing can have.
+- **Would change if:** a firing log showed glazes maturing at the same peak whatever the time spent near it.
+- **In general terms:** an outcome that depends on a dose built up over time can't be read from the peak level alone.
 
 ## Evidence
 
-### WKH: states it
+### Mara Venn (WKH): states it
 
 Gives the mechanism and the practice that follows: a slow climb to a lower peak can mature a glaze that a fast climb leaves raw, which is why potters read cones and not only a pyrometer [WKH p.31].
 
-### ATK: qualifies it
+### Ilo Carrow (ATK): qualifies it
 
 Accepts the mechanism and refuses the conclusion that every shelf must mature: the speaker stops when cone 9 is flat at the front and takes an uneven chamber as part of the work [ATK 1:10].
 
@@ -126,9 +133,9 @@ Accepts the mechanism and refuses the conclusion that every shelf must mature: t
 - conflicts with [[wood-firing#ash-needs-a-moving-flame]]: the hold that evens heat work is what flattens ash runs
 ```
 
-The opening paragraph is the statement. **Why**, **Breaks when** and **Merit** are required. Merit is your weighing of the logic, in a sentence or three: does the reason follow, what is the strongest objection, where is the support thin. Start a line with "Inferred:" where it is your reading and not the source's.
+The opening paragraph is the statement. **Why**, **Breaks when** and **Merit** are required. **Would change if** (what evidence would overturn or settle it) and **In general terms** (the principle without the field's own words, so a question from another field can find it) are optional: write one when there is something specific to say, in a sentence or two, and leave it out otherwise. Merit is your weighing of the logic, in a sentence or three: does the reason follow, what is the strongest objection, where is the support thin. Start a line with "Inferred:" where it is your reading and not the source's.
 
-`## Evidence` has one entry per source that bears on the principle, headed with the source's key and how it stands: `states it`, `implies it` (you read it out of what the source does), `qualifies it` or `disputes it`. Under the heading, say what that source brings that the principle didn't already have: a reason, a case, a number, a limit. Keep it to a few lines. A source that only agrees gets one line and its citation. The reason itself is written once, in Why, and detail belongs in a note. For what no single source holds, head an entry `### Synthesis` and say which sources it joins; for the owner's own results, `### Owner`.
+`## Evidence` has one entry per source that bears on the principle, for it or against it, headed with the source and how it stands: `states it`, `implies it` (you read it out of what the source does), `qualifies it` or `disputes it`. Write the heading as `### WKH: states it` and `kf_check` puts the author's name in front, from the source's own page. Evidence against lives here beside the evidence for, written as fully, and the topic page counts both. Under the heading, say what that source brings that the principle didn't already have: a reason, a case, a number, a limit. Keep it to a few lines. A source that only agrees gets one line and its citation. The reason itself is written once, in Why, and detail belongs in a note. For what no single source holds, head an entry `### Synthesis` and say which sources it joins; for the owner's own results, `### Owner`.
 
 `## Connections` is optional. Don't write a `## Notes` section: `kf_check` adds one, listing by title the notes whose `principles` name this file, and rewrites it on every run. To put a note under a principle, add the principle's id to the note's `principles`.
 
@@ -159,6 +166,8 @@ Sections inside a note are optional and yours to choose; a method often wants "W
 ## Citations and quotes
 
 A citation is a source key and a locator in square brackets: `[WKH p.112]`, `[WKH p.112-118]`, `[NOTES s.3]` for a section of a text file, `[ATK 12:34]` or `[ATK 12:34-15:00]` for what a recording said, and `[ATK 12:36 screen]` for what its screen showed at that moment. Pages are the file's physical pages, counted from 1, which is what `kf_read` shows; note a printed-page offset in the source's About section if it helps.
+
+In running text, name the person and not the key: "Venn holds forty minutes", never "WKH holds forty minutes". The owner reads these pages, a key tells him nothing, and two keys can be one teacher. Keys belong inside citation brackets.
 
 Put the citation right after what it supports. Cite every specific: a number, a rule, a claim someone might check. One bracket holds one citation; for two places write two brackets, `[WKH p.31] [ATK 1:10]`.
 

@@ -89,6 +89,15 @@ After two videos went into one test library, the owner read the result and asked
 
 Removed with his agreement: the per-stretch digest paragraphs on a source page (the map is now a line per stretch), the 35% retelling warning and the ratio it printed, and the generated `_index.md`. Brought back from 0.5 at the same time: looking for connections after writing, and testing new principles by having a fresh reader apply them to a case, including one just outside a principle's limit.
 
+After reading the first library built this way, the owner added four things the same day:
+
+- **Names, not codes.** "Once the library builds up there will be all these codes that I don't know what they mean. And some codes will actually be the same person but I won't know it." Evidence headings read "Mara Venn (WKH): states it", written by the checker from the source's page. Prose names the person. Keys stay inside citation brackets, and each topic page ends with a key to them.
+- **Two optional lines on a principle**, both from 0.5: what would change it, and the idea in general terms. Written only when there is something to say.
+- **Evidence against, weighed with evidence for.** He asked whether it needs its own section and worried about principle files growing. It stays in the one Evidence section, headed "disputes it" or "qualifies it", and the topic page now counts it. That was the agent's recommendation at his request.
+- **Gaps stay on the topic page.** He asked whether each principle should have a "Gaps and open questions" section, to help choose the next source. The agent recommended keeping them in the topic page's Open questions, one list that is read whole, with each question naming its principle and what would settle it. Also at his request, and his to overrule.
+
+Two sources that share nothing but a method are separate sources, and the count says so. He corrected a grader's note that two unconnected teachers were "the same school".
+
 How the agent got here matters for next time. It proposed the audit after sending a subagent to skim outside prior art, and found the owner's answer only when it read 0.5's own lineage page and note guide. Read the project's earlier versions before looking elsewhere.
 
 ### 23 November 2026: how a video's frames are chosen

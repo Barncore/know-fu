@@ -70,6 +70,10 @@ export type Principle = Doc & {
   breaks: string;
   /** The reader's weighing of its logic: does the reason follow, what is the strongest objection, where is it thin. */
   merit: string;
+  /** Optional: what evidence would overturn it. */
+  changeIf: string;
+  /** Optional: the principle restated without the field's own terms, so a question from another field can find it. */
+  general: string;
   evidence: Evidence[];
   line: number;
 };
@@ -216,7 +220,23 @@ export function parseFields(text: string): { statement: string; fields: Record<s
   return { statement: statement.join(' '), fields };
 }
 
-const EVIDENCE_HEAD = /^([A-Za-z][A-Za-z0-9]*)\s*(?:[:(,]\s*(.*?)\)?\s*)?$/;
+/**
+ * An evidence heading names a source and how it stands: "### Mara Venn (WKH): states it". The key in brackets is
+ * what the engine reads; the name is there for a person, and `kf_check` writes it from the source's page. A bare
+ * "### WKH: states it" is read the same way, and "### Owner" or "### Synthesis" name no source.
+ */
+export function parseEvidenceHead(title: string): { key: string; stance: string; rest: string } {
+  const colon = title.indexOf(':');
+  const head = (colon < 0 ? title : title.slice(0, colon)).trim();
+  const rest = colon < 0 ? '' : title.slice(colon + 1).trim();
+  const bracketed = /\(([A-Z][A-Z0-9]{1,11})\)\s*$/.exec(head);
+  return { key: bracketed ? bracketed[1] : head, stance: STANCES.find(word => rest.toLowerCase().startsWith(word)) ?? '', rest };
+}
+
+/** The person or work a source key stands for: its first author, or its title when no author is recorded. */
+export const sourceName = (source: Source) => (asList(source.fm.authors)[0] || asText(source.fm.title) || source.id).replace(/[:()]/g, ' ').replace(/\s+/g, ' ').trim();
+/** "Mara Venn (WKH)": how a source is named wherever a person will read it. */
+export const sourceLabel = (source: Source) => `${sourceName(source)} (${source.key})`;
 
 function loadPrinciple(file: string, root: string, topic: string): Principle {
   const doc = loadDoc(file, root);
@@ -230,11 +250,10 @@ function loadPrinciple(file: string, root: string, topic: string): Principle {
   const { statement, fields } = parseFields(opening);
   const block = section(sections, 'Evidence');
   const evidence: Evidence[] = (block ? splitSections(block.raw, block.line + 1, 3) : []).map(s => {
-    const head = EVIDENCE_HEAD.exec(s.title);
-    const said = (head?.[2] ?? '').toLowerCase();
+    const head = parseEvidenceHead(s.title);
     return {
-      key: head?.[1] ?? s.title,
-      stance: STANCES.find(word => said.startsWith(word)) ?? '',
+      key: head.key,
+      stance: head.stance,
       line: s.line,
       text: s.text,
       cited: [...new Set([...withoutCode(s.text).matchAll(CITE)].map(m => m[1]))],
@@ -251,6 +270,8 @@ function loadPrinciple(file: string, root: string, topic: string): Principle {
     why: fields['why'] ?? '',
     breaks: fields['breaks when'] ?? '',
     merit: fields['merit'] ?? '',
+    changeIf: fields['would change if'] ?? '',
+    general: fields['in general terms'] ?? '',
     evidence,
     line: doc.bodyLine,
   };
@@ -263,15 +284,29 @@ function inPageOrder(principles: Principle[], sections: Section[]): Principle[] 
   return [...principles].sort((a, b) => place(a) - place(b) || a.id.localeCompare(b.id));
 }
 
-/** How many sources that don't share an origin state or imply a principle. Two talks by one teacher count once. */
-export function independentSupport(lib: Library, principle: Principle): number {
+/** How many sources that don't share an origin stand a given way toward a principle. Two talks by one teacher count once. */
+export function standing(lib: Library, principle: Principle, stances: string[]): number {
   const families = new Set<string>();
   for (const entry of principle.evidence) {
-    if (entry.stance !== 'states' && entry.stance !== 'implies') continue;
+    if (!stances.includes(entry.stance)) continue;
     const source = sourceByKey(lib, entry.key);
     if (source) families.add(asText(source.fm.family) || source.id);
   }
   return families.size;
+}
+
+/** How many separate sources state or imply a principle. */
+export const independentSupport = (lib: Library, principle: Principle) => standing(lib, principle, ['states', 'implies']);
+
+/** "2 separate sources; disputed by 1": what stands behind a principle and against it, for the topic page and recall. */
+export function backing(lib: Library, principle: Principle): string {
+  const held = independentSupport(lib, principle);
+  const parts = [`${held} separate ${held === 1 ? 'source' : 'sources'}`];
+  const disputed = standing(lib, principle, ['disputes']);
+  const qualified = standing(lib, principle, ['qualifies']);
+  if (disputed) parts.push(`disputed by ${disputed}`);
+  if (qualified) parts.push(`qualified by ${qualified}`);
+  return parts.join('; ');
 }
 
 /** Units a locator names, as [first, last] indexes into source.units, or null when it names nothing. */

@@ -82,7 +82,7 @@ function entries(lib: Library, e: Embedder): Entry[] {
   const out: Omit<Entry, 'hash'>[] = [];
   for (const topic of lib.topics) {
     out.push({ ref: topic.path, tier: 'topic', text: `${asText(topic.fm.title)}\n${asText(topic.fm.summary)}\n\n${topic.frame}` });
-    for (const p of topic.principles) out.push({ ref: `${topic.path}#${p.id}`, tier: 'principle', text: `${p.title}\n${p.summary}\n${p.statement}\nWhy: ${p.why}\nBreaks when: ${p.breaks}` });
+    for (const p of topic.principles) out.push({ ref: `${topic.path}#${p.id}`, tier: 'principle', text: `${p.title}\n${p.summary}\n${p.statement}${p.general ? `\nIn general terms: ${p.general}` : ''}\nWhy: ${p.why}\nBreaks when: ${p.breaks}` });
   }
   for (const note of lib.notes) {
     if (isRetired(note)) continue;

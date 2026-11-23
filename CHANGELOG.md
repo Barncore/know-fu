@@ -6,6 +6,21 @@ Entries before 0.6.0 describe the earlier engine, and the files and tools they n
 
 ## Unreleased
 
+### 2026-11-24 - 0.12.2: names beside source keys, and the rest of what the owner asked for after reading the first library
+
+Why: the owner read the library the 0.12 test produced and asked for four things before he starts his own. The decisions are in the north star under 24 November.
+
+- **Names, not codes.** An evidence heading now reads `### Mara Venn (WKH): states it`. Write `### WKH: states it` and `kf_check` puts the name in front, taken from the first author on the source's page, or its title when no author is recorded. Correct the author there and every heading follows. `kf_brief` and `kf_recall` name sources the same way. Each topic page ends with a generated `## Source keys` list, so a citation like `[WKH p.31]` can be read without opening another file. The guides tell the reader to name people in prose and keep keys inside citation brackets.
+- **Two optional lines on a principle**, both from 0.5: `- **Would change if:**` (what evidence would overturn or settle it) and `- **In general terms:**` (the principle without the field's own words). Each is written only when there is something specific to say. The second is searched and embedded, so a question from another field can find the principle.
+- **Evidence against is counted.** It already had a place: an entry under `## Evidence` headed `disputes it` or `qualifies it`. The topic page and `kf_recall` now show it beside the support, as in "worked cases; 2 separate sources; disputed by 1". The ingest guide says to write the opposing case as fully as the supporting one.
+- **Gaps are kept in one place.** The topic page's Open questions is where they live, and the guides now ask each one to name the principle it bears on and the kind of source or test that would settle it, since the owner reads that list to choose what to ingest next.
+- The guide's line about sources that agree no longer says "the same school". Two unconnected teachers are separate sources; the Merit line is where a reader says how they came to agree, when it matters.
+
+- Tests: 33 pass, with new assertions for the written names, the key list and the count of sources that qualify a principle.
+- Compatibility: a principle file written under 0.12.0 or 0.12.1 gets its evidence headings rewritten with names on the next `kf_check`. A topic page section already called "Source keys" would be replaced by the generated one.
+- Not shown: no reader has ingested under these guides yet.
+- Documentation: the format, ingest and use guides, architecture and the north star. The README's "Where it's at" still described 0.6 and said transcription had never run against a live provider; it now describes 0.12 and what has been shown for it, and the README names the video path and the optional tools.
+
 ### 2026-11-24 - 0.12.1: what the first real run of the new layout found
 
 Why: 0.12.0 had not been used. Two readers, each with only the skill, ingested the same two videos as the 0.11 test into a fresh library, the second reader adding to what the first left. A third, told nothing about which design was expected to win, tried both libraries on three cases and checked about twenty claims in each against the videos and exchange data.

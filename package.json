@@ -1,10 +1,10 @@
 {
   "name": "know-fu",
-  "version": "0.12.1",
+  "version": "0.12.2",
   "private": true,
   "license": "MIT",
   "type": "module",
-  "description": "A local research library an AI agent compiles from books, papers and videos. The engine has no dependencies: Node 24 runs its TypeScript directly.",
+  "description": "A local research library an AI agent compiles from books, papers and videos. The engine has no packages to install: Node 24 runs its TypeScript directly.",
   "engines": {
     "node": ">=22.18"
   },

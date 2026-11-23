@@ -4,7 +4,7 @@ import path from 'node:path';
 import type { Config } from './config.ts';
 import type { Semantic } from './embed.ts';
 import { asList, asText } from './frontmatter.ts';
-import { independentSupport, noteBySlug, notePrinciples, notesUnder, isRetired, resolveLink, sourceByKey, topicByPath } from './library.ts';
+import { backing, noteBySlug, notePrinciples, notesUnder, isRetired, resolveLink, sourceByKey, sourceLabel, topicByPath } from './library.ts';
 import type { Note, Library, Principle, Topic } from './library.ts';
 import { search } from './search.ts';
 import type { Hit } from './search.ts';
@@ -44,11 +44,11 @@ export function brief(lib: Library, topicRef?: string): string {
   if (topicRef) {
     const topic = requireTopic(lib, topicRef);
     const notes = lib.notes.filter(a => a.topic === topic.path && !isRetired(a));
-    const sources = [...new Set([...topic.principles.flatMap(p => p.evidence.map(e => e.key)).filter(key => sourceByKey(lib, key)), ...notes.flatMap(a => asList(a.fm.sources))])];
+    const sources = [...new Set([...topic.principles.flatMap(p => p.evidence.map(e => e.key)).filter(key => sourceByKey(lib, key)), ...notes.flatMap(a => asList(a.fm.sources)).filter(key => sourceByKey(lib, key))])];
     return [
       `# ${asText(topic.fm.title) || topic.slug} (\`${topic.path}\`)`,
       '',
-      `${asText(topic.fm.summary)} Updated ${asText(topic.fm.updated)}; ${topic.principles.length} principles, ${notes.length} notes, sources: ${sources.join(', ') || 'none'}.`,
+      `${asText(topic.fm.summary)} Updated ${asText(topic.fm.updated)}; ${topic.principles.length} principles, ${notes.length} notes, sources: ${sources.map(key => sourceLabel(sourceByKey(lib, key)!)).join(', ') || 'none'}.`,
       '',
       // The page's own title line repeats the heading above.
       topic.body.trim().replace(/^# .*\n+/, ''),
@@ -142,8 +142,15 @@ function rank(lib: Library, queries: string[], topic: string | undefined, ideas:
   return { notes, principles, ideaHits: all.filter(r => r.hit.tier === 'idea').sort((a, b) => b.score - a.score) };
 }
 
-function noteBlock(note: Note): string {
-  const facts = [`\`${note.slug}\``, asText(note.fm.kind), `sources: ${asList(note.fm.sources).join(', ') || 'none'}`];
+function noteBlock(lib: Library, note: Note): string {
+  const facts = [`\`${note.slug}\``, asText(note.fm.kind), `sources: ${
+    asList(note.fm.sources)
+      .map(key => {
+        const source = sourceByKey(lib, key);
+        return source ? sourceLabel(source) : key;
+      })
+      .join(', ') || 'none'
+  }`];
   if (asText(note.fm.basis) !== 'source') facts.push(`basis: ${asText(note.fm.basis)}`);
   // The note's own headings sit under this briefing's headings, so they move down two levels.
   const body = note.body.trim().replace(/^(#{1,4}) /gm, (_, marks) => '#'.repeat(Math.min(6, marks.length + 2)) + ' ');
@@ -262,13 +269,13 @@ export function recall(lib: Library, options: RecallOptions, semantic?: Semantic
   }
   if (inPlay.size) {
     say('## Principles in play\n');
-    for (const { topic: t, principle: p } of [...inPlay.values()].slice(0, 7)) say(`- **${p.title}** (\`${t.path}#${p.id}\`; ${p.support}, ${independentSupport(lib, p)} separate ${independentSupport(lib, p) === 1 ? 'source' : 'sources'}): ${p.statement}${p.breaks ? ` *Breaks when:* ${p.breaks}` : ''}${p.merit ? ` *Merit:* ${p.merit}` : ''}`);
+    for (const { topic: t, principle: p } of [...inPlay.values()].slice(0, 7)) say(`- **${p.title}** (\`${t.path}#${p.id}\`; ${p.support}, ${backing(lib, p)}): ${p.statement}${p.breaks ? ` *Breaks when:* ${p.breaks}` : ''}${p.merit ? ` *Merit:* ${p.merit}` : ''}`);
     say('');
   }
 
   if (loaded.length) {
     say('## Notes\n');
-    for (const note of loaded) say(noteBlock(note) + '\n');
+    for (const note of loaded) say(noteBlock(lib, note) + '\n');
   }
 
   const caveats = disputes(lib, loaded);
