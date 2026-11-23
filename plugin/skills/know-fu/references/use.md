@@ -43,10 +43,10 @@ Order an explanation by what depends on what: the principle before its cases, a 
 Invention is what the library is ultimately for. The moves that work start from principles, tensions and open questions, since those are where a field has room:
 
 - **Push on a boundary.** Take a principle's "Breaks when" and ask what would hold there instead.
-- **Test a weak one.** A principle whose support is `bare assertion` or `worked cases`, or whose Merit line names an objection nobody answered, is a question the owner's own tools might settle.
+- **Test a weak one.** A principle whose support is `bare assertion` or `worked cases`, or whose Merit line names an objection nobody answered, is a question the owner's own tools might settle. Its "Would change if" line, where it has one, says what result would.
 - **Negate a principle** and look for the situation where the negation is right.
 - **Resolve a tension.** The Tensions section lists where two principles pull apart. A design that gets both is a real idea.
-- **Carry a principle across.** A principle stated in terms another field recognizes can be tried in that field. Ask the owner first whether they want ideas from other domains for this task, since some inventions want that and some don't.
+- **Carry a principle across.** A principle stated in terms another field recognizes can be tried in that field; its "In general terms" line, where it has one, is written for this. Ask the owner first whether they want ideas from other domains for this task, since some inventions want that and some don't.
 - **Answer an open question** from the topic page.
 
 Generate past the obvious first few, then judge each candidate separately on whether it is new to the library and whether it could work. Before proposing, `kf_recall` with `ideas: true` shows ideas already on file, including failed ones and why they failed. That nothing similar turned up is not proof an idea is new.

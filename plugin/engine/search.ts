@@ -74,7 +74,7 @@ function rowsByFile(lib: Library): Map<string, Row[]> {
         title: p.title,
         summary: `${p.summary}\n${p.statement}`,
         keywords: [...asList(p.fm.keywords), p.id.replace(/-/g, ' ')].join(' '),
-        body: [p.why, p.breaks, p.merit, ...p.evidence.map(e => e.text)].join('\n'),
+        body: [p.general, p.why, p.breaks, p.merit, p.changeIf, ...p.evidence.map(e => e.text)].join('\n'),
       });
   }
   for (const note of lib.notes) {

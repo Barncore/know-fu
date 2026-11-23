@@ -69,8 +69,12 @@ test('a well-formed library passes, and the derived parts are brought in step', 
     const principle = () => fs.readFileSync(path.join(fx.root, topic, 'principles/heat-work-matures-ware.md'), 'utf8');
     // The topic page lists each principle in a line: what it says, the kind of support it has, and what stands behind it.
     // The talk only qualifies the first principle, so it doesn't count as a source that supports it.
-    assert.match(page(), /- \[Heat work matures ware\]\(principles\/heat-work-matures-ware\.md\): Ware matures by .* \(reasoned argument; 1 separate source; 2 notes\)/);
+    assert.match(page(), /- \[Heat work matures ware\]\(principles\/heat-work-matures-ware\.md\): Ware matures by .* \(reasoned argument; 1 separate source; qualified by 1; 2 notes\)/);
     assert.match(page(), /- \[Atmosphere decides colour\].* \(bare assertion; 1 separate source; 1 note\)/);
+    // A source key means nothing to a person, so the checker writes the name beside it, and the page ends with a key to them.
+    assert.match(principle(), /### Mara Venn \(WKH\): states it\n/);
+    assert.match(principle(), /### Ilo Carrow \(ATK\): qualifies it\n/);
+    assert.match(page(), /## Source keys\n\n<!-- Generated[^\n]*-->\n\n- ATK: Ilo Carrow, "Against the long hold" \(video\)\n- WKH: Mara Venn, "The Wood Kiln Handbook" \(book, 2019\)/);
     // Each principle file lists the notes that rest on it.
     assert.match(principle(), /## Notes\n\n<!-- Generated[^\n]*-->\n\n- \[\[hold-at-cone-9\]\] \(method\): [^\n]*\n- \[\[hold-or-stop-at-cone-9\]\] \(debate\)/);
     assert.match(fs.readFileSync(path.join(fx.root, 'INDEX.md'), 'utf8'), /2 principles, 3 notes, 2 sources/);
@@ -129,9 +133,9 @@ test('a library from before 0.12 is left alone by the checker and moved by migra
     const moved = fs.readFileSync(path.join(dir, 'principles/heat-work-matures-ware.md'), 'utf8');
     assert.match(moved, /support: TODO/);
     assert.match(moved, /- \*\*Why:\*\* glaze and body reactions need time at temperature\./);
-    assert.match(moved, /### WKH: states it\n\nFound at \[WKH s\.2\]\./);
-    assert.match(moved, /### ATK: qualifies it\n\nFound at \[ATK 1:10\]\./);
-    assert.match(fs.readFileSync(path.join(dir, 'principles/atmosphere-decides-colour.md'), 'utf8'), /### WKH: implies it/);
+    assert.match(moved, /### Mara Venn \(WKH\): states it\n\nFound at \[WKH s\.2\]\./);
+    assert.match(moved, /### Ilo Carrow \(ATK\): qualifies it\n\nFound at \[ATK 1:10\]\./);
+    assert.match(fs.readFileSync(path.join(dir, 'principles/atmosphere-decides-colour.md'), 'utf8'), /### Mara Venn \(WKH\): implies it/);
     // The page keeps the order the principles were written in, and none of their text.
     const page = fs.readFileSync(path.join(dir, 'TOPIC.md'), 'utf8');
     assert.ok(page.indexOf('- [Heat work') > 0 && page.indexOf('- [Heat work') < page.indexOf('- [Atmosphere'));
@@ -264,7 +268,7 @@ test('recall leads with principles, loads the best note whole and carries what d
     const principles = text.indexOf('## Principles in play');
     const notes = text.indexOf('## Notes');
     assert.ok(principles > 0 && notes > principles, 'principles come before notes');
-    assert.match(text, /\*\*Heat work matures ware\*\* \(`ceramics\/wood-firing#heat-work-matures-ware`; reasoned argument, 1 separate source\)[^\n]*\*Merit:\*/);
+    assert.match(text, /\*\*Heat work matures ware\*\* \(`ceramics\/wood-firing#heat-work-matures-ware`; reasoned argument, 1 separate source; qualified by 1\)[^\n]*\*Merit:\*/);
     assert.match(text.slice(notes), /### Hold forty minutes once cone 9 bends/);
     assert.match(text, /can differ by two cones from firebox to chimney/);
     // The debate that qualifies the hold is either loaded or named as a dispute; it is never silently dropped.
@@ -309,7 +313,7 @@ test('brief, read and connect', async () => {
     const topic = (await runTool('kf_brief', { topic: 'wood-firing' })).text;
     assert.match(topic, /## Frame[\s\S]*## Principles[\s\S]*\[Heat work matures ware\]\(principles\/heat-work-matures-ware\.md\)/);
     assert.match((await runTool('kf_read', { ref: 'hold-at-cone-9' })).text, /^---\ntype: note/);
-    assert.match((await runTool('kf_read', { ref: 'ceramics/wood-firing#atmosphere-decides-colour' })).text, /^---\ntype: principle[\s\S]*- \*\*Merit:\*\*[\s\S]*### WKH: states it/);
+    assert.match((await runTool('kf_read', { ref: 'ceramics/wood-firing#atmosphere-decides-colour' })).text, /^---\ntype: principle[\s\S]*- \*\*Merit:\*\*[\s\S]*### Mara Venn \(WKH\): states it/);
     assert.match((await runTool('kf_read', { ref: 'WKH' })).text, /## Map/);
     await assert.rejects(runTool('kf_read', { ref: 'hold-at-cone' }), /Close: hold-at-cone-9|Nothing is named/);
     const chain = (await runTool('kf_connect', { from: 'hold-at-cone-9', to: 'hold-or-stop-at-cone-9' })).text;
