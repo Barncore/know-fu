@@ -6,7 +6,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import type { Config } from './config.ts';
 import type { Unit } from './library.ts';
-import { countWords, exists, fail, formatTime, parseTime, readText } from './util.ts';
+import { countWords, exists, fail, formatTime, parseTime, readText, sha, slugify } from './util.ts';
 
 export type Extracted = {
   units: Unit[];
@@ -202,8 +202,13 @@ function parseCues(text: string): Cue[] {
   return cues;
 }
 
-/** Groups timed text into units of about two minutes. Each line starts with its own timestamp, so a citation can be exact. */
-export function timeUnits(cues: Cue[], extractor: string, span = 120): Extracted {
+/**
+ * Groups timed text into units of about two minutes. Each line starts with its own timestamp, so a citation can be exact.
+ * Caption fragments are joined into lines of up to `lineSpan` seconds. Pass `lineSpan: 0` to give every cue its own line,
+ * which is what speech cut into sentences wants: a reader can then aim a video frame at the sentence that points at the screen.
+ */
+export function timeUnits(cues: Cue[], extractor: string, options: { span?: number; lineSpan?: number; dedupe?: boolean } = {}): Extracted {
+  const { span = 120, lineSpan = 30, dedupe = true } = options;
   const units: Unit[] = [];
   const texts: string[] = [];
   let bucket: Cue[] = [];
@@ -219,7 +224,7 @@ export function timeUnits(cues: Cue[], extractor: string, span = 120): Extracted
       line = [];
     };
     for (const cue of bucket) {
-      if (line.length && cue.start - line[0].start >= 30) emit();
+      if (line.length && cue.start - line[0].start >= lineSpan) emit();
       line.push(cue);
     }
     emit();
@@ -229,8 +234,8 @@ export function timeUnits(cues: Cue[], extractor: string, span = 120): Extracted
     bucket = [];
   };
   for (const cue of cues) {
-    // Auto-generated captions repeat each line as it scrolls; keep one copy.
-    if (cue.text === last) continue;
+    // Auto-generated captions repeat each line as it scrolls; keep one copy. A speaker who says "Okay." twice said it twice.
+    if (dedupe && cue.text === last) continue;
     last = cue.text;
     if (bucket.length && cue.start - bucket[0].start >= span) flush();
     bucket.push(cue);
@@ -260,19 +265,92 @@ export function mediaDuration(config: Config, file: string): number {
   return seconds;
 }
 
+export type Chunk = { index: number; coreStart: number; coreEnd: number; start: number; end: number };
+
+/**
+ * Five-minute chunks, each sent with a few seconds of the audio either side. A model cuts or mishears the word at the
+ * edge of what it is given (measured: "sell side liquidity" came back as "sell side low" at a chunk's end), so every
+ * chunk hears past its own core and only the words inside the core are kept.
+ */
+export function chunkPlan(seconds: number, core = 300, pad = 8): Chunk[] {
+  const plan: Chunk[] = [];
+  for (let start = 0, index = 0; start < seconds; start += core, index++)
+    plan.push({ index, coreStart: start, coreEnd: Math.min(seconds, start + core), start: Math.max(0, start - pad), end: Math.min(seconds, start + core + pad) });
+  return plan;
+}
+
 export function transcriptionEstimate(config: Config, file: string) {
   const t = config.transcription;
   if (!t?.endpoint || !t.model)
     fail(
       'NOT_CONFIGURED',
-      `Audio and video need a transcription API. Add "transcription": {"endpoint": "https://…/audio/transcriptions", "model": "…", "api_key_file": "…", "cost_per_minute": 0.006} to ~/.know-fu/config.json, or add a transcript file (.srt, .vtt, .txt) for this recording.`,
+      `Audio and video need a transcription API. Add "transcription": {"endpoint": "https://…/audio/transcriptions", "model": "…", "api_key_file": "…", "cost_per_minute": 0.002} to ~/.know-fu/config.json (the setup guide has a worked example), or add a transcript file (.srt, .vtt, .txt) for this recording.`,
     );
   const seconds = mediaDuration(config, file);
-  const cost = (seconds / 60) * (t.cost_per_minute ?? 0);
+  // The padding is sent and billed too.
+  const billed = chunkPlan(seconds).reduce((sum, c) => sum + (c.end - c.start), 0);
+  const cost = (billed / 60) * (t.cost_per_minute ?? 0);
   return { seconds, cost, currency: t.currency ?? 'USD', priced: t.cost_per_minute !== undefined };
 }
 
-async function extractMedia(config: Config, file: string, workDir: string, maxCost: number | undefined, fetcher: typeof fetch): Promise<Extracted> {
+type Word = { start: number; end: number; text: string };
+
+/**
+ * Sentences from word timestamps. Some models return a timed word list and almost no segments (one model tested
+ * returned one to three segments for five minutes of speech), so the engine cuts the sentences itself: at a full
+ * stop, question mark or exclamation mark, at a pause, and at 20 seconds when the speaker never stops.
+ */
+export function cuesFromWords(words: Word[]): Cue[] {
+  const cues: Cue[] = [];
+  let run: Word[] = [];
+  const close = () => {
+    if (run.length) cues.push({ start: run[0].start, end: run.at(-1)!.end, text: run.map(w => w.text).join(' ') });
+    run = [];
+  };
+  words.forEach((word, i) => {
+    run.push(word);
+    const next = words[i + 1];
+    const length = word.end - run[0].start;
+    // "Okay." and "Right." stay with the sentence that follows them, so a line is worth its timestamp.
+    const sentence = /[.?!]["')\]]?$/.test(word.text) && (run.length >= 4 || length >= 2);
+    const pause = !!next && next.start - word.end >= 1.5 && run.length >= 4;
+    if (!next || sentence || pause || length >= 20) close();
+  });
+  return cues;
+}
+
+/** One chunk's reply as cues in the recording's own time, keeping what starts inside the chunk's core. */
+function chunkCues(result: any, chunk: Chunk, last: boolean): { cues: Cue[]; from: 'words' | 'segments' | 'text' | 'nothing' } {
+  const inCore = (at: number) => at >= chunk.coreStart - 0.001 && (last || at < chunk.coreEnd);
+  const timed = (list: any, field: 'word' | 'text'): Word[] =>
+    (Array.isArray(list) ? list : [])
+      .map((x: any) => ({ start: chunk.start + Number(x.start ?? 0), end: chunk.start + Number(x.end ?? 0), text: String(x[field] ?? x.text ?? '').trim() }))
+      .filter((x: Word) => x.text && Number.isFinite(x.start) && inCore(x.start));
+  const words = timed(result.words, 'word');
+  const segments = timed(result.segments, 'text');
+  // Segments are the better unit when a model cuts them at sentences; words when its segments run for minutes.
+  const sparse = (chunk.coreEnd - chunk.coreStart) / Math.max(1, segments.length) > 30;
+  if (words.length && (sparse || !segments.length)) return { cues: cuesFromWords(words), from: 'words' };
+  if (segments.length) return { cues: segments, from: 'segments' };
+  const text = String(result.text ?? '').trim();
+  // No timing at all: the chunk's text gets the chunk's own span, and the padding makes the words at each join appear twice.
+  return text ? { cues: [{ start: chunk.coreStart, end: chunk.coreEnd, text }], from: 'text' } : { cues: [], from: 'nothing' };
+}
+
+/** Terms worth sending: trimmed, one of each, short enough to be a term and few enough for a provider to accept. */
+export function keyTerms(terms: string[] | undefined): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of terms ?? []) {
+    const term = String(raw ?? '').replace(/\s+/g, ' ').trim();
+    if (!term || term.length > 60 || seen.has(term.toLowerCase())) continue;
+    seen.add(term.toLowerCase());
+    out.push(term);
+  }
+  return out.slice(0, 100);
+}
+
+async function extractMedia(config: Config, file: string, workDir: string, maxCost: number | undefined, fetcher: typeof fetch, terms: string[]): Promise<Extracted> {
   const t = config.transcription!;
   const { seconds, cost, currency, priced } = transcriptionEstimate(config, file);
   if (maxCost === undefined || cost > maxCost)
@@ -283,35 +361,49 @@ async function extractMedia(config: Config, file: string, workDir: string, maxCo
   const key = keyFor(t);
   const ffmpeg = findTool(config, 'ffmpeg');
   fs.mkdirSync(workDir, { recursive: true });
+  const plan = chunkPlan(seconds);
+  let sent = keyTerms(terms);
+  let refused = false;
   const cues: Cue[] = [];
-  const CHUNK = 300;
-  for (let start = 0, index = 0; start < seconds; start += CHUNK, index++) {
-    const audio = path.join(workDir, `audio-${String(index).padStart(3, '0')}.mp3`);
-    const done = audio + '.json';
-    let result: any;
-    if (exists(done)) result = JSON.parse(readText(done));
-    else {
-      execFileSync(ffmpeg, ['-nostdin', '-y', '-ss', String(start), '-t', String(CHUNK), '-i', file, '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', audio], { stdio: 'ignore', timeout: 600000 });
+  const used = new Set<string>();
+  for (const chunk of plan) {
+    const reply = async (): Promise<any> => {
+      // A saved reply is reused only for the same model, padding and key terms, since each of those changes the words.
+      const name = `${slugify(t.model)}-p${chunk.coreStart - chunk.start}-${sent.length ? sha(sent.join('\n')).slice(0, 8) : 'plain'}-c${String(chunk.index).padStart(3, '0')}`;
+      const done = path.join(workDir, name + '.json');
+      if (exists(done)) return JSON.parse(readText(done));
+      const audio = path.join(workDir, name + '.mp3');
+      execFileSync(ffmpeg, ['-nostdin', '-y', '-ss', String(chunk.start), '-t', String(chunk.end - chunk.start), '-i', file, '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k', audio], { stdio: 'ignore', timeout: 600000 });
       const form = new FormData();
       form.append('model', t.model);
       form.append('response_format', 'verbose_json');
+      for (const grain of ['word', 'segment']) form.append('timestamp_granularities[]', grain);
+      for (const term of sent) form.append('keyterms[]', term);
       form.append('file', new Blob([fs.readFileSync(audio)]), path.basename(audio));
       const response = await fetcher(t.endpoint, { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: form, signal: AbortSignal.timeout(600000) });
       const raw = await response.text();
-      if (!response.ok) fail('EXTRACTION_FAILED', `The transcription API answered ${response.status} on chunk ${index}: ${raw.slice(0, 300)}. Chunks already transcribed are kept in ${workDir}; calling again resumes there.`);
-      result = JSON.parse(raw);
+      fs.rmSync(audio, { force: true });
+      if (response.status === 400 && sent.length) {
+        // A model that can't take key terms refuses the whole request. Its transcript is still worth having.
+        sent = [];
+        refused = true;
+        return reply();
+      }
+      if (!response.ok) fail('EXTRACTION_FAILED', `The transcription API answered ${response.status} on chunk ${chunk.index}: ${raw.slice(0, 300)}. Chunks already transcribed are kept in ${workDir}; calling again resumes there.`);
       // Saved per chunk, so a failure later never pays for the same audio twice.
       fs.writeFileSync(done, raw);
-      fs.rmSync(audio, { force: true });
-    }
-    const segments: any[] = Array.isArray(result.segments) ? result.segments : [];
-    if (segments.length) for (const s of segments) cues.push({ start: start + Number(s.start ?? 0), end: start + Number(s.end ?? 0), text: String(s.text ?? '').trim() });
-    else if (String(result.text ?? '').trim()) cues.push({ start, end: Math.min(seconds, start + CHUNK), text: String(result.text).trim() });
+      return JSON.parse(raw);
+    };
+    const got = chunkCues(await reply(), chunk, chunk.index === plan.length - 1);
+    used.add(got.from);
+    cues.push(...got.cues);
   }
-  const out = timeUnits(
-    cues.filter(c => c.text),
-    `${t.model} via ${new URL(t.endpoint).host}`,
-  );
+  const spoken = cues.filter(c => c.text).sort((a, b) => a.start - b.start);
+  const out = timeUnits(spoken, `${t.model} via ${new URL(t.endpoint).host}`, used.has('words') ? { lineSpan: 0, dedupe: false } : { dedupe: false });
+  if (used.has('words')) out.notes.push('Each line is one sentence with the time its first word was spoken, so a frame can be aimed at it.');
+  if (used.has('text')) out.notes.push('The transcription model returned no timestamps: each five-minute stretch has one timestamp, and a few words repeat where two stretches meet.');
+  if (sent.length) out.notes.push(`${sent.length} key terms were sent to the transcriber: ${sent.slice(0, 12).join(', ')}${sent.length > 12 ? ', …' : ''}.`);
+  if (refused) out.notes.push(`${t.model} refused key terms, so the recording was transcribed without them.`);
   out.notes.push('Machine transcription: check names, numbers and terms of art against the recording before quoting them.');
   return out;
 }
@@ -343,7 +435,7 @@ export function frameAt(config: Config, file: string, seconds: number, outDir: s
 
 // ---- entry point ----
 
-export async function extract(config: Config, file: string, options: { workDir?: string; maxCost?: number; fetcher?: typeof fetch } = {}): Promise<Extracted> {
+export async function extract(config: Config, file: string, options: { workDir?: string; maxCost?: number; fetcher?: typeof fetch; terms?: string[] } = {}): Promise<Extracted> {
   const ext = path.extname(file).toLowerCase();
   if (ext === '.pdf') return extractPdf(config, file);
   if (ext === '.srt' || ext === '.vtt') {
@@ -367,7 +459,7 @@ export async function extract(config: Config, file: string, options: { workDir?:
     return sectionUnits(text, 'plain text');
   }
   if (PANDOC.has(ext)) return extractPandoc(config, file);
-  if (MEDIA.has(ext)) return extractMedia(config, file, options.workDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'kf-media-')), options.maxCost, options.fetcher ?? fetch);
+  if (MEDIA.has(ext)) return extractMedia(config, file, options.workDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'kf-media-')), options.maxCost, options.fetcher ?? fetch, options.terms ?? []);
   fail('UNSUPPORTED', `Know Fu can't read ${ext || 'this kind of'} files. Supported: PDF, text, Markdown, .srt and .vtt, EPUB, DOCX and HTML through pandoc, and audio or video through a transcription API.`);
 }
 

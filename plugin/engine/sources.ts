@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Config } from './config.ts';
 import { assemble, extract, isMedia, isVideo, sampleFrames, pdfPageImage, pdfText, frameAt } from './extract.ts';
-import { formatFrontmatter, asText } from './frontmatter.ts';
-import { loadLibrary, resolveLoc, unitText, unitLabel } from './library.ts';
+import { formatFrontmatter, asList, asText } from './frontmatter.ts';
+import { isRetired, loadLibrary, resolveLoc, section, unitText, unitLabel } from './library.ts';
 import type { Library, Source } from './library.ts';
 import { exists, fail, fileSha, isSlug, parseTime, slugify, today, writeJson, writeText } from './util.ts';
 
@@ -21,8 +21,25 @@ export type AddOptions = {
   family?: string;
   url?: string;
   max_cost?: number;
+  /** For a recording: the topic it belongs to. The topic's vocabulary is sent to the transcriber as key terms. */
+  topic?: string;
+  /** For a recording: names and terms of art it uses, sent to the transcriber as key terms. */
+  terms?: string[];
   fetcher?: typeof fetch;
 };
+
+/**
+ * The words a topic uses in its own way: the terms under its Vocabulary heading, and the keywords on the topic and
+ * its accounts. A transcriber told these terms hears them (measured on one trading lesson: three of four jargon errors
+ * in a chunk were fixed), so each recording added to a topic is transcribed better than the one before.
+ */
+export function topicTerms(lib: Library, topicPath: string): string[] {
+  const topic = lib.topics.find(t => t.path === topicPath.replace(/^\/+|\/+$/g, ''));
+  if (!topic) fail('NOT_FOUND', `No topic "${topicPath}". Topics: ${lib.topics.map(t => t.path).join(', ') || 'none yet'}. Leave topic out for a recording on a new subject, and pass its terms in "terms".`);
+  const vocabulary = [...(section(topic.sections, 'Vocabulary')?.raw ?? '').matchAll(/^\s*[-*]\s+\*\*(.+?)\*\*/gm)].map(m => m[1].replace(/[:.]\s*$/, ''));
+  const keywords = [topic, ...lib.accounts.filter(a => a.topic === topic.path && !isRetired(a))].flatMap(doc => asList(doc.fm.keywords));
+  return [...vocabulary, ...keywords];
+}
 
 const SKIP = new Set(['a', 'an', 'the', 'of', 'and', 'to', 'in', 'for', 'with', 'on', 'by', 'at', 'from']);
 
@@ -71,7 +88,9 @@ export async function addSource(config: Config, options: AddOptions) {
   fs.rmSync(staging, { recursive: true, force: true });
   fs.mkdirSync(path.join(staging, 'original'), { recursive: true });
   try {
-    const extracted = await extract(config, file, { workDir: path.join(config.library, '.knowfu', 'transcribe', sha.slice(0, 16)), maxCost: options.max_cost, fetcher: options.fetcher });
+    // The caller's own terms go first: if a provider takes only so many, those are the ones named for this recording.
+    const terms = isMedia(file) ? [...(options.terms ?? []), ...(options.topic ? topicTerms(lib, options.topic) : [])] : [];
+    const extracted = await extract(config, file, { workDir: path.join(config.library, '.knowfu', 'transcribe', sha.slice(0, 16)), maxCost: options.max_cost, fetcher: options.fetcher, terms });
     if (!extracted.units.length) fail('EXTRACTION_FAILED', `No text came out of ${file}.`);
     const { text, units } = assemble(extracted);
     writeText(path.join(staging, 'text.txt'), text);

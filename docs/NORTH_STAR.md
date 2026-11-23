@@ -73,6 +73,12 @@ The six rules that follow:
 
 Newest first. Each entry is the owner's decision unless it says otherwise.
 
+### 23 November 2026: one transcriber, taught the library's vocabulary
+
+The owner's earlier video work used two OpenAI models per recording, one for accurate words and one for timestamps. OpenAI shuts the timestamp model, `whisper-1`, down on 26 February 2027. A test on one of the owner's trading lessons put one hosted model, MAI-Transcribe 2 through OpenRouter, level with the better of the pair on words and ahead of the other on timing, at about a sixth of the cost. The owner's decision: "Switch to MAI-Transcribe 2, lock it in."
+
+The same test found that the model hears a subject's terms when it is told them. The owner agreed that each recording should be transcribed with the vocabulary of the topic it joins, so transcripts improve as the library grows. Hosted transcription over local (September 2026) stands: no local model tested better.
+
 ### 23 November 2026: dependencies are welcome when they earn their place
 
 The 0.6 rebuild wrote "no installed dependencies" into the commitments table and "never needs a package" into AGENTS.md. Both were the agent's choice. The owner never asked for either, and reversed them when he found out (punctuation tidied):

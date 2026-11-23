@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { loadConfig } from '../plugin/engine/config.ts';
-import { findPoppler, findTool, timeUnits } from '../plugin/engine/extract.ts';
+import { chunkPlan, cuesFromWords, findPoppler, findTool, keyTerms, timeUnits } from '../plugin/engine/extract.ts';
 import { parseFrontmatter } from '../plugin/engine/frontmatter.ts';
 import { loadLibrary, resolveLoc } from '../plugin/engine/library.ts';
 import { addSource } from '../plugin/engine/sources.ts';
@@ -142,6 +142,112 @@ test('a recording is transcribed only after the owner approves the cost, and nev
     fs.rmSync(path.join(fx.root, 'sources', 'lesson'), { recursive: true });
     await addSource(loadConfig(), { file: audio, title: 'Lesson', key: 'LSN', fetcher, max_cost: 0.1 });
     assert.equal(calls, 1, 'the saved chunk was reused');
+  } finally {
+    fx.cleanup();
+  }
+});
+
+test('padded chunks share no core, and sentences are cut from word timestamps', () => {
+  const plan = chunkPlan(700);
+  assert.deepEqual(
+    plan.map(c => [c.coreStart, c.coreEnd, c.start, c.end]),
+    [
+      [0, 300, 0, 308],
+      [300, 600, 292, 608],
+      [600, 700, 592, 700],
+    ],
+  );
+  const word = (text: string, start: number, end = start + 0.3) => ({ text, start, end });
+  const cues = cuesFromWords([
+    word('Okay.', 0),
+    word('So', 0.5),
+    word('this', 0.9),
+    word('is', 1.2),
+    word('the', 1.5),
+    word('swing', 1.8),
+    word('low.', 2.1),
+    word('Price', 2.6),
+    word('swept', 3),
+    word('it', 3.4),
+    word('here', 3.8),
+    // A pause with no full stop still ends the line.
+    word('and', 6),
+    word('reversed', 6.4),
+  ]);
+  assert.deepEqual(
+    cues.map(c => [c.start, c.text]),
+    [
+      [0, 'Okay. So this is the swing low.'],
+      [2.6, 'Price swept it here'],
+      [6, 'and reversed'],
+    ],
+  );
+  assert.deepEqual(keyTerms([' BOS ', 'bos', '', 'break  of structure', 'x'.repeat(61)]), ['BOS', 'break of structure']);
+});
+
+test('a recording is sent in padded chunks with key terms, and each sentence keeps the time it was spoken', async t => {
+  const fx = freshLibrary();
+  try {
+    if (!has(() => findTool(loadConfig(), 'ffmpeg')) || !has(() => findTool(loadConfig(), 'ffprobe'))) return t.skip("FFmpeg isn't installed");
+    const audio = path.join(fx.dir, 'lesson.wav');
+    const made = spawnSync(findTool(loadConfig(), 'ffmpeg'), ['-nostdin', '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=320', '-ar', '8000', audio], { stdio: 'ignore' });
+    if (made.status !== 0) return t.skip("this FFmpeg can't synthesize a test tone");
+    const raw = JSON.parse(fs.readFileSync(fx.config, 'utf8'));
+    fs.writeFileSync(fx.config, JSON.stringify({ ...raw, transcription: { endpoint: 'https://transcribe.invalid/v1/audio/transcriptions', model: 'vendor/words-model', api_key_file: write(fx.dir, 'key.txt', 'not-a-real-key'), cost_per_minute: 0.06 } }));
+    write(fx.root, 'knowledge/trading/DOMAIN.md', '---\ntype: domain\ntitle: Trading\nsummary: Markets.\n---\n# Trading\n');
+    write(
+      fx.root,
+      'knowledge/trading/structure/TOPIC.md',
+      '---\ntype: topic\ntitle: Market structure\nsummary: Reading swings.\nkeywords: [swing low]\nupdated: 2026-11-23\n---\n# Market structure\n\n## Frame\n\nStructure is the sequence of swings.\n\n## Principles\n\n## Vocabulary\n\n- **BOS:** a break of structure.\n- **Sell-side liquidity:** resting orders under a low.\n',
+    );
+    // What the stand-in model "hears", in the recording's own time. Each request gets the words inside what it was sent.
+    const spoken: [number, string][] = [
+      [1, 'First'],
+      [1.4, 'we'],
+      [1.8, 'mark'],
+      [2.2, 'the'],
+      [2.6, 'BOS.'],
+      [296, 'Sell-side'],
+      [296.6, 'liquidity'],
+      [297.2, 'sits'],
+      [297.8, 'below.'],
+      [304, 'Then'],
+      [304.4, 'price'],
+      [304.8, 'sweeps'],
+      [305.2, 'it.'],
+    ];
+    const requests: { terms: string[]; grains: string[] }[] = [];
+    let refuseTerms = false;
+    const fetcher = (async (_url: any, init: any) => {
+      const form = init.body as FormData;
+      const terms = form.getAll('keyterms[]').map(String);
+      requests.push({ terms, grains: form.getAll('timestamp_granularities[]').map(String) });
+      if (refuseTerms && terms.length) return new Response('{"error":"keyterms are not supported"}', { status: 400 });
+      // The first request starts at 0 and the second at 292 seconds: tell them apart by the file's name.
+      const second = /c001/.test((form.get('file') as File).name);
+      const [from, to] = second ? [292, 320] : [0, 308];
+      const words = spoken.filter(([at]) => at >= from && at < to).map(([at, word]) => ({ word, start: at - from, end: at - from + 0.3 }));
+      return new Response(JSON.stringify({ text: words.map(w => w.word).join(' '), segments: [{ start: 0, end: to - from, text: 'everything' }], words }), { status: 200 });
+    }) as typeof fetch;
+    await assert.rejects(addSource(loadConfig(), { file: audio, title: 'Structure lesson', key: 'STR', fetcher, topic: 'trading/nowhere', max_cost: 1 }), /No topic "trading\/nowhere"/);
+    const added = await addSource(loadConfig(), { file: audio, title: 'Structure lesson', key: 'STR', fetcher, topic: 'trading/structure', terms: ['Ilo Carrow'], max_cost: 1 });
+    assert.equal(requests.length, 2, 'two padded chunks');
+    assert.deepEqual(requests[0].terms, ['Ilo Carrow', 'BOS', 'Sell-side liquidity', 'swing low'], "the caller's terms, then the topic's vocabulary and keywords");
+    assert.deepEqual(requests[0].grains, ['word', 'segment']);
+    const text = fs.readFileSync(added.text_file, 'utf8');
+    assert.match(text, /\[0:01\] First we mark the BOS\./);
+    // Both chunks heard the sentence at 4:56, inside the padding of one and the core of the other. It is kept once.
+    assert.equal((text.match(/Sell-side liquidity sits below\./g) ?? []).length, 1);
+    assert.match(text, /\[4:56\] Sell-side liquidity sits below\./);
+    assert.match(text, /\[5:04\] Then price sweeps it\./);
+    assert.ok(added.notes.some(n => /4 key terms were sent/.test(n)));
+    // A model that refuses key terms still transcribes, and the report says so.
+    fs.rmSync(path.join(fx.root, 'sources', 'structure-lesson'), { recursive: true });
+    fs.rmSync(path.join(fx.root, '.knowfu', 'transcribe'), { recursive: true, force: true });
+    refuseTerms = true;
+    const again = await addSource(loadConfig(), { file: audio, title: 'Structure lesson', key: 'STR', fetcher, terms: ['Ilo Carrow'], max_cost: 1 });
+    assert.ok(again.notes.some(n => /refused key terms/.test(n)));
+    assert.match(fs.readFileSync(again.text_file, 'utf8'), /First we mark the BOS\./);
   } finally {
     fx.cleanup();
   }

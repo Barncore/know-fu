@@ -213,6 +213,8 @@ export const TOOLS: Tool[] = [
         family: str("Sources that share an origin share a family and count once as support. Use \"owner\" for the owner's own notes. Defaults to the source's own id."),
         url: str('Where the source lives online, if anywhere.'),
         max_cost: { type: 'number', description: 'For audio and video: the most the owner has approved spending on transcription, in the configured currency.' },
+        topic: str('For audio and video: the topic it belongs to, like "audio/mixing". Its vocabulary goes to the transcriber as key terms.'),
+        terms: { type: 'array', items: { type: 'string' }, description: 'For audio and video: names and terms of art the recording uses, for the transcriber.' },
       },
     },
     run: async args => {

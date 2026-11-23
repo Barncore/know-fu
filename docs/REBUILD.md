@@ -309,7 +309,7 @@ The comparison in section 4 ran before these changes. It has not been rerun.
 - Whether the relaxed length guidance produces better accounts. No ingest has run under it.
 - Pinning in a live session. The hook is tested with the same input the host sends, and hasn't been watched working in the desktop app.
 - Codex. The plugin carries its manifest and an install script; nothing was run in Codex, because installing there writes to the owner's Codex folder and needs his go-ahead.
-- Audio and video transcription against a live provider. It runs against a stand-in server in the tests.
+- Audio and video transcription against a live provider. It runs against a stand-in server in the tests. (Shown on 23 November 2026 with version 0.8.0: one 19:36 lesson through the live endpoint. See the change log.)
 - Any machine but the development one (Windows 11, Node 24).
 
 ## Correction, 23 November 2026: capability the rebuild dropped without listing

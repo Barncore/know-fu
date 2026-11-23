@@ -121,6 +121,8 @@ Then revisit the principles. A second source that states a principle the first o
 
 Extracted text loses what a figure shows and scrambles some tables. `kf_read` marks the pages that carry a caption or number-heavy text; in an illustrated book that is most pages, so choose by the caption. When a figure or table holds content you would cite (values on axes, settings in a diagram, a curve's shape, a decision chart), look at it with `view: "image"` and write what it shows, citing the page. Say in the account when a number was read off a chart. For a table, `view: "layout"` gives a reading that keeps columns. When the page and the extracted text disagree, the page is right.
 
+When you add a recording, give `kf_source` its `topic` if the topic exists, and `terms`: the speaker's name, the method's own labels, tickers, and any term of art you can see in the title or description that the topic doesn't hold yet. They go to the transcriber, which then hears them; without them a coined term comes back as the nearest common word. A transcribed recording has one sentence per line, each starting with the time it was spoken.
+
 For a recording, citations are timestamps like `[KEY 12:34]`. Frames are sampled once a minute into the source's `frames` folder, and `kf_read` with `view: "image"` and a timestamp takes one at full size. Look when the speaker points at something. Transcripts mishear names, numbers and terms of art, so check those before quoting them. Keep apart what a speaker shows and what they assert.
 
 If a source's own numbers don't add up, keep what it says, cite it, and state the discrepancy beside it. Never repair a source silently.

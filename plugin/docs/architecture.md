@@ -43,7 +43,7 @@ The engine does what an agent is bad at or shouldn't spend tokens on. It never c
 
 | Part | File | Job |
 |---|---|---|
-| Extraction | `engine/extract.ts`, `sources.ts` | PDF to page text with Poppler; text and Markdown to sections; subtitles and timestamped transcripts to time units; EPUB, DOCX and HTML through pandoc; audio and video through a transcription API, with frames sampled once a minute. Page images and video frames on request |
+| Extraction | `engine/extract.ts`, `sources.ts` | PDF to page text with Poppler; text and Markdown to sections; subtitles and timestamped transcripts to time units; EPUB, DOCX and HTML through pandoc; audio and video through a transcription API, sent in padded chunks with the topic's vocabulary as key terms and returned one sentence per line with its time; video frames sampled once a minute. Page images and video frames on request |
 | Library model | `engine/library.ts`, `frontmatter.ts` | Reads the folder into memory: topics with their principles, accounts with their links and citations, sources with their units and maps |
 | Checker | `engine/check.ts` | Frontmatter, links, citations, quoted words against the source text, principles, source maps, sizes, and words compiled against words read. Writes the derived parts: each principle's Governs line, `_index.md`, `INDEX.md`. Commits to git |
 | Search | `engine/search.ts`, `embed.ts` | A SQLite full-text index under `.knowfu/`, rebuilt a file at a time when a file changes. Optionally, vectors for the compiled layer |

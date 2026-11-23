@@ -6,6 +6,20 @@ Entries before 0.6.0 describe the earlier engine, and the files and tools they n
 
 ## Unreleased
 
+### 2026-11-23 - 0.8.0: recordings transcribed in padded chunks, by sentence, with the topic's vocabulary
+
+Why: the owner chose one hosted transcription model to replace the two OpenAI models his earlier video work used, after a test on one of his lessons, and asked that the library's own vocabulary be sent with each recording. The 0.6 engine could not use that model well: it read only `segments`, and the model returns one to three segments for five minutes of speech. It also sent chunks with no overlap, and a word at a chunk's edge came back wrong in the test.
+
+- **Padded chunks** (`chunkPlan` in `plugin/engine/extract.ts`). Five-minute cores with eight seconds either side; only words that start inside a chunk's core are kept. 0.5 had the padding and 0.6 dropped it.
+- **Sentences from word timestamps** (`cuesFromWords`). The engine asks for word and segment timestamps. Where segments are sparse it cuts sentences from the words itself, at sentence punctuation, at a pause of 1.5 seconds, and at 20 seconds. A transcribed recording now has one sentence per line with the time its first word was spoken, where 0.6 gave one timestamp per 30 seconds. A model with good segments keeps them; a model with no timestamps still transcribes.
+- **Key terms.** `kf_source` takes `topic` and `terms` for a recording. The topic's Vocabulary terms and the keywords on the topic and its accounts, with the caller's terms first, go to the model as `keyterms[]` (up to 100). A model that answers 400 to key terms is asked again without them, and the report says so. A saved chunk is reused only for the same model, padding and terms.
+- The cost estimate includes the padding.
+- Measured on one 19:36 lesson against the saved replies of the earlier pair (the owner's research, outside this repository): the new model and the pair's better model disagreed on 3.1% of tokens, with five or six clear errors each in different places and none on a negation; the first word after each of 48 pauses was timed within 0.28 seconds; eleven key terms fixed three of four jargon errors in one chunk; the whole recording cost 0.034 USD. Run through the engine against the live endpoint: 272 lines for 19:36, the join at five minutes read cleanly.
+- Docs: `plugin/docs/setup.md` (the worked config, how timestamps and key terms are used, the `whisper-1` shutdown date), `plugin/docs/architecture.md`, the ingest guide (pass `topic` and `terms`), and a decision in the north star.
+- Tests: 29 pass. Two are new: chunk plans and sentence cutting, and a recording sent in two padded chunks with key terms, kept once at the join, and retried when the model refuses terms.
+- Compatibility: no library format change. Sources already in a library are untouched. `timeUnits` takes an options object in place of a span number.
+- Not built yet: a second model run beside the first to flag words where they disagree (0.5 had this), and everything about video frames, which is still one a minute.
+
 ### 2026-11-23 - Dependencies are welcome when they earn their place
 
 Why: the 0.6 rebuild adopted "no installed dependencies" as a rule and wrote it into the north star's commitments and AGENTS.md. The owner never asked for it. He found it when planning new video ingestion, and reversed it: "I'm completely okay with dependencies if it means better performance." A review the same day found that the rebuild had also dropped capability without listing it.

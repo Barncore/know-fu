@@ -100,15 +100,19 @@ A transcript file (`.srt`, `.vtt`, or text with a timestamp at the start of each
 
 ```json
 "transcription": {
-  "endpoint": "https://api.openai.com/v1/audio/transcriptions",
-  "model": "whisper-1",
+  "endpoint": "https://openrouter.ai/api/v1/audio/transcriptions",
+  "model": "microsoft/mai-transcribe-2",
   "api_key_file": "<a file that holds only the key>",
-  "cost_per_minute": 0.006,
+  "cost_per_minute": 0.00167,
   "currency": "USD"
 }
 ```
 
 `api_key_env` names an environment variable to read the key from, as an alternative to a file. The owner creates the key and the file; an agent never handles the key itself. Before any audio is sent, Know Fu estimates the cost from the recording's length and stops until the call carries `max_cost` at or above the estimate, which the agent sets only after the owner approves the amount. Each five-minute chunk's result is saved as it arrives, so a failure never pays for the same audio twice.
+
+The model above is the owner's choice as of 23 November 2026, at 0.10 USD an hour of audio. Any model works that answers `verbose_json` with timestamps. Know Fu asks for word and segment timestamps and uses whichever the model does well: a model that returns a timed word list and few segments gets its sentences cut from the words, so each line of the transcript carries the time it was spoken. A model with no timestamps still transcribes, with one timestamp per five minutes. If you use OpenAI directly, note that `whisper-1`, its only model with timestamps, shuts down on 26 February 2027.
+
+Audio goes up in five-minute chunks with eight seconds of padding either side, and only the words inside each chunk's own five minutes are kept, because a model mishears the word at the edge of what it is given. `kf_source` takes a `topic` and a list of `terms` for a recording. The topic's vocabulary and keywords, with the terms, go to the model as key terms (`keyterms[]`), so it hears the subject's own words. A model that refuses key terms is asked again without them.
 
 ## Moving or backing up a library
 
