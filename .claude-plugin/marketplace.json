@@ -1,6 +1,6 @@
 {
   "name": "know-fu",
-  "description": "Know Fu, a local research library engine, packaged for Claude Code.",
+  "description": "Know Fu, a local research library an AI agent compiles from books, papers and videos.",
   "owner": {
     "name": "Know Fu"
   },
@@ -8,7 +8,7 @@
     {
       "name": "know-fu",
       "source": "./plugin",
-      "description": "A local research library for Claude Code. Install from a cloned and built copy of this repository; see plugin/docs/setup.md."
+      "description": "A local research library for Claude Code. Self-contained: nothing to build or install beyond Node. See plugin/docs/setup.md."
     }
   ]
 }

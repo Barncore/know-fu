@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "know-fu": {
-      "command": "node",
-      "args": ["C:/KnowFu/engine/dist/mcp.js"],
-      "env": {"KB_CORPUS": "C:/KnowFuData/library"}
-    }
-  }
-}
