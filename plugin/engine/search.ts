@@ -7,11 +7,11 @@ import { isRetired, unitLabel, unitText } from './library.ts';
 import type { Library } from './library.ts';
 import { exists } from './util.ts';
 
-export type Tier = 'principle' | 'account' | 'topic' | 'map' | 'page' | 'idea';
+export type Tier = 'principle' | 'note' | 'topic' | 'map' | 'page' | 'idea';
 
 export type Hit = {
   tier: Tier;
-  /** Account or idea name, "domain/topic#principle-id", topic path, or "KEY p.12". */
+  /** Note or idea name, "domain/topic#principle-id", topic path, or "KEY p.12". */
   ref: string;
   topic: string;
   title: string;
@@ -67,19 +67,27 @@ function rowsByFile(lib: Library): Map<string, Row[]> {
     files.set(topic.file, []);
     put(topic.file, { tier: 'topic', ref: topic.path, topic: topic.path, title: asText(topic.fm.title), summary: asText(topic.fm.summary), keywords: asList(topic.fm.keywords).join(' '), body: topic.frame });
     for (const p of topic.principles)
-      put(topic.file, { tier: 'principle', ref: `${topic.path}#${p.id}`, topic: topic.path, title: p.title, summary: p.statement, keywords: '', body: `${p.why}\n${p.breaks}` });
+      put(p.file, {
+        tier: 'principle',
+        ref: `${topic.path}#${p.id}`,
+        topic: topic.path,
+        title: p.title,
+        summary: `${p.summary}\n${p.statement}`,
+        keywords: [...asList(p.fm.keywords), p.id.replace(/-/g, ' ')].join(' '),
+        body: [p.why, p.breaks, p.merit, ...p.evidence.map(e => e.text)].join('\n'),
+      });
   }
-  for (const account of lib.accounts) {
-    files.set(account.file, []);
-    if (isRetired(account)) continue;
-    put(account.file, {
-      tier: 'account',
-      ref: account.slug,
-      topic: account.topic,
-      title: asText(account.fm.title),
-      summary: asText(account.fm.summary),
-      keywords: [...asList(account.fm.keywords), account.slug.replace(/-/g, ' ')].join(' '),
-      body: account.body,
+  for (const note of lib.notes) {
+    files.set(note.file, []);
+    if (isRetired(note)) continue;
+    put(note.file, {
+      tier: 'note',
+      ref: note.slug,
+      topic: note.topic,
+      title: asText(note.fm.title),
+      summary: asText(note.fm.summary),
+      keywords: [...asList(note.fm.keywords), note.slug.replace(/-/g, ' ')].join(' '),
+      body: note.body,
     });
   }
   for (const idea of lib.ideas) put(idea.file, { tier: 'idea', ref: idea.slug, topic: '', title: asText(idea.fm.title), summary: asText(idea.fm.summary), keywords: '', body: idea.body });
@@ -153,7 +161,7 @@ export function search(lib: Library, query: string, options: { tiers?: Tier[]; l
   syncIndex(lib);
   const db = open(lib.root);
   try {
-    const tiers = options.tiers ?? ['principle', 'account', 'topic'];
+    const tiers = options.tiers ?? ['principle', 'note', 'topic'];
     const marks = tiers.map(() => '?').join(', ');
     const topic = options.topic ? ' and docs.topic = ?' : '';
     // Any term may match; bm25 then ranks by how many did and how rare they are. Title and keywords count most.

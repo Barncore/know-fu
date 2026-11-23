@@ -8,7 +8,7 @@ Start with `docs/NORTH_STAR.md` before you change the architecture, ingestion or
 |---|---|
 | `plugin/` | Everything a host installs: the engine, the skill and its guides, the hooks, the launcher, the docs |
 | `plugin/engine/` | The engine. TypeScript that Node runs directly, with no build step |
-| `plugin/skills/know-fu/` | `SKILL.md` and the three guides an agent follows: `ingest.md`, `format.md`, `use.md` |
+| `plugin/skills/know-fu/` | `SKILL.md` and the four guides an agent follows: `ingest.md`, `video.md`, `format.md`, `use.md` |
 | `plugin/scripts/` | `launch.mjs` (starts the MCP server), `gate.mjs` (deliberate use), `session.mjs` (pinned topics) |
 | `test/` | Tests, with an invented fixture library built in a temp folder |
 | `scripts/` | `install-codex.mjs`, `check-release.mjs` |
@@ -30,9 +30,9 @@ Before a change removes or replaces something the engine can do, list what it wi
 
 Type stripping only removes types. Use `import type` for types, write `.ts` in import paths, and avoid enums, namespaces and parameter properties.
 
-Three rules hold on every read path, including any you add: retired accounts are never returned, an account that disputes or qualifies a loaded account is always named whatever the budget, and nothing outside `ideas/` is presented as resting on an idea.
+Three rules hold on every read path, including any you add: retired notes are never returned, a note that disputes or qualifies a loaded note is always named whatever the budget, and nothing outside `ideas/` is presented as resting on an idea.
 
-Anything mechanical that an agent keeps getting wrong belongs in the checker, not in louder prose in a guide. Anything the checker can't judge (is this a retelling, is this principle a slogan) belongs in the guide as a question, with one example.
+Anything mechanical that an agent keeps getting wrong belongs in the checker, not in louder prose in a guide. Anything the checker can't judge (is this a retelling, is this principle a slogan, does this argument hold) belongs in the guide as a question, with one example. Don't turn such a judgment into a number: the 35% retelling warning and 0.5's evidence levels both taught agents to aim at the number.
 
 ## Changing the guides
 
@@ -46,7 +46,7 @@ Run `npm test`. Run `npm run check:release -- --staged`, which looks through the
 
 A change under `plugin/` bumps the version in `package.json` and both plugin manifests, because hosts key their installed copy by version. Every finished change to behaviour, format, setup or guides gets a dated entry in `CHANGELOG.md` and a matching doc update, or an explicit "Documentation impact: none" with the reason. Things learned the hard way go in `LESSONS.md`.
 
-Docs and tool text call each thing by one name: domain, topic, principle, account, source, idea, unit, home session. Two words for one thing teach the owner and the agents two things.
+Docs and tool text call each thing by one name: domain, topic, principle, note, source, idea, inbox item, unit, home session. Before 0.12 a note was called an account; dated records keep the old word. Two words for one thing teach the owner and the agents two things.
 
 ## Branches
 

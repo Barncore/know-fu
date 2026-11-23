@@ -83,7 +83,7 @@ export function requireHome(config: Config, action: string) {
   if (!isHome(config))
     fail(
       'NOT_HOME',
-      `${action} only runs from a session opened in the library folder, ${config.library}. This session is in ${projectDir()}. From here you can read the library, and save a note for later with kf_note.`,
+      `${action} only runs from a session opened in the library folder, ${config.library}. This session is in ${projectDir()}. From here you can read the library, and save something for later with kf_inbox.`,
     );
 }
 

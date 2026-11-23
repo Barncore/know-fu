@@ -9,6 +9,7 @@
 //   node cli.ts check --commit "ingest: …"
 import { loadConfig, requireHome } from './config.ts';
 import { initLibrary, scaffold } from './init.ts';
+import { migrateLibrary } from './migrate.ts';
 import { runTool, TOOLS } from './tools.ts';
 
 function parse(argv: string[]): { positional: string[]; flags: Record<string, string | boolean> } {
@@ -35,14 +36,15 @@ const HELP = `Know Fu command line. Commands:
   new <domain>[/<topic>]              create a domain or topic page to fill in (--title, --summary)
   brief [topic]                       library overview, or one topic's frame and principles
   recall "<question>"                 answer material (--topic, --budget, --gists, --ideas)
-  read <ref> [loc]                    an account, topic, source, or source text (--view image|layout|screen|filmstrip, --box "x,y,w,h")
+  read <ref> [loc]                    a note, topic, source, or source text (--view image|layout|screen|filmstrip, --box "x,y,w,h")
   connect <from> [to]                 how two ideas link
   source add <file> | source list     register a source (--title, --authors "A; B", --year, --kind, --id, --key, --family, --url, --max-cost, --topic, --terms "a; b")
   source keep <key> <time>            keep a video frame as an exhibit (--box "x,y,w,h")
   source info <link>                  what a video link points at, before adding it (source add takes a link too)
   check                               check the library (--commit "message", --errors-only)
-  note --title "…" --body "…"         save a note to the inbox
-  pin [topic]                         pin a topic to a project (--project, --remove)`;
+  inbox --title "…" --body "…"        save something to the inbox
+  pin [topic]                         pin a topic to a project (--project, --remove)
+  migrate                             move a library from before 0.12 to principle files and notes (--dry-run)`;
 
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
@@ -112,10 +114,16 @@ async function main() {
       });
     case 'check':
       return out('kf_check', { commit: text('commit'), warnings: flags.errors_only ? false : undefined });
-    case 'note':
-      return out('kf_note', { title: text('title'), body: text('body'), topic: text('topic') });
+    case 'inbox':
+      return out('kf_inbox', { title: text('title'), body: text('body'), topic: text('topic') });
     case 'pin':
       return out('kf_pin', { topic: positional[0], project: text('project'), remove: flags.remove === true });
+    case 'migrate': {
+      const config = loadConfig();
+      requireHome(config, 'Migrating the library');
+      console.log(migrateLibrary(config.library, { dryRun: flags.dry_run === true }));
+      return;
+    }
     case 'tools':
       console.log(TOOLS.map(t => `${t.name}: ${t.description}`).join('\n\n'));
       return;

@@ -42,36 +42,54 @@ The owner asked for a first-principles foundation (23 October and 10 November 20
 
 **Understanding has to be built at ingest.** Integration done at question time is repeated for every question and never accumulates. A library compounds only when a new source revises what is already there, so the unit is the idea, held once and revised in place.
 
-The six rules that follow:
+The seven rules that follow:
 
-1. Store the delta, never the retelling. This governs what goes in, not how long an account is.
-2. One account per idea, across sources, revised in place.
-3. Every topic has a principles page, small enough to load whole. Below it, depth is welcome.
-4. Keep the original searchable, so compression loses nothing.
-5. The files are the library: readable Markdown, links written in the prose, history in git.
-6. Code does what agents are bad at (extraction, search, checking). Agents do the reading and writing.
+1. Store the delta, never the retelling. This governs what goes in, not how long a note is.
+2. One principle per idea, across sources, added to and sharpened in place. Notes hold the detail behind principles. (Until 0.12 a note was called an account, and the dated entries below keep that word.)
+3. Every topic has a front page that lists its principles, small enough to load whole. Below it, depth is welcome.
+4. Weigh each idea as it goes in, so the library stands behind what it holds and says how far.
+5. Keep the original searchable, so compression loses nothing.
+6. The files are the library: readable Markdown, links written in the prose, history in git.
+7. Code does what agents are bad at (extraction, search, checking). Agents do the reading and writing.
 
 ## Commitments that outlast any implementation
 
 | Commitment | What it means in practice |
 |---|---|
 | Preserve the source | Originals are never modified. Every specific is cited to a page or a timestamp, and quoted words are checked against the source text |
-| Compile, don't retell | An ingest keeps what a strong general model wouldn't already say. The checker reports words compiled against words read |
-| Principles on top | Each topic states its principles with why they hold, where they break, and what they govern. A principle that governs nothing is refused |
-| Understanding is cumulative | A new source changes the accounts and principles it bears on. Each source records what it changed |
-| Disagreement is knowledge | Both positions stay, with an account of what separates them. Nothing wins by being newer, longer or more confident |
-| Evidence, synthesis and invention stay apart | An account says whether it reports sources or is the compiler's synthesis. A principle says whether each source states it or it was inferred. Ideas live apart and never count as evidence |
-| Reachable at several levels | Principles, accounts, source map, source text. Each is an entry point |
+| Compile, don't retell | An ingest keeps what a strong general model wouldn't already say, written as ideas a reader can use and not in the source's order and voice. This is a judgment the guide teaches, with no number behind it |
+| Principles on top | Each topic's front page lists its principles. Each principle has its own file: why it holds, where it breaks, what each source brings, and the notes that rest on it |
+| Stand behind what is held | Each principle carries the reader's weighing of its logic, the kind of support it has, and how many independent sources hold it. An assertion never reads like a tested result |
+| Understanding is cumulative | A new source adds to the principles it bears on and sharpens them in place. Each source records what it changed |
+| Disagreement is knowledge | Both positions stay, with a note of what separates them. Nothing wins by being newer, longer or more confident |
+| Evidence, synthesis and invention stay apart | A note says whether it reports sources or is the compiler's synthesis. A principle says, source by source, whether the source states it, implies it, qualifies it or disputes it. Ideas live apart and never count as evidence |
+| Reachable at several levels | Topic page, principles, notes, source map, source text. Each is an entry point |
 | One owner of meaning | The Markdown files. Indexes and the search database are generated |
 | Readable by a person | The owner can open the library and read it without a tool |
 | Local, and stronger for it | Files and local software on the owner's machine, with no server to run and nothing that needs a dedicated GPU. A dependency is welcome when a test shows it improves ingestion, retrieval or checking. It is optional and found at runtime, the way FFmpeg and Poppler are, so a clean clone still runs without it. Paid APIs are optional and gated |
-| Judge capability, not plumbing | Counts of accounts and links prove nothing. Compare answers and designs made with the library against ones made without it |
+| Judge capability, not plumbing | Counts of notes and links prove nothing. Compare answers and designs made with the library against ones made without it |
 
 "Every ingest makes it smarter" is the objective, not a promise. A redundant source may add little, and a weak one may end up qualified. The useful question after an ingest is what understanding changed.
 
 ## Decisions
 
 Newest first. Each entry is the owner's decision unless it says otherwise.
+
+### 24 November 2026: principles in their own files, weighed on the way in
+
+After two videos went into one test library, the owner read the result and asked for a different shape. Three things he saw: the topic page was growing toward the problem it was built to solve, the detail files mostly retold their sources (eight of nine were marked as reporting a source), and nothing said how good any idea's reasoning was. What he decided, over two rounds:
+
+- **Principles are the front layer, one file each.** The topic page frames the subject and lists every principle in a line that links to its file. Behind them sit the detail files, now called notes. Everything is linked both ways.
+- **Extract and attach.** A new source's ideas go into the principles the library already holds, and new principles are extracted where none fits. He caught a draft that said only "attach": "don't forget that it's about extracting principles too, not just attaching to them." He also rejected a proposal to extract claims as the unit, since lists of claims with no connecting tissue are what he built Know Fu to get away from.
+- **Logical merit is judged on the way in.** A proposal for a second reader to audit each ingest against eight questions was refused outright: "I don't want an audit pass after the ingest, that's not the right scope for this. I want some sort of judgement of the logical thinking of the information nodes on the way in, not a full audit thing." And on scoring: "that's how you pigeonhole." What he asked for is that the reader be aware of merit while ingesting, with at most a light classifier. So each principle has a Merit line in the reader's words and names its kind of support, a list 0.5 already had and the rebuild dropped.
+- **Retelling is fixed in the instructions.** "Retelling is a writing style or an intent, not a number." The 35% warning is gone. He also pointed out that a test for retelling can't be a blanket rule, since a debate or a case is meant to explain what a source said.
+- **Edits are silent.** A principle is rewritten in place and git keeps the history. No history sections in the files.
+- **Split near forty.** A topic with about forty principles is split along the groups that link to each other.
+- **Deferred:** a domain profile for trading. He raised it as a thought experiment and said not to narrow the scope.
+
+Removed with his agreement: the per-stretch digest paragraphs on a source page (the map is now a line per stretch), the 35% retelling warning and the ratio it printed, and the generated `_index.md`. Brought back from 0.5 at the same time: looking for connections after writing, and testing new principles by having a fresh reader apply them to a case, including one just outside a principle's limit.
+
+How the agent got here matters for next time. It proposed the audit after sending a subagent to skim outside prior art, and found the owner's answer only when it read 0.5's own lineage page and note guide. Read the project's earlier versions before looking elsewhere.
 
 ### 23 November 2026: how a video's frames are chosen
 
@@ -123,7 +141,7 @@ The owner chose the size of the acceptance run: three chapters, within five suba
 
 After reading the result the same day, the owner corrected three things, and each changed the build:
 
-- **Performance, not cost.** "Cost wasn't really my worry anyway. I was more concerned about sluggish speeds or ineffective ingestion or retrieval at some point in the future, context bloat. I wanna optimize for performance." And on length: "Isn't the important thing that the searchable L1 bit is short? Can't the deeper stuff be longer since the AI will have deliberately selected that document to read anyway?" He is right, and the first 0.6 guides had drifted toward economy. The delta rule stays as a rule about what goes in. The pressure on account length is gone, the retelling warning sits at 35% (the owner's figure, after a first move to 50% that he called too close to the 63% retelling this rebuild exists to prevent) and is described as a description and never a target, and recall loads whole accounts up to a larger default budget.
+- **Performance, not cost.** "Cost wasn't really my worry anyway. I was more concerned about sluggish speeds or ineffective ingestion or retrieval at some point in the future, context bloat. I wanna optimize for performance." And on length: "Isn't the important thing that the searchable L1 bit is short? Can't the deeper stuff be longer since the AI will have deliberately selected that document to read anyway?" He is right, and the first 0.6 guides had drifted toward economy. The delta rule stays as a rule about what goes in. The pressure on account length is gone, the retelling warning sits at 35% (recorded here as the owner's figure; on 24 November he said it was the agent's suggestion and never his, and 0.12 removed the warning; it followed a first move to 50% that he called too close to the 63% retelling this rebuild exists to prevent) and is described as a description and never a target, and recall loads whole accounts up to a larger default budget.
 - **Build for the size it will reach.** "I'm not building for this size, I'm building for futureproofed bigger size." Keyword search carries topic-scoped questions at any size, and fails on cross-field questions, which matter most for invention. The semantic channel is built, optional, and on in the owner's library.
 - **One shared library was always the intent.** Separate libraries per agent were only for the testing phase. Commits and log lines now name the agent that wrote them.
 
@@ -171,9 +189,11 @@ From the first design conversations: a machine-oriented library with a readable 
 
 For each material change, be ready to say which capability it improves, what understanding it might lose, and what you would observe if it worked. Keep the established intent, current implementation facts and unaccepted proposals separate. A conversation summary, an old recommendation or a convenient default never quietly overrides a decision recorded here. When the owner changes a decision, record the reason here.
 
-Four failure modes to watch, because each has already happened once:
+Six failure modes to watch, because each has already happened once:
 
 - **Stripping.** A change makes the system lighter by removing something it could do. "Optimize" means better at its job. Before a change removes or replaces a capability, list what the system will no longer do and get the owner's yes.
-- **Retelling.** The compiled layer grows toward the size of its sources. Watch the ratio the checker prints.
+- **Retelling.** The compiled layer follows its sources' order and voice instead of holding ideas a reader can use. Read a sample of what an ingest wrote; no number shows it.
+- **Pigeonholing.** A judgment is turned into a score, a quota or a fixed list of questions, and agents start aiming at it. 0.5's evidence levels came out 91% "moderate", and the 35% retelling warning made a reader trim a good note. Teach the judgment in the guide and let the reader make it.
+- **Claim lists.** Ingestion breaks a source into free-standing claims with nothing joining them. This is the failure the owner started Know Fu to escape. Every idea lands in a principle or under one.
 - **Machinery.** A component is added to guard against a risk a single-user library doesn't have. Ask what a person with one library and git would need.
-- **Slogans.** The principles page fills with statements that are true of everything. Each principle needs a boundary and accounts it governs.
+- **Slogans.** The principles fill with statements that are true of everything. Each principle needs a boundary and more than one thing it explains.

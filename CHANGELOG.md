@@ -6,6 +6,35 @@ Entries before 0.6.0 describe the earlier engine, and the files and tools they n
 
 ## Unreleased
 
+### 2026-11-24 - 0.12.0: a file per principle, and ideas weighed on the way in
+
+Why: after two videos went into one test library the owner read it and asked for a different shape. The topic page was growing toward the problem it was built to solve, eight of nine detail files reported a source instead of holding an idea, and nothing said how good any idea's reasoning was. The decisions are in the north star under 24 November.
+
+**The layout changes. A library from 0.11 or earlier must be migrated** (see Compatibility).
+
+- **One file per principle**, in `knowledge/<domain>/<topic>/principles/<id>.md`: statement, Why, Breaks when, a new **Merit** line, and a `## Evidence` section with one entry per source headed with how the source stands (`states it`, `implies it`, `qualifies it`, `disputes it`). This replaces the Held by line and gives a second source a place to add to a principle.
+- **The topic page lists its principles.** Everything under `## Principles` is generated: each principle's `summary`, its kind of support, how many independent sources state or imply it (counted by the sources' `family`, so two lessons by one teacher count once), and how many notes rest on it. The order of the lines is the author's and is kept. Notes under no principle are listed there too.
+- **Accounts are now notes**, in `notes/`, with `type: note`, and a sixth kind, `definition`. Each principle file gets a generated `## Notes` section listing the notes that name it, which replaces the Governs line. A principle no longer needs a note under it to exist.
+- **The kind of support.** Each principle's frontmatter names it: `review of studies`, `controlled comparison`, `measured data`, `worked cases`, `reasoned argument`, `bare assertion` or `our inference`. 0.5 had this list and the 0.6 rebuild dropped it. There is no strength scale, because 0.5's came out "moderate" 91% of the time.
+- **The ingest guide is rewritten** around four things: extract principles and attach to the ones the library holds, with adding to what exists as the default; weigh each idea's logic as it goes in (does the reason follow, what is the strongest objection, where is it thin); two tests for retelling, limited to principles, mechanisms and methods, since a case or a debate is meant to report; and decision points in method notes, with the choices a source skips named as gaps. Two stages come back from 0.5: looking for connections after writing, and a fresh reader that applies the new principles to cases, one of them just outside a principle's limit, before it compares the compiled layer with the source.
+- **`kf_recall` shows how far to trust what it returns**: each principle in play comes with its kind of support, its count of independent sources and its Merit line. `kf_read` with `domain/topic#id` returns the principle's file, and `kf_connect` walks connections written in principle files.
+- **`kf_note` is now `kf_inbox`**, and inbox files are `type: inbox`, because "note" now means something else. The command-line form is `inbox`.
+- **A `migrate` command** (`node plugin/engine/cli.ts migrate`, with `--dry-run`): moves each principle off the topic page into its own file, renames `accounts/` to `notes/`, removes `_index.md`, and retypes inbox files. It judges nothing: each migrated principle's `support`, Merit line and evidence text are left as TODO, and the checker lists them until a reader writes them.
+
+Removed, each agreed by the owner beforehand:
+
+- **The retelling warning and its ratio.** `kf_check` no longer compares words written with words read, warns above 35%, or prints the percentage. The figure was the agent's and the owner never set it; in the first video test it made one reader trim a good account. Retelling is now handled where it starts, in the ingest guide.
+- **Digest paragraphs on a source page.** A map entry is a heading and one line saying what the stretch covers, plus the Frames line for a video. The warning for a digest under 25 words is gone. Readers of a long source still write reading notes, as working files deleted before the commit.
+- **`_index.md`** and `kf_read` with `domain/topic/_index`. The topic page and the principle files now carry what it listed.
+
+Also changed without removing anything: the checker no longer refuses a principle that governs no note or warns when it governs one, since a principle's own file now carries its evidence; and the warning for too many principles moved from 15 to 40, worded as a prompt to split the topic.
+
+- Tests: 33 pass. New: the generated list keeps the author's order and survives a second run unchanged; a principle stands with no note; a slogan is refused on six counts; a library in the old layout is left untouched by the checker and moved by `migrate`.
+- Tried on a copy of the two-video test library (5 principles, 9 notes): migration moved everything, and the checker then listed the five `support` fields and five TODO lines and nothing else.
+- Compatibility: breaking. Until `migrate` runs, `kf_check` reports each old-layout topic as an error naming the command, and writes nothing into it. After it runs, every principle needs its `support`, Merit line and evidence entries written by a reader before the library passes. Anything that called `kf_note` must call `kf_inbox`.
+- Not shown yet: that the new instructions produce a better library. The same two videos have not been re-ingested under them.
+- Documentation: README, architecture, the four guides, the north star (a decision entry, the commitments and two new failure modes), AGENTS.md and LESSONS.md.
+
 ### 2026-11-23 - 0.11.0: what two readers of a real video found
 
 Why: the video path had never been used end to end. Two readers, each given only the skill and a throwaway library, ingested the same twenty-minute lesson, and a third graded both against the video without knowing how they differed. Both finished with no checker errors and both caught content the transcript doesn't hold. Each listed twenty points of friction, most of them shared, and the grader found what both missed. The changes below are those findings.

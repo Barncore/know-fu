@@ -2,7 +2,8 @@
 //
 //   knowledge/<domain>/DOMAIN.md
 //   knowledge/<domain>/<topic>/TOPIC.md
-//   knowledge/<domain>/<topic>/accounts/<slug>.md
+//   knowledge/<domain>/<topic>/principles/<id>.md
+//   knowledge/<domain>/<topic>/notes/<slug>.md
 //   sources/<id>/source.md, text.txt, units.json, original/
 //   ideas/<slug>.md
 //   inbox/<file>.md
@@ -25,7 +26,7 @@ export type Unit = {
   flags: string[];
 };
 
-export type Link = { to: string; anchor: string; verb: string; note: string; line: number };
+export type Link = { to: string; anchor: string; verb: string; reason: string; line: number };
 export type Cite = { key: string; loc: string; line: number; quote?: string; screen?: boolean };
 
 export type Doc = {
@@ -42,21 +43,43 @@ export type Doc = {
   words: number;
 };
 
-export type Principle = {
+/** What one source brings to a principle: an entry under "## Evidence", headed "### KEY: states it". */
+export type Evidence = {
+  /** A source key, or "Owner" or "Synthesis" for what no single source holds. */
+  key: string;
+  /** "states", "implies", "qualifies" or "disputes"; empty when the heading names none. */
+  stance: string;
+  line: number;
+  text: string;
+  /** Source keys cited inside the entry. */
+  cited: string[];
+};
+
+/** One principle, in its own file. The topic page lists every principle of the topic in a line each. */
+export type Principle = Doc & {
   id: string;
+  /** The topic path it belongs to. */
+  topic: string;
   title: string;
+  /** The line the topic page shows: the principle with its limit. */
+  summary: string;
+  /** The kind of support it rests on, one of SUPPORT_KINDS. */
+  support: string;
   statement: string;
   why: string;
   breaks: string;
-  governs: string[];
-  heldBy: string;
+  /** The reader's weighing of its logic: does the reason follow, what is the strongest objection, where is it thin. */
+  merit: string;
+  evidence: Evidence[];
   line: number;
-  /** The whole section as written, heading included. */
-  text: string;
 };
 
-export type Topic = Doc & { path: string; domain: string; slug: string; dir: string; frame: string; principles: Principle[]; sections: Section[] };
-export type Account = Doc & { slug: string; topic: string };
+/** Kinds of support, strongest first. A principle names the strongest kind any of its sources gives it. */
+export const SUPPORT_KINDS = ['review of studies', 'controlled comparison', 'measured data', 'worked cases', 'reasoned argument', 'bare assertion', 'our inference'];
+export const STANCES = ['states', 'implies', 'qualifies', 'disputes'];
+
+export type Topic = Doc & { path: string; domain: string; slug: string; dir: string; frame: string; principles: Principle[]; sections: Section[]; /** Laid out the way Know Fu was before 0.12. */ legacy: boolean };
+export type Note = Doc & { slug: string; topic: string };
 export type Idea = Doc & { slug: string };
 export type MapEntry = { title: string; line: number; range: string; from: number; to: number; text: string };
 export type Source = Doc & { id: string; dir: string; key: string; units: Unit[]; sourceWords: number; map: MapEntry[]; sections: Section[] };
@@ -68,7 +91,7 @@ export type Library = {
   root: string;
   domains: Domain[];
   topics: Topic[];
-  accounts: Account[];
+  notes: Note[];
   sources: Source[];
   ideas: Idea[];
   inbox: Doc[];
@@ -135,16 +158,16 @@ function scan(body: string, bodyLine: number): { links: Link[]; cites: Cite[] } 
     if (line.startsWith('## ')) inConnections = /^##\s+connections\s*$/i.test(line);
     for (const m of line.matchAll(WIKILINK)) {
       let verb = 'mentions';
-      let note = '';
+      let reason = '';
       if (inConnections) {
         const bullet = /^\s*[-*]\s+(.*?)\s*\[\[/.exec(line);
         verb = (bullet?.[1] ?? '').toLowerCase().replace(/[:*_]/g, '').trim() || 'see also';
-        note = line
+        reason = line
           .slice((m.index ?? 0) + m[0].length)
           .replace(/^\s*[:—–-]\s*/, '')
           .trim();
       }
-      links.push({ to: m[1].trim(), anchor: (m[2] ?? '').trim(), verb, note, line: n });
+      links.push({ to: m[1].trim(), anchor: (m[2] ?? '').trim(), verb, reason, line: n });
     }
     for (const m of line.matchAll(CITE)) {
       const before = line.slice(0, m.index ?? 0);
@@ -174,37 +197,81 @@ function loadDoc(file: string, root: string): Doc {
 
 const FIELD = /^\s*[-*]\s+\*\*([A-Za-z ]+?):?\*\*:?\s*(.*)$/;
 
-export function parsePrinciples(sections: Section[]): Principle[] {
-  const block = section(sections, 'Principles');
-  if (!block) return [];
-  return splitSections(block.raw, block.line + 1, 3).map(s => {
-    const fields: Record<string, string> = {};
-    const statement: string[] = [];
-    let current = '';
-    for (const line of s.text.split('\n')) {
-      const m = FIELD.exec(line);
-      if (m) {
-        current = m[1].toLowerCase().trim();
-        fields[current] = m[2].trim();
-      } else if (current && /^\s{2,}\S/.test(line)) fields[current] += ' ' + line.trim();
-      else if (line.trim()) {
-        if (current) current = '';
-        else statement.push(line.trim());
-      }
+/** The opening of a principle: its statement, then "- **Field:** text" lines. */
+export function parseFields(text: string): { statement: string; fields: Record<string, string> } {
+  const fields: Record<string, string> = {};
+  const statement: string[] = [];
+  let current = '';
+  for (const line of text.split('\n')) {
+    const m = FIELD.exec(line);
+    if (m) {
+      current = m[1].toLowerCase().trim();
+      fields[current] = m[2].trim();
+    } else if (current && /^\s{2,}\S/.test(line)) fields[current] += ' ' + line.trim();
+    else if (line.trim() && !line.startsWith('# ')) {
+      if (current) current = '';
+      else statement.push(line.trim());
     }
-    const governs = [...(fields['governs'] ?? '').matchAll(WIKILINK)].map(m => m[1].trim());
+  }
+  return { statement: statement.join(' '), fields };
+}
+
+const EVIDENCE_HEAD = /^([A-Za-z][A-Za-z0-9]*)\s*(?:[:(,]\s*(.*?)\)?\s*)?$/;
+
+function loadPrinciple(file: string, root: string, topic: string): Principle {
+  const doc = loadDoc(file, root);
+  const sections = splitSections(doc.body, doc.bodyLine);
+  const opening = sections.length
+    ? doc.body
+        .split('\n')
+        .slice(0, sections[0].line - doc.bodyLine)
+        .join('\n')
+    : doc.body;
+  const { statement, fields } = parseFields(opening);
+  const block = section(sections, 'Evidence');
+  const evidence: Evidence[] = (block ? splitSections(block.raw, block.line + 1, 3) : []).map(s => {
+    const head = EVIDENCE_HEAD.exec(s.title);
+    const said = (head?.[2] ?? '').toLowerCase();
     return {
-      id: slugify(s.title),
-      title: s.title,
-      statement: statement.join(' '),
-      why: fields['why'] ?? '',
-      breaks: fields['breaks when'] ?? '',
-      governs,
-      heldBy: fields['held by'] ?? '',
+      key: head?.[1] ?? s.title,
+      stance: STANCES.find(word => said.startsWith(word)) ?? '',
       line: s.line,
-      text: `### ${s.title}\n\n${s.text}`,
+      text: s.text,
+      cited: [...new Set([...withoutCode(s.text).matchAll(CITE)].map(m => m[1]))],
     };
   });
+  return {
+    ...doc,
+    id: path.basename(file, '.md'),
+    topic,
+    title: asText(doc.fm.title),
+    summary: asText(doc.fm.summary),
+    support: asText(doc.fm.support),
+    statement,
+    why: fields['why'] ?? '',
+    breaks: fields['breaks when'] ?? '',
+    merit: fields['merit'] ?? '',
+    evidence,
+    line: doc.bodyLine,
+  };
+}
+
+/** The order the topic page lists its principles in: the author's, where the page already has one, then by name. */
+function inPageOrder(principles: Principle[], sections: Section[]): Principle[] {
+  const listed = [...(section(sections, 'Principles')?.raw ?? '').matchAll(/\(principles\/([a-z0-9-]+)\.md\)/g)].map(m => m[1]);
+  const place = (p: Principle) => (listed.includes(p.id) ? listed.indexOf(p.id) : listed.length);
+  return [...principles].sort((a, b) => place(a) - place(b) || a.id.localeCompare(b.id));
+}
+
+/** How many sources that don't share an origin state or imply a principle. Two talks by one teacher count once. */
+export function independentSupport(lib: Library, principle: Principle): number {
+  const families = new Set<string>();
+  for (const entry of principle.evidence) {
+    if (entry.stance !== 'states' && entry.stance !== 'implies') continue;
+    const source = sourceByKey(lib, entry.key);
+    if (source) families.add(asText(source.fm.family) || source.id);
+  }
+  return families.size;
 }
 
 /** Units a locator names, as [first, last] indexes into source.units, or null when it names nothing. */
@@ -268,7 +335,7 @@ function parseMap(source: Source): MapEntry[] {
 
 export function loadLibrary(root: string): Library {
   textCache.clear();
-  const lib: Library = { root, domains: [], topics: [], accounts: [], sources: [], ideas: [], inbox: [], stray: [] };
+  const lib: Library = { root, domains: [], topics: [], notes: [], sources: [], ideas: [], inbox: [], stray: [] };
   const knowledge = path.join(root, 'knowledge');
   for (const domain of listDirs(knowledge)) {
     const domainDir = path.join(knowledge, domain);
@@ -282,6 +349,8 @@ export function loadLibrary(root: string): Library {
       if (exists(file)) {
         const doc = loadDoc(file, root);
         const sections = splitSections(doc.body, doc.bodyLine);
+        // A library from before 0.12 keeps its principles on the topic page and its notes in accounts/.
+        const legacy = exists(path.join(dir, 'accounts')) || /^### /m.test(section(sections, 'Principles')?.raw ?? '');
         lib.topics.push({
           ...doc,
           path: topicPath,
@@ -290,11 +359,17 @@ export function loadLibrary(root: string): Library {
           dir,
           sections,
           frame: section(sections, 'Frame')?.text ?? '',
-          principles: parsePrinciples(sections),
+          principles: inPageOrder(
+            listFiles(path.join(dir, 'principles')).map(name => loadPrinciple(path.join(dir, 'principles', name), root, topicPath)),
+            sections,
+          ),
+          legacy,
         });
+        if (legacy)
+          lib.stray.push(`knowledge/${topicPath} is laid out the way Know Fu was before 0.12 (principles on the topic page, an accounts folder). Run "migrate" from the command line to move it to principle files and notes.`);
       } else lib.stray.push(`knowledge/${topicPath} has no TOPIC.md`);
-      for (const name of listFiles(path.join(dir, 'accounts')))
-        lib.accounts.push({ ...loadDoc(path.join(dir, 'accounts', name), root), slug: name.slice(0, -3), topic: topicPath });
+      for (const name of listFiles(path.join(dir, 'notes')))
+        lib.notes.push({ ...loadDoc(path.join(dir, 'notes', name), root), slug: name.slice(0, -3), topic: topicPath });
     }
   }
   for (const id of listDirs(path.join(root, 'sources'))) {
@@ -338,11 +413,16 @@ export function loadLibrary(root: string): Library {
 // Lookups used by the checker, recall and connect.
 
 export const sourceByKey = (lib: Library, key: string) => lib.sources.find(s => s.key === key);
-export const accountBySlug = (lib: Library, slug: string) => lib.accounts.find(a => a.slug === slug);
+export const noteBySlug = (lib: Library, slug: string) => lib.notes.find(a => a.slug === slug);
 export const topicByPath = (lib: Library, ref: string) => lib.topics.find(t => t.path === ref) ?? lib.topics.find(t => t.slug === ref);
 
-export function accountPrinciples(account: Account): string[] {
-  return asList(account.fm.principles);
+export function notePrinciples(note: Note): string[] {
+  return asList(note.fm.principles);
+}
+
+/** The notes that name a principle, as its id from inside the topic or as domain/topic#id from outside. */
+export function notesUnder(lib: Library, principle: Principle): Note[] {
+  return lib.notes.filter(n => !isRetired(n) && notePrinciples(n).some(p => (n.topic === principle.topic && p === principle.id) || p === `${principle.topic}#${principle.id}`));
 }
 
 export function isRetired(doc: Doc): boolean {
@@ -350,7 +430,7 @@ export function isRetired(doc: Doc): boolean {
 }
 
 export type Target =
-  | { type: 'account'; account: Account }
+  | { type: 'note'; note: Note }
   | { type: 'topic'; topic: Topic }
   | { type: 'principle'; topic: Topic; principle: Principle }
   | { type: 'source'; source: Source }
@@ -364,8 +444,8 @@ export function resolveLink(lib: Library, to: string, anchor: string, from?: str
     const principle = topic?.principles.find(p => p.id === slugify(anchor));
     return topic && principle ? { type: 'principle', topic, principle } : null;
   }
-  const account = accountBySlug(lib, name);
-  if (account) return { type: 'account', account };
+  const note = noteBySlug(lib, name);
+  if (note) return { type: 'note', note };
   const topic = lib.topics.find(t => t.path === name);
   if (topic) return { type: 'topic', topic };
   const source = lib.sources.find(s => s.id === name);

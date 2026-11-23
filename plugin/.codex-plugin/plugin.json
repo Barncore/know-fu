@@ -1,13 +1,13 @@
 {
   "name": "know-fu",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "A local research library your agent compiles from books, papers and videos, then explains, applies and invents from.",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Know Fu",
     "shortDescription": "A research library compiled from your sources.",
-    "longDescription": "A local library of plain Markdown: a principles page per topic, consolidated accounts with page citations, and the original sources kept searchable underneath. Codex does the reading and reasoning; a small engine extracts, checks and searches.",
+    "longDescription": "A local library of plain Markdown: a principles page per topic, consolidated notes with page citations, and the original sources kept searchable underneath. Codex does the reading and reasoning; a small engine extracts, checks and searches.",
     "developerName": "Know Fu",
     "category": "Productivity",
     "capabilities": ["Write"],

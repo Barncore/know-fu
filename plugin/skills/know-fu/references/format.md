@@ -1,6 +1,6 @@
 # The library's file format
 
-Contents: layout · frontmatter · the topic page · an account · citations and quotes · links and connections · the source page · ideas · what the checker enforces.
+Contents: layout · frontmatter · the topic page · a principle · a note · citations and quotes · links and connections · the source page · ideas · what the checker enforces.
 
 The Markdown files are the library. There is no other copy. `kf_check` holds the format, so write freely and let it tell you what it needs.
 
@@ -10,22 +10,22 @@ The Markdown files are the library. There is no other copy. `kf_check` holds the
 INDEX.md                                  generated
 log.md                                    one line per change, written on commit
 knowledge/<domain>/DOMAIN.md
-knowledge/<domain>/<topic>/TOPIC.md
-knowledge/<domain>/<topic>/_index.md      generated: every account under its principle
-knowledge/<domain>/<topic>/accounts/<name>.md
+knowledge/<domain>/<topic>/TOPIC.md       the front page: the frame, then every principle in a line
+knowledge/<domain>/<topic>/principles/<id>.md
+knowledge/<domain>/<topic>/notes/<name>.md
 sources/<id>/source.md
 sources/<id>/text.txt, units.json         the extraction; never edit
 sources/<id>/captions.txt                 a fetched video's own captions, when the page had them; never edit
 sources/<id>/original/                    the file as added; never edit
 sources/<id>/pages/, frames/              page images; a video's screen map, filmstrips and opened frames (a cache)
-sources/<id>/exhibits/                    video frames kept because an account relies on them
+sources/<id>/exhibits/                    video frames kept because a claim relies on them
 ideas/<name>.md
 inbox/<date>-<name>.md
 ```
 
 The library's git history holds every Markdown file and the extracted text. `original/`, `pages/`, `frames/` and `exhibits/` are left out of git: they sit in the folder. `pages/` and `frames/` can be made again from the original; `exhibits/` can't once a video has moved, so it is never cleared.
 
-A domain is a broad area (audio, trading). A topic is a subject inside it with its own principles (mixing, mastering). Names are lower-case words joined by hyphens. Every account, idea and source needs a name no other one has, because a bare `[[name]]` link finds it anywhere in the library.
+A domain is a broad area (audio, trading). A topic is a subject inside it (mixing, mastering). A principle is an idea that explains several specific things, and a note holds the detail behind principles. Names are lower-case words joined by hyphens. Every note, idea and source needs a name no other one has, because a bare `[[name]]` link finds it anywhere in the library. A principle's name only has to be its own within its topic.
 
 ## Frontmatter
 
@@ -33,17 +33,20 @@ A strict subset of YAML: each key holds one string or one list, on one line or a
 
 | File | Required | Optional |
 |---|---|---|
-| account | `type: account`, `title`, `summary`, `kind`, `principles`, `sources`, `basis`, `updated` | `keywords`, `status`, `retired_reason` |
+| principle | `type: principle`, `title`, `summary`, `support`, `updated` | `keywords` |
+| note | `type: note`, `title`, `summary`, `kind`, `principles`, `sources`, `basis`, `updated` | `keywords`, `status`, `retired_reason` |
 | topic | `type: topic`, `title`, `summary`, `updated` | `keywords` |
 | domain | `type: domain`, `title`, `summary` | `updated` |
 | source | `type: source`, `title`, `key`, `kind`, `family`, `added`, `status` | `authors`, `year`, `url`, `note`, and the fields the engine writes |
 | idea | `type: idea`, `title`, `summary`, `status`, `premises`, `updated` | `topics` |
 
-- `kind` of an account: `mechanism` (how or why something works), `method` (what to do, in order, with decision points), `case` (a worked example or a near miss), `reference` (numbers, a table, terms), `debate` (how two positions relate).
-- `basis`: `source` when the account reports what sources say, `synthesis` when the connection across sources is yours, `owner` for the owner's own notes and results.
-- `principles`: ids from this topic's page (the heading, in lower case with hyphens). For a principle in another topic, `domain/topic#id`. May be `[]`, and the checker will ask why.
+- `summary` of a principle: the line the topic page shows for it. The principle with its limit, as in "X, because Y, until Z".
+- `support` of a principle: the kind of support it rests on. One of `review of studies`, `controlled comparison`, `measured data`, `worked cases`, `reasoned argument`, `bare assertion`, `our inference`. The ingest guide says what each means.
+- `kind` of a note: `mechanism` (how or why something works), `method` (what to do, in order, with decision points), `case` (a worked example or a near miss), `reference` (numbers, a table), `debate` (how two positions relate), `definition` (a term the sources use in their own way, when it needs more than a line of Vocabulary).
+- `basis` of a note: `source` when it reports what sources say, `synthesis` when the connection across sources is yours, `owner` for the owner's own notes and results.
+- `principles` of a note: the ids of the principles it rests on, which are their file names. For a principle in another topic, `domain/topic#id`. May be `[]`, and the checker will ask why.
 - `sources`: citation keys, like `[WKH, ATK]`. Every key the text cites must be listed.
-- `status: retired` with a `retired_reason` takes an account out of recall without deleting it. Use it when a source turns out wrong or out of date.
+- `status: retired` with a `retired_reason` takes a note out of recall without deleting it. Use it when a source turns out wrong or out of date.
 - Dates are `YYYY-MM-DD`.
 
 ## The topic page
@@ -63,13 +66,7 @@ Two to four paragraphs on how the subject hangs together: what a practitioner is
 
 ## Principles
 
-### Heat work matures ware
-
-Ware matures by temperature held over time, so the schedule matters as much as the peak.
-
-- **Why:** glaze and body reactions need time at temperature, and a cone measures both together.
-- **Breaks when:** Inferred: a chamber so uneven that no single schedule suits every shelf. The source states no limit.
-- **Held by:** WKH (stated, p.31); ATK (inferred)
+- [Heat work matures ware](principles/heat-work-matures-ware.md): Ware matures by temperature held over time, so the schedule matters as much as the peak, until the chamber is too uneven for one schedule. (reasoned argument; 1 independent source; 2 notes)
 
 ## Tensions
 
@@ -88,19 +85,58 @@ Ware matures by temperature held over time, so the schedule matters as much as t
 - Does a ten minute hold keep the ash runs?
 ```
 
-Under each principle heading, the first paragraph is its statement. **Why**, **Breaks when** and **Held by** are yours to write. Cite the page where the source says it, and start the line with "Inferred:" where it is your own reading. Don't write a **Governs** line: `kf_check` adds one under each principle, listing the accounts that name it, and rewrites it on every run. To put an account under a principle, add the principle's id to the account's `principles`.
+Everything under `## Principles` is written by `kf_check` from the principle files: each one's title, its `summary`, its `support`, how many independent sources state or imply it, and how many notes rest on it. Don't write there. The one thing that is yours is the order: put the lines in the order a reader should meet them, foundations first, and the checker keeps it. A new principle is added at the end. Notes that name no principle are listed under the principles, so nothing is hidden.
 
-A principle's id is its heading in lower case, with punctuation dropped and spaces turned to hyphens: "The ear is the detector" is `the-ear-is-the-detector`, and "Loud isn't level, it's contrast" is `loud-isnt-level-its-contrast`. Write the heading as a plain statement and the id follows. The topic's `_index.md` lists every id, and a wrong one gets a checker error that names the right ones.
+Frame is required. Add the other sections as the topic earns them. Vocabulary is for terms the sources use in their own way, not a glossary of the field. Open questions holds what the sources leave unanswered.
 
-Frame and Principles are required. Add the other sections as the topic earns them; Vocabulary is for terms the sources use in their own way, not a glossary of the field.
+The page is meant to be read whole. Detail belongs in the principle files and the notes.
 
-The page is meant to be read whole, at about 2,000 to 4,000 tokens. Detail belongs in accounts.
+## A principle
 
-## An account
+One file per principle, in the topic's `principles/` folder. The file name is its id.
 
 ```markdown
 ---
-type: account
+type: principle
+title: Heat work matures ware
+summary: Ware matures by temperature held over time, so the schedule matters as much as the peak, until the chamber is too uneven for one schedule.
+support: reasoned argument
+updated: 2026-11-10
+---
+# Heat work matures ware
+
+Ware matures by temperature held over time, so the schedule matters as much as the peak.
+
+- **Why:** glaze and body reactions need time at temperature, and a cone measures both together [WKH p.31].
+- **Breaks when:** Inferred: a chamber so uneven that no single schedule suits every shelf. The handbook states no limit.
+- **Merit:** The reason follows from how a cone works, which any potter can watch. The handbook measures nothing, and a speaker who stops at cone 9 shows that maturity is not the only goal a firing can have.
+
+## Evidence
+
+### WKH: states it
+
+Gives the mechanism and the practice that follows: a slow climb to a lower peak can mature a glaze that a fast climb leaves raw, which is why potters read cones and not only a pyrometer [WKH p.31].
+
+### ATK: qualifies it
+
+Accepts the mechanism and refuses the conclusion that every shelf must mature: the speaker stops when cone 9 is flat at the front and takes an uneven chamber as part of the work [ATK 1:10].
+
+## Connections
+
+- conflicts with [[wood-firing#ash-needs-a-moving-flame]]: the hold that evens heat work is what flattens ash runs
+```
+
+The opening paragraph is the statement. **Why**, **Breaks when** and **Merit** are required. Merit is your weighing of the logic, in a sentence or three: does the reason follow, what is the strongest objection, where is the support thin. Start a line with "Inferred:" where it is your reading and not the source's.
+
+`## Evidence` has one entry per source that bears on the principle, headed with the source's key and how it stands: `states it`, `implies it` (you read it out of what the source does), `qualifies it` or `disputes it`. Under the heading, say what that source brings and cite where. For what no single source holds, head an entry `### Synthesis` and say which sources it joins; for the owner's own results, `### Owner`.
+
+`## Connections` is optional. Don't write a `## Notes` section: `kf_check` adds one, listing the notes whose `principles` name this file, and rewrites it on every run. To put a note under a principle, add the principle's id to the note's `principles`.
+
+## A note
+
+```markdown
+---
+type: note
 kind: method
 title: Hold forty minutes once cone 9 bends
 summary: A forty minute hold at cone 9 evens a chamber that can differ by two cones front to back.
@@ -115,10 +151,10 @@ The point first, then why, then the specifics with their pages [WKH p.31], then 
 ## Connections
 
 - depends on [[wood-firing#heat-work-matures-ware]]: the hold adds heat work without adding temperature
-- qualifies [[some-other-account]]: what it changes about that account
+- qualifies [[some-other-note]]: what it changes about that note
 ```
 
-Sections inside an account are optional and yours to choose; a method often wants "When to use", "Steps" and "Failure modes". The file name is the account's name.
+Sections inside a note are optional and yours to choose; a method often wants "When to use", "Steps" and "Failure modes". The file name is the note's name.
 
 ## Citations and quotes
 
@@ -126,25 +162,25 @@ A citation is a source key and a locator in square brackets: `[WKH p.112]`, `[WK
 
 Put the citation right after what it supports. Cite every specific: a number, a rule, a claim someone might check.
 
-Text in double quotes immediately before a citation is a quotation, and the checker verifies that those words are in that part of the source, give or take a page. Mark a cut with `…`. To paraphrase, leave the quotation marks off. Words quoted before a screen citation are words printed on the screen, which no transcript holds: the checker verifies that a frame at that time was opened, and asks that a frame cited from an account or a topic page be kept. Quote sparingly: for a definition, a rule stated exactly, or wording that matters.
+Text in double quotes immediately before a citation is a quotation, and the checker verifies that those words are in that part of the source, give or take a page. Mark a cut with `…`. To paraphrase, leave the quotation marks off. Words quoted before a screen citation are words printed on the screen, which no transcript holds: the checker verifies that a frame at that time was opened, and asks that a frame cited from a principle, a note or a topic page be kept. Quote sparingly: for a definition, a rule stated exactly, or wording that matters.
 
 ## Links and connections
 
-`[[name]]` links an account, idea or source. `[[domain/topic]]` links a topic. `[[domain/topic#principle-id]]` links a principle, and `[[topic#principle-id]]` works when the topic's name is unique.
+`[[name]]` links a note, idea or source. `[[domain/topic]]` links a topic. `[[domain/topic#principle-id]]` links a principle, `[[topic#principle-id]]` works when the topic's name is unique, and `[[#principle-id]]` links a principle in the same topic.
 
-A link in running text is a mention. A link in a bullet under `## Connections` is a typed connection: the bullet starts with one of `depends on`, `supports`, `qualifies`, `conflicts with`, `example of`, `extends`, `see also`, then the link, then a colon and the reason. The reason is the point: say what the connection is. `qualifies` and `conflicts with` matter most, because recall always shows an account that disputes or qualifies what it loads.
+A link in running text is a mention. A link in a bullet under `## Connections` is a typed connection: the bullet starts with one of `depends on`, `supports`, `qualifies`, `conflicts with`, `example of`, `extends`, `see also`, then the link, then a colon and the reason. The reason is the point: say what the connection is. `qualifies` and `conflicts with` matter most, because recall always shows a note that disputes or qualifies what it loads. Connections work the same in a principle file and in a note, and `kf_connect` walks them in both directions.
 
 ## The source page
 
 `kf_source` writes it with placeholders. You fill in:
 
 - **About:** who made it, what it sets out to do, and how far to trust it (experience, measurement, argument).
-- **Map:** one `### Title [p.A-B]` heading per stretch, in order, each with its digest. Ranges use the source's own locators (`[s.1-4]`, `[0:00-12:30]`), and together they cover every unit that has text. Inside this file, cite with a bare locator, `[p.68]`, with no key: it is resolved against this source and checked like any citation.
-- **What it changed:** the principles and accounts this source added or altered, and what it leaves open.
+- **Map:** one `### Title [p.A-B]` heading per stretch, in order, each with a line saying what the stretch covers. Ranges use the source's own locators (`[s.1-4]`, `[0:00-12:30]`), and together they cover every unit that has text. A stretch with nothing worth keeping still gets a heading and a line saying so. Inside this file, cite with a bare locator, `[p.68]`, with no key: it is resolved against this source and checked like any citation.
+- **What it changed:** which principles this source added, strengthened, sharpened, qualified or disputed, which notes are new or revised, and what it leaves open.
 
-A video with a screen adds two things, both described in the video guide. Each digest in the Map ends with a `- **Frames:**` line naming the frames that were opened, like `12:36, 13:02`, or `none` and why. And an optional `## Exhibits` section holds one `### 12:36 What the frame shows` heading for each frame kept with `kf_source` action "keep", with its record underneath: what it shows, its marks as data with how each number was read, what was said, and which accounts it supports.
+A video with a screen adds two things, both described in the video guide. Each map entry ends with a `- **Frames:**` line naming the frames that were opened, like `12:36, 13:02`, or `none` and why. And an optional `## Exhibits` section holds one `### 12:36 What the frame shows` heading for each frame kept with `kf_source` action "keep", with its record underneath: what it shows, its marks as data with how each number was read, what was said, and what it supports.
 
-Set `status: compiled` when all three are written. `family` groups sources that share an origin, such as a book and its author's talk on the same material, so they count once when asking how many sources hold a principle. Use `owner` for the owner's own notes.
+Set `status: compiled` when all three are written. `family` groups sources that share an origin, such as a book and its author's talk on the same material, or two lessons by one teacher, so they count once when the topic page says how many independent sources hold a principle. Use `owner` for the owner's own notes.
 
 ## Ideas
 
@@ -166,10 +202,12 @@ What the idea is, why it might work given its premises, what would show it is wr
 - 2026-11-03, owner's kiln, pass rule set beforehand ("ash runs visible on 3 of 4 test tiles"): passed, 4 of 4. One firing.
 ```
 
-`status` is `candidate`, `testing`, `passed`, `failed` or `parked`, and it moves only when a result from the owner's own tools is recorded under Results, against a pass rule written down before the run, with how many variants were tried. A failed idea stays, with why. Nothing in `knowledge/` or `sources/` may link to an idea. When an idea has been borne out, what was learned becomes an account with its own evidence and `basis: owner`.
+`status` is `candidate`, `testing`, `passed`, `failed` or `parked`, and it moves only when a result from the owner's own tools is recorded under Results, against a pass rule written down before the run, with how many variants were tried. A failed idea stays, with why. Nothing in `knowledge/` or `sources/` may link to an idea. When an idea has been borne out, what was learned becomes a note with its own evidence and `basis: owner`.
 
 ## What the checker enforces
 
-Errors block a commit: malformed or unknown frontmatter, a link or citation that points at nothing, quoted words that aren't in the source, a cited key missing from `sources`, a principle with no statement, Why, Breaks when or Held by, a principle that governs no account, an account naming a principle that doesn't exist, knowledge linking to an idea, a compiled source with placeholders or with pages no digest covers, an exhibit record with no kept frame or no time in its heading, a screen citation at a moment no frame was opened, a page whose summary is still the placeholder, two things with one name.
+Errors block a commit: malformed or unknown frontmatter, a link or citation that points at nothing, quoted words that aren't in the source, a cited key missing from a note's `sources`, a principle with no statement, Why, Breaks when or Merit, a principle whose `support` isn't one of the kinds, a principle with no evidence entry, an evidence entry that doesn't say how its source stands or cites nothing from it, a note naming a principle that doesn't exist, knowledge linking to an idea, a compiled source with placeholders or with pages no map entry covers, an exhibit record with no kept frame or no time in its heading, a screen citation at a moment no frame was opened, a page whose summary is still the placeholder, two things with one name, and a topic still laid out the way Know Fu was before 0.12.
 
-Warnings are judgment calls, each worded as the question to answer: a stretch of video where the screen changed three or more times and the digest has no Frames line, a Frames line naming a frame nobody opened, a kept frame with no record, a screen citation in an account whose frame isn't kept, an account under 80 or over 1,500 words, a summary over 60 words, an account under no principle, a principle governing a single account, two accounts with nearly the same title, a topic page too long to read whole, and accounts citing a source that total more than 35% of the length of what was read.
+Warnings are judgment calls, each worded as the question to answer: a stretch of video where the screen changed three or more times and the map entry has no Frames line, a Frames line naming a frame nobody opened, a kept frame with no record, a screen citation whose frame isn't kept, a principle that cites a source it has no evidence entry for, a note under 80 or over 1,500 words, a summary over 60 words, a note under no principle, two notes with nearly the same title, a topic page too long to read whole, and a topic near 40 principles.
+
+A library made before 0.12 is moved with `node <plugin>/engine/cli.ts migrate` (`--dry-run` shows what it would do). It moves each principle into its own file and renames `accounts/` to `notes/`. It can't judge, so it leaves each principle's `support`, Merit line and evidence entries as TODO for a reader to write.

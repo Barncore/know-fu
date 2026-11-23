@@ -1,14 +1,19 @@
 // The checker. Agents write the library as free prose; this holds its structure together:
 // links and citations that resolve, quoted words that are really in the source, principles that
-// govern something, sources whose maps cover every page, and how much was written against how
-// much was read. It also keeps the few derived things in step (the Governs line, the indexes).
+// say why they hold, where they break and what they rest on, and sources whose maps cover every page.
+// It also keeps the derived things in step: the list of principles on each topic page, the list of
+// notes in each principle file, and the library index.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { asList, asText } from './frontmatter.ts';
 import {
   CONNECTION_VERBS,
-  accountPrinciples,
+  STANCES,
+  SUPPORT_KINDS,
+  independentSupport,
+  notePrinciples,
+  notesUnder,
   isRetired,
   loadLibrary,
   resolveLink,
@@ -19,24 +24,30 @@ import {
   unitLabel,
   unitText,
 } from './library.ts';
-import type { Account, Doc, Library, Source, Topic } from './library.ts';
+import type { Note, Doc, Library, Principle, Source, Topic } from './library.ts';
 import { SOURCE_KINDS, framesLooked, keptExhibits, screenTrack } from './sources.ts';
 import { countWords, exists, formatTime, isSlug, parseTime, readText, slugify, squash, today, tokens, writeText } from './util.ts';
 
 export type Issue = { level: 'error' | 'warn'; code: string; file: string; line?: number; message: string };
 
-export const ACCOUNT_KINDS = ['mechanism', 'method', 'case', 'reference', 'debate'];
+export const NOTE_KINDS = ['mechanism', 'method', 'case', 'reference', 'debate', 'definition'];
 export const BASES = ['source', 'synthesis', 'owner'];
 export const IDEA_STATUSES = ['candidate', 'testing', 'passed', 'failed', 'parked'];
 
 type Shape = { required: string[]; optional: string[]; lists: string[]; enums: Record<string, string[]> };
 
 const SHAPES: Record<string, Shape> = {
-  account: {
+  note: {
     required: ['type', 'title', 'summary', 'kind', 'principles', 'sources', 'basis', 'updated'],
     optional: ['keywords', 'status', 'retired_reason'],
     lists: ['principles', 'sources', 'keywords'],
-    enums: { kind: ACCOUNT_KINDS, basis: BASES, status: ['active', 'retired'] },
+    enums: { kind: NOTE_KINDS, basis: BASES, status: ['active', 'retired'] },
+  },
+  principle: {
+    required: ['type', 'title', 'summary', 'support', 'updated'],
+    optional: ['keywords'],
+    lists: ['keywords'],
+    enums: { support: SUPPORT_KINDS },
   },
   topic: { required: ['type', 'title', 'summary', 'updated'], optional: ['keywords'], lists: ['keywords'], enums: {} },
   domain: { required: ['type', 'title', 'summary'], optional: ['updated'], lists: [], enums: {} },
@@ -52,19 +63,19 @@ const SHAPES: Record<string, Shape> = {
     lists: ['premises', 'topics'],
     enums: { status: IDEA_STATUSES },
   },
-  note: { required: ['type', 'title', 'date'], optional: ['from', 'topic'], lists: [], enums: {} },
+  inbox: { required: ['type', 'title', 'date'], optional: ['from', 'topic'], lists: [], enums: {} },
 };
 
-const LIMITS = { accountMin: 80, accountMax: 1500, summaryMax: 60, topicTokens: 5000, principlesMax: 15, retelling: 0.35 };
+const LIMITS = { noteMin: 80, noteMax: 1500, summaryMax: 60, topicTokens: 5000, principlesMax: 40 };
 
 export type Report = {
   errors: Issue[];
   warnings: Issue[];
   fixed: string[];
   stats: {
-    topics: { path: string; principles: number; accounts: number; words: number; tokens: number }[];
-    sources: { id: string; key: string; status: string; source_words: number; mapped_words: number; unmapped: string; compiled_words: number; ratio: number; accounts: number }[];
-    accounts: number;
+    topics: { path: string; principles: number; notes: number; words: number; tokens: number }[];
+    sources: { id: string; key: string; status: string; source_words: number; mapped_words: number; unmapped: string; principles: number; notes: number }[];
+    notes: number;
     ideas: number;
     inbox: number;
   };
@@ -158,20 +169,50 @@ function linkIssues(lib: Library, doc: Doc, fromTopic: string | undefined, zone:
     const target = resolveLink(lib, link.to, link.anchor, fromTopic);
     const shown = `[[${link.to}${link.anchor ? '#' + link.anchor : ''}]]`;
     if (!target) {
-      add({ level: 'error', code: 'link', line: link.line, message: `${shown} points at nothing. Link an account by its file name, a topic as domain/topic, a principle as domain/topic#principle-id, a source by its id.` });
+      add({ level: 'error', code: 'link', line: link.line, message: `${shown} points at nothing. Link a note by its file name, a topic as domain/topic, a principle as domain/topic#principle-id, a source by its id.` });
       continue;
     }
     if (target.type === 'idea' && zone !== 'idea')
-      add({ level: 'error', code: 'idea-as-evidence', line: link.line, message: `${shown} is an idea. Knowledge never rests on an idea; remove the link, or if the idea has been borne out, write what was learned as an account with its own evidence.` });
-    if (target.type === 'account' && isRetired(target.account) && zone === 'knowledge')
-      add({ level: 'warn', code: 'retired-link', line: link.line, message: `${shown} is retired (${asText(target.account.fm.retired_reason) || 'no reason given'})` });
+      add({ level: 'error', code: 'idea-as-evidence', line: link.line, message: `${shown} is an idea. Knowledge never rests on an idea; remove the link, or if the idea has been borne out, write what was learned as a note with its own evidence.` });
+    if (target.type === 'note' && isRetired(target.note) && zone === 'knowledge')
+      add({ level: 'warn', code: 'retired-link', line: link.line, message: `${shown} is retired (${asText(target.note.fm.retired_reason) || 'no reason given'})` });
     if (link.verb !== 'mentions' && !CONNECTION_VERBS.includes(link.verb))
       add({ level: 'warn', code: 'connection-verb', line: link.line, message: `"${link.verb}" isn't a connection verb. Start each Connections line with one of: ${CONNECTION_VERBS.join(', ')}.` });
   }
 }
 
-function governedBy(lib: Library, topic: Topic, principleId: string): Account[] {
-  return lib.accounts.filter(a => !isRetired(a) && accountPrinciples(a).some(p => (a.topic === topic.path && p === principleId) || p === `${topic.path}#${principleId}`));
+/** A principle file: what it says, why, where it stops, how well its logic holds, and what each source brings to it. */
+function principleIssues(lib: Library, p: Principle, keys: Map<string, string>, add: (i: Omit<Issue, 'file'>) => void) {
+  frontmatterIssues(p, 'principle', add);
+  if (!isSlug(p.id)) add({ level: 'error', code: 'name', message: `"${p.id}" isn't a valid name: use lower-case words joined by hyphens` });
+  linkIssues(lib, p, p.topic, 'knowledge', add);
+  const cited = citationIssues(lib, p, add, true);
+  if (countWords(p.statement) < 6) add({ level: 'error', code: 'principle', message: 'no statement: say the principle in a sentence or two at the top of the file, before the "- **Why:**" line' });
+  if (!p.why) add({ level: 'error', code: 'principle', message: 'no "- **Why:**" line saying what makes it true' });
+  if (!p.breaks) add({ level: 'error', code: 'principle', message: 'no "- **Breaks when:**" line. A principle with no boundary is a slogan; say where it stops holding.' });
+  const todo = p.body.split('\n').findIndex(l => /\bTODO:/.test(l));
+  if (todo >= 0) add({ level: 'error', code: 'principle', line: p.bodyLine + todo, message: 'a TODO placeholder is still here. Open the sources this principle rests on and write the line it stands for.' });
+  if (!p.merit)
+    add({ level: 'error', code: 'principle', message: 'no "- **Merit:**" line. Weigh the reasoning in a sentence or two: does the "because" follow from what the sources show, what is the strongest objection, and where is the support thin?' });
+  if (countWords(p.summary) > LIMITS.summaryMax) add({ level: 'warn', code: 'summary', message: `the summary runs ${countWords(p.summary)} words; it is the principle's line on the topic page, so keep it under ${LIMITS.summaryMax}` });
+  if (!p.evidence.length) add({ level: 'error', code: 'evidence', message: 'no "## Evidence" section. Give each source that bears on this principle an entry headed like "### KEY: states it", saying what it brings and where.' });
+  const entered = new Set<string>();
+  for (const entry of p.evidence) {
+    const where = { line: entry.line };
+    const own = /^(owner|synthesis)$/i.test(entry.key);
+    if (entered.has(entry.key)) add({ level: 'error', code: 'evidence', ...where, message: `two evidence entries for ${entry.key}. A source has one entry per principle; add to the one that is there.` });
+    entered.add(entry.key);
+    if (own) continue;
+    if (!keys.has(entry.key)) {
+      add({ level: 'error', code: 'evidence', ...where, message: `the evidence entry "${entry.key}" isn't a source key in the library (keys: ${[...keys.keys()].join(', ') || 'none'}). Head each entry with a source key, or with "Owner" or "Synthesis".` });
+      continue;
+    }
+    if (!entry.stance)
+      add({ level: 'error', code: 'evidence', ...where, message: `the entry for ${entry.key} doesn't say how the source stands. Head it "### ${entry.key}: states it", or with ${STANCES.slice(1).join(', ')} in place of states.` });
+    if (!entry.cited.includes(entry.key)) add({ level: 'error', code: 'evidence', ...where, message: `the entry for ${entry.key} cites nothing from it. Say what the source brings and where, like [${entry.key} p.12].` });
+    if (countWords(entry.text) < 8) add({ level: 'warn', code: 'evidence', ...where, message: `the entry for ${entry.key} is nearly empty. Say what this source adds: its reasoning, its cases, or where it draws the limit.` });
+  }
+  for (const key of cited) if (!entered.has(key)) add({ level: 'warn', code: 'evidence', message: `the text cites ${key}, but "## Evidence" has no entry for it` });
 }
 
 function ranges(indexes: number[], source: Source): string {
@@ -197,10 +238,10 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
 
   // One namespace for everything a bare [[link]] can name.
   const names = new Map<string, string>();
-  for (const [slug, rel] of [...lib.accounts.map(a => [a.slug, a.rel]), ...lib.ideas.map(i => [i.slug, i.rel]), ...lib.sources.map(s => [s.id, s.rel])] as [string, string][]) {
+  for (const [slug, rel] of [...lib.notes.map(a => [a.slug, a.rel]), ...lib.ideas.map(i => [i.slug, i.rel]), ...lib.sources.map(s => [s.id, s.rel])] as [string, string][]) {
     if (!isSlug(slug)) issues.push({ level: 'error', code: 'name', file: rel, message: `"${slug}" isn't a valid name: use lower-case words joined by hyphens` });
     const earlier = names.get(slug);
-    if (earlier) issues.push({ level: 'error', code: 'duplicate', file: rel, message: `the name "${slug}" is also used by ${earlier}; every account, idea and source needs its own` });
+    if (earlier) issues.push({ level: 'error', code: 'duplicate', file: rel, message: `the name "${slug}" is also used by ${earlier}; every note, idea and source needs its own` });
     else names.set(slug, rel);
   }
   const keys = new Map<string, string>();
@@ -217,61 +258,47 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
     frontmatterIssues(topic, 'topic', add);
     linkIssues(lib, topic, topic.path, 'knowledge', add);
     citationIssues(lib, topic, add, true);
-    const accounts = lib.accounts.filter(a => a.topic === topic.path && !isRetired(a));
+    const notes = lib.notes.filter(a => a.topic === topic.path && !isRetired(a));
     const frame = section(topic.sections, 'Frame');
     if (!frame?.text) add({ level: 'error', code: 'topic', message: `${frame ? 'the "## Frame" section is empty' : 'no "## Frame" section'}: write a few paragraphs on how this subject hangs together` });
-    if (!topic.principles.length) add({ level: accounts.length ? 'error' : 'warn', code: 'topic', message: 'no principles under "## Principles"' });
+    if (!topic.principles.length) add({ level: notes.length ? 'error' : 'warn', code: 'topic', message: 'no principles yet: each one is a file in this topic\'s principles/ folder' });
     if (topic.principles.length > LIMITS.principlesMax)
-      add({ level: 'warn', code: 'topic-size', message: `${topic.principles.length} principles. Past ${LIMITS.principlesMax}, a reader can't hold the page; merge the ones that are cases of another, or split the topic.` });
+      add({ level: 'warn', code: 'topic-size', message: `${topic.principles.length} principles. Near ${LIMITS.principlesMax} a topic usually holds two or three subjects: look for groups of principles that link to each other more than to the rest, and split the topic along them.` });
     const size = tokens(topic.body);
-    if (size > LIMITS.topicTokens) add({ level: 'warn', code: 'topic-size', message: `about ${size} tokens. The topic page is meant to be read whole; move detail into accounts or split the topic.` });
-    const ids = new Set<string>();
-    for (const p of topic.principles) {
-      if (ids.has(p.id)) add({ level: 'error', code: 'principle', line: p.line, message: `two principles are named "${p.title}"` });
-      ids.add(p.id);
-      const where = { line: p.line };
-      if (countWords(p.statement) < 6) add({ level: 'error', code: 'principle', ...where, message: `"${p.title}" has no statement: say the principle in a sentence or two right under its heading` });
-      if (!p.why) add({ level: 'error', code: 'principle', ...where, message: `"${p.title}" has no "- **Why:**" line saying what makes it true` });
-      if (!p.breaks) add({ level: 'error', code: 'principle', ...where, message: `"${p.title}" has no "- **Breaks when:**" line. A principle with no boundary is a slogan; say where it stops holding.` });
-      const heldKeys = (p.heldBy.match(/\b[A-Z][A-Z0-9]{1,11}\b/g) ?? []).filter(k => keys.has(k));
-      if (!heldKeys.length && !/\b(owner|synthesis)\b/i.test(p.heldBy))
-        add({ level: 'error', code: 'principle', ...where, message: `"${p.title}" has no "- **Held by:**" line naming a source key (and whether the source states it or you inferred it)` });
-      const governed = governedBy(lib, topic, p.id);
-      if (governed.length === 0) add({ level: 'error', code: 'principle', ...where, message: `"${p.title}" governs no account. A principle earns its place by explaining specific practices: list its id (${p.id}) under "principles" in the accounts it explains, or drop it.` });
-      else if (governed.length === 1) add({ level: 'warn', code: 'principle', ...where, message: `"${p.title}" governs one account (${governed[0].slug}). If it explains nothing else, it may be that account's point and not a principle.` });
-    }
-    if (accounts.length >= 6 && topic.principles.length < 3)
-      add({ level: 'warn', code: 'topic', message: `${accounts.length} accounts under ${topic.principles.length} principles. What ideas do these accounts share?` });
+    if (size > LIMITS.topicTokens) add({ level: 'warn', code: 'topic-size', message: `about ${size} tokens. The topic page is meant to be read whole; move detail into notes or split the topic.` });
+    for (const p of topic.principles) principleIssues(lib, p, keys, adder(p.rel));
+    if (notes.length >= 6 && topic.principles.length < 3)
+      add({ level: 'warn', code: 'topic', message: `${notes.length} notes under ${topic.principles.length} principles. What ideas do these notes share?` });
   }
 
-  // ---- accounts ----
-  const byTitle: { words: Set<string>; account: Account }[] = [];
-  for (const account of lib.accounts) {
-    const add = adder(account.rel);
-    frontmatterIssues(account, 'account', add);
-    const topic = lib.topics.find(t => t.path === account.topic);
-    linkIssues(lib, account, account.topic, 'knowledge', add);
-    const cited = citationIssues(lib, account, add, true);
-    const listed = new Set(asList(account.fm.sources));
+  // ---- notes ----
+  const byTitle: { words: Set<string>; note: Note }[] = [];
+  for (const note of lib.notes) {
+    const add = adder(note.rel);
+    frontmatterIssues(note, 'note', add);
+    const topic = lib.topics.find(t => t.path === note.topic);
+    linkIssues(lib, note, note.topic, 'knowledge', add);
+    const cited = citationIssues(lib, note, add, true);
+    const listed = new Set(asList(note.fm.sources));
     for (const key of listed) if (!keys.has(key)) add({ level: 'error', code: 'sources', message: `sources lists "${key}", which isn't a source key in the library` });
     for (const key of cited) if (!listed.has(key)) add({ level: 'error', code: 'sources', message: `the text cites ${key} but "sources" doesn't list it; add ${key} to sources` });
     for (const key of listed) if (keys.has(key) && !cited.has(key)) add({ level: 'warn', code: 'sources', message: `sources lists ${key} but nothing in the text cites it with a locator like [${key} p.12]` });
-    const basis = asText(account.fm.basis);
+    const basis = asText(note.fm.basis);
     if (basis === 'source' && cited.size === 0) add({ level: 'error', code: 'citation', message: 'basis is "source" but the text cites nothing. Cite where each specific comes from, like [KEY p.12].' });
-    if (isRetired(account)) continue;
-    for (const p of accountPrinciples(account)) {
-      const [ref, id] = p.includes('#') ? p.split('#') : [account.topic, p];
+    if (isRetired(note)) continue;
+    for (const p of notePrinciples(note)) {
+      const [ref, id] = p.includes('#') ? p.split('#') : [note.topic, p];
       const home = lib.topics.find(t => t.path === ref);
       if (!home?.principles.some(x => x.id === id))
         add({ level: 'error', code: 'principle', message: `principles lists "${p}", but ${ref} has no principle with that id${home ? ` (it has: ${home.principles.map(x => x.id).join(', ') || 'none'})` : ''}` });
     }
-    if (!accountPrinciples(account).length && topic) add({ level: 'warn', code: 'orphan', message: 'no principle governs this account. Which idea on the topic page is it a case of? If none, the page may be missing one.' });
-    const summary = asText(account.fm.summary);
-    if (countWords(summary) > LIMITS.summaryMax) add({ level: 'warn', code: 'summary', message: `the summary runs ${countWords(summary)} words; a reader decides from it whether to open the account, so keep it under ${LIMITS.summaryMax}` });
-    if (account.words < LIMITS.accountMin) add({ level: 'warn', code: 'size', message: `${account.words} words. Too thin to stand alone: fold it into the account it belongs with.` });
-    if (account.words > LIMITS.accountMax) add({ level: 'warn', code: 'size', message: `${account.words} words. Depth is welcome, but at this length check two things: does it hold two ideas a reader would look up separately (split it), and is part of it background any model already has (cut that part).` });
+    if (!notePrinciples(note).length && topic) add({ level: 'warn', code: 'orphan', message: 'this note names no principle. Which principle is it a case of? If none fits, the topic may be missing one.' });
+    const summary = asText(note.fm.summary);
+    if (countWords(summary) > LIMITS.summaryMax) add({ level: 'warn', code: 'summary', message: `the summary runs ${countWords(summary)} words; a reader decides from it whether to open the note, so keep it under ${LIMITS.summaryMax}` });
+    if (note.words < LIMITS.noteMin) add({ level: 'warn', code: 'size', message: `${note.words} words. Too thin to stand alone: fold it into the note it belongs with.` });
+    if (note.words > LIMITS.noteMax) add({ level: 'warn', code: 'size', message: `${note.words} words. Depth is welcome, but at this length check two things: does it hold two ideas a reader would look up separately (split it), and is part of it background any model already has (cut that part).` });
     const words = new Set(
-      asText(account.fm.title)
+      asText(note.fm.title)
         .toLowerCase()
         .split(/[^a-z0-9]+/)
         .filter(w => w.length > 3),
@@ -279,9 +306,9 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
     for (const other of byTitle) {
       const shared = [...words].filter(w => other.words.has(w)).length;
       const union = new Set([...words, ...other.words]).size;
-      if (union >= 4 && shared / union >= 0.7) add({ level: 'warn', code: 'duplicate', message: `the title is close to ${other.account.slug}'s. One idea is held once: merge them, or make the titles say what differs.` });
+      if (union >= 4 && shared / union >= 0.7) add({ level: 'warn', code: 'duplicate', message: `the title is close to ${other.note.slug}'s. One idea is held once: merge them, or make the titles say what differs.` });
     }
-    byTitle.push({ words, account });
+    byTitle.push({ words, note });
   }
 
   // ---- sources ----
@@ -293,21 +320,18 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
     citationIssues(lib, source, add);
     if (!source.units.length) add({ level: 'error', code: 'source', message: 'no extracted text (units.json is missing or empty)' });
     const status = asText(source.fm.status);
-    const citing = lib.accounts.filter(a => !isRetired(a) && asList(a.fm.sources).includes(source.key));
-    const compiledWords = citing.reduce((sum, a) => sum + a.words, 0);
+    const citing = lib.notes.filter(a => !isRetired(a) && asList(a.fm.sources).includes(source.key));
+    const resting = lib.topics.flatMap(t => t.principles).filter(p => p.evidence.some(e => e.key === source.key));
     // What has been read so far is what the map covers. A long source ingested over several sessions is
     // measured against that, never against pages nobody has read yet.
     const covered = new Set<number>();
     for (const entry of source.map) {
       if (entry.from < 0) add({ level: 'error', code: 'map', line: entry.line, message: `the heading "${entry.title}" needs a range the source has at its end, like [${source.units[0] ? unitLabel(source.units[0]) : 'p.1'}-…]` });
       else for (let i = entry.from; i <= entry.to; i++) covered.add(i);
-      if (entry.from >= 0 && countWords(entry.text) < 25) add({ level: 'warn', code: 'map', line: entry.line, message: `the digest under "${entry.title}" is nearly empty` });
+
     }
     const mappedWords = covered.size ? [...covered].reduce((sum, i) => sum + source.units[i].words, 0) : source.sourceWords;
-    // A video's words are not only spoken. What its screen showed reaches the library through the exhibit records,
-    // so those count as source read: accounts that carry a printed table or a chart's notes aren't retelling the speech.
-    const screenWords = covered.size ? countWords(section(source.sections, 'Exhibits')?.text ?? '') : 0;
-    const ratio = mappedWords ? compiledWords / (mappedWords + screenWords) : 0;
+
     const gaps = source.units.map((u, i) => (covered.has(i) || u.flags.includes('blank') ? -1 : i)).filter(i => i >= 0);
     sourceStats.push({
       id: source.id,
@@ -316,12 +340,11 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
       source_words: source.sourceWords,
       mapped_words: covered.size ? mappedWords : 0,
       unmapped: covered.size && gaps.length ? ranges(gaps, source) : '',
-      compiled_words: compiledWords,
-      ratio: Math.round(ratio * 1000) / 1000,
-      accounts: citing.length,
+      principles: resting.length,
+      notes: citing.length,
     });
-    // A recording with a screen: the digests say which frames the reader opened, and the folder shows which were.
-    // A reader that skips the picture writes a fluent digest from the words alone, and nothing else would show it.
+    // A recording with a screen: each map entry says which frames the reader opened, and the folder shows which were.
+    // A reader that skips the picture writes fluently from the words alone, and nothing else would show it.
     const track = screenTrack(source);
     if (track) {
       const looked = framesLooked(source);
@@ -334,7 +357,7 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
         const line = /^\s*[-*]\s+\*\*Frames:\*\*(.*)$/m.exec(entry.text);
         if (!line) {
           if (changes >= 3)
-            add({ level: 'warn', code: 'frames', line: entry.line, message: `the screen changed ${changes} times during "${entry.title}" and its digest has no "- **Frames:**" line. List the frames you opened (like 12:36, 13:02), or write "none" and why.` });
+            add({ level: 'warn', code: 'frames', line: entry.line, message: `the screen changed ${changes} times during "${entry.title}" and its map entry has no "- **Frames:**" line. List the frames you opened (like 12:36, 13:02), or write "none" and why.` });
           continue;
         }
         // "none: …" gives a reason, and a note in brackets explains a frame; neither is a list of frames.
@@ -342,7 +365,7 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
         for (const m of listed.matchAll(/\b(\d{1,2}(?::\d{2}){1,2})\b/g)) {
           const at = parseTime(m[1]);
           if (at !== null && !looked.some(t => Math.abs(t - at) <= 1))
-            add({ level: 'warn', code: 'frames', line: entry.line, message: `the digest under "${entry.title}" lists a frame at ${m[1]}, but no frame near that time was opened. Open it with kf_read view "image" or "screen", or take it off the line.` });
+            add({ level: 'warn', code: 'frames', line: entry.line, message: `the map entry "${entry.title}" lists a frame at ${m[1]}, but no frame near that time was opened. Open it with kf_read view "image" or "screen", or take it off the line.` });
         }
       }
       const kept = keptExhibits(source);
@@ -362,14 +385,13 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
       for (const t of kept)
         if (!recorded.some(at => Math.abs(t - at) < 1)) add({ level: 'warn', code: 'exhibit', message: `a frame at ${formatTime(t)} was kept as an exhibit, but "## Exhibits" has no "### ${formatTime(t)} …" record for it` });
     }
-    if (covered.size && ratio > LIMITS.retelling)
-      add({ level: 'warn', code: 'retelling', message: `accounts citing this source total ${compiledWords} words against the ${mappedWords} words mapped so far${screenWords ? ` and ${screenWords} words of exhibit records` : ''}: ${Math.round(ratio * 100)}%. That is a lot of the source to have kept. Check for retelling: an account explains an idea in full, but it doesn't repeat background any model already has, and the original stays searchable.` });
+
     if (status !== 'compiled') continue;
     const todo = source.body.split('\n').findIndex(l => l.trim().startsWith('TODO:'));
     if (todo >= 0) add({ level: 'error', code: 'source', line: source.bodyLine + todo, message: 'a TODO placeholder is still here; a compiled source has its About, Map and What it changed written' });
-    if (!source.map.length) add({ level: 'error', code: 'map', message: 'no map: under "## Map", one "### Title [p.A-B]" heading per stretch of the source, each with its digest' });
-    if (source.map.length && gaps.length) add({ level: 'error', code: 'map', message: `no digest covers ${ranges(gaps, source)}. Every part of a source is read and mapped, even when the digest says "nothing worth keeping here". A source read only in part keeps status "registered".` });
-    if (!citing.length) add({ level: 'warn', code: 'source', message: 'compiled, but no account lists it as a source. If it added nothing, say so under "What it changed".' });
+    if (!source.map.length) add({ level: 'error', code: 'map', message: 'no map: under "## Map", one "### Title [p.A-B]" heading per stretch of the source, each with a line saying what it covers' });
+    if (source.map.length && gaps.length) add({ level: 'error', code: 'map', message: `no map entry covers ${ranges(gaps, source)}. Every part of a source is read and mapped, even when the entry says "nothing worth keeping here". A source read only in part keeps status "registered".` });
+    if (!citing.length && !resting.length) add({ level: 'warn', code: 'source', message: 'compiled, but no principle has an evidence entry for it and no note lists it as a source. If it added nothing, say so under "What it changed".' });
   }
 
   // ---- ideas ----
@@ -381,69 +403,50 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
     for (const premise of asList(idea.fm.premises)) {
       const [to, anchor = ''] = premise.split('#');
       const target = resolveLink(lib, to, anchor);
-      if (!target || target.type === 'idea') add({ level: 'error', code: 'idea', message: `premise "${premise}" isn't an account or principle in the library. An idea rests on knowledge, named by account file name or domain/topic#principle-id.` });
+      if (!target || target.type === 'idea') add({ level: 'error', code: 'idea', message: `premise "${premise}" isn't a note or principle in the library. An idea rests on knowledge, named by note file name or domain/topic#principle-id.` });
     }
   }
-  for (const note of lib.inbox) frontmatterIssues(note, 'note', adder(note.rel));
+  for (const item of lib.inbox) frontmatterIssues(item, 'inbox', adder(item.rel));
 
   const topicStats = lib.topics.map(t => {
-    const accounts = lib.accounts.filter(a => a.topic === t.path && !isRetired(a));
-    return { path: t.path, principles: t.principles.length, accounts: accounts.length, words: accounts.reduce((s, a) => s + a.words, 0), tokens: tokens(t.body) };
+    const notes = lib.notes.filter(a => a.topic === t.path && !isRetired(a));
+    return { path: t.path, principles: t.principles.length, notes: notes.length, words: notes.reduce((s, a) => s + a.words, 0), tokens: tokens(t.body) };
   });
   return {
     errors: issues.filter(i => i.level === 'error'),
     warnings: issues.filter(i => i.level === 'warn'),
     fixed,
-    stats: { topics: topicStats, sources: sourceStats, accounts: lib.accounts.filter(a => !isRetired(a)).length, ideas: lib.ideas.length, inbox: lib.inbox.length },
+    stats: { topics: topicStats, sources: sourceStats, notes: lib.notes.filter(a => !isRetired(a)).length, ideas: lib.ideas.length, inbox: lib.inbox.length },
   };
 }
 
 // ---- the derived parts ----
 
 const GENERATED = "<!-- Generated by Know Fu from the files around it. Don't edit: it's rebuilt on every check. -->";
+const GENERATED_LIST = '<!-- Generated by Know Fu from the files in principles/ and notes/. Put the lines in the order a reader should meet them; everything else here is rebuilt on every check. -->';
 
-/** Rewrites each principle's Governs line from the accounts that name it, so the topic page's links can't drift. */
-function syncGoverns(lib: Library, topic: Topic): boolean {
-  const lines = readText(topic.file).split('\n');
-  let changed = false;
-  for (const p of topic.principles) {
-    const start = p.line - 1;
-    if (!lines[start]?.startsWith('### ')) continue;
-    let end = start + 1;
-    while (end < lines.length && !/^#{2,3} /.test(lines[end])) end++;
-    const governed = governedBy(lib, topic, p.id)
-      .map(a => a.slug)
-      .sort();
-    const wanted = governed.length ? `- **Governs:** ${governed.map(s => `[[${s}]]`).join(', ')}` : null;
-    let at = -1;
-    for (let i = start + 1; i < end; i++) if (/^\s*[-*]\s+\*\*Governs:?\*\*/.test(lines[i])) at = i;
-    if (at >= 0) {
-      let span = 1;
-      while (at + span < end && /^\s{2,}\S/.test(lines[at + span])) span++;
-      const current = lines.slice(at, at + span).join('\n');
-      if (wanted === null) {
-        lines.splice(at, span);
-        changed = true;
-      } else if (current !== wanted) {
-        lines.splice(at, span, wanted);
-        changed = true;
-      }
-    } else if (wanted) {
-      // After the last field line of the principle, before any trailing blank lines.
-      let insert = end;
-      while (insert > start + 1 && !lines[insert - 1].trim()) insert--;
-      lines.splice(insert, 0, wanted);
-      changed = true;
-    }
-    if (changed) {
-      // Line numbers below this principle have moved; reload and continue from fresh positions.
-      writeText(topic.file, lines.join('\n'));
-      const fresh = loadLibrary(lib.root);
-      const again = fresh.topics.find(t => t.path === topic.path)!;
-      return syncGoverns(fresh, again) || true;
-    }
+/**
+ * Replaces everything under a "## Title" heading, or removes the section when `content` is null.
+ * A missing section is added after the "## after" section, or at the end.
+ */
+export function setSection(text: string, title: string, content: string[] | null, after?: string, marker = GENERATED): string {
+  const lines = text.replace(/\s+$/, '').split('\n');
+  const heads: { at: number; title: string }[] = [];
+  let fenced = false;
+  lines.forEach((line, i) => {
+    if (/^(```|~~~)/.test(line.trim())) fenced = !fenced;
+    if (!fenced && line.startsWith('## ')) heads.push({ at: i, title: line.slice(3).trim().toLowerCase() });
+  });
+  const endOf = (index: number) => heads[index + 1]?.at ?? lines.length;
+  const made = content ? [`## ${title}`, '', marker, '', ...content, ''] : [];
+  const found = heads.findIndex(h => h.title === title.toLowerCase());
+  if (found >= 0) lines.splice(heads[found].at, endOf(found) - heads[found].at, ...made);
+  else if (content) {
+    const anchor = after ? heads.findIndex(h => h.title === after.toLowerCase()) : -1;
+    if (anchor >= 0) lines.splice(endOf(anchor), 0, ...made);
+    else lines.push('', ...made);
   }
-  return changed;
+  return lines.join('\n').replace(/\s+$/, '') + '\n';
 }
 
 function writeIfChanged(file: string, text: string): boolean {
@@ -452,33 +455,33 @@ function writeIfChanged(file: string, text: string): boolean {
   return true;
 }
 
-export function topicIndex(lib: Library, topic: Topic): string {
-  const accounts = lib.accounts.filter(a => a.topic === topic.path && !isRetired(a));
-  const line = (a: Account) => `- [[${a.slug}]] (${asText(a.fm.kind)}): ${asText(a.fm.summary)}`;
-  const out = [GENERATED, '', `# ${asText(topic.fm.title) || topic.slug}: every account`, ''];
-  const placed = new Set<string>();
-  for (const p of topic.principles) {
-    const governed = governedBy(lib, topic, p.id).sort((a, b) => a.slug.localeCompare(b.slug));
-    out.push(`## ${p.title}`, '', `id: \`${p.id}\``, '', p.statement, '');
-    for (const a of governed) {
-      out.push(line(a));
-      placed.add(a.slug);
-    }
-    out.push('');
-  }
-  const rest = accounts.filter(a => !placed.has(a.slug));
-  if (rest.length) out.push('## Under no principle yet', '', ...rest.map(line), '');
-  return out.join('\n');
+const noteLine = (a: Note) => `- [[${a.slug}]] (${asText(a.fm.kind)}): ${asText(a.fm.summary)}`;
+const count = (n: number, one: string, many = one + 's') => `${n} ${n === 1 ? one : many}`;
+
+/** The topic page's list of principles: a line each, in the order the page already had. */
+export function principleList(lib: Library, topic: Topic): string[] {
+  const out = topic.principles.map(p => {
+    const sources = independentSupport(lib, p);
+    const notes = notesUnder(lib, p).length;
+    const summary = p.summary.replace(/\s+/g, ' ').trim();
+    return `- [${p.title}](principles/${p.id}.md): ${summary}${/[.!?]$/.test(summary) ? '' : '.'} (${p.support || 'support not stated'}; ${count(sources, 'independent source')}; ${count(notes, 'note')})`;
+  });
+  if (!out.length) out.push('None yet.');
+  const placed = new Set(topic.principles.flatMap(p => notesUnder(lib, p).map(n => n.slug)));
+  const rest = lib.notes.filter(n => n.topic === topic.path && !isRetired(n) && !placed.has(n.slug));
+  if (rest.length) out.push('', '**Notes under no principle yet:**', '', ...rest.map(noteLine));
+  return out;
 }
+
 
 export function libraryIndex(lib: Library): string {
   const out = [GENERATED, '', '# Library index', ''];
   for (const domain of lib.domains) {
     out.push(`## ${asText(domain.fm.title) || domain.name}`, '', asText(domain.fm.summary), '');
     for (const t of lib.topics.filter(t => t.domain === domain.name)) {
-      const accounts = lib.accounts.filter(a => a.topic === t.path && !isRetired(a));
-      const sources = new Set(accounts.flatMap(a => asList(a.fm.sources)));
-      out.push(`- [${asText(t.fm.title) || t.slug}](knowledge/${t.path}/TOPIC.md) \`${t.path}\`: ${asText(t.fm.summary)} (${t.principles.length} principles, ${accounts.length} accounts, ${sources.size} ${sources.size === 1 ? 'source' : 'sources'})`);
+      const notes = lib.notes.filter(a => a.topic === t.path && !isRetired(a));
+      const sources = new Set(notes.flatMap(a => asList(a.fm.sources)));
+      out.push(`- [${asText(t.fm.title) || t.slug}](knowledge/${t.path}/TOPIC.md) \`${t.path}\`: ${asText(t.fm.summary)} (${t.principles.length} principles, ${notes.length} notes, ${sources.size} ${sources.size === 1 ? 'source' : 'sources'})`);
     }
     out.push('');
   }
@@ -494,9 +497,16 @@ export function libraryIndex(lib: Library): string {
 export function applyFixes(root: string): string[] {
   const fixed: string[] = [];
   let lib = loadLibrary(root);
-  for (const topic of lib.topics) if (syncGoverns(lib, topic)) fixed.push(`${topic.rel}: Governs lines brought in step with the accounts`);
+  for (const topic of lib.topics) {
+    // A topic page from before 0.12 holds its principles as written text. Nothing here may overwrite that.
+    if (topic.legacy) continue;
+    if (writeIfChanged(topic.file, setSection(readText(topic.file), 'Principles', principleList(lib, topic), 'Frame', GENERATED_LIST))) fixed.push(`${topic.rel}: the list of principles rebuilt`);
+    for (const p of topic.principles) {
+      const notes = notesUnder(lib, p).sort((a, b) => a.slug.localeCompare(b.slug));
+      if (writeIfChanged(p.file, setSection(readText(p.file), 'Notes', notes.length ? notes.map(noteLine) : null))) fixed.push(`${p.rel}: the list of notes rebuilt`);
+    }
+  }
   lib = loadLibrary(root);
-  for (const topic of lib.topics) if (writeIfChanged(path.join(topic.dir, '_index.md'), topicIndex(lib, topic))) fixed.push(`knowledge/${topic.path}/_index.md rebuilt`);
   if (writeIfChanged(path.join(root, 'INDEX.md'), libraryIndex(lib))) fixed.push('INDEX.md rebuilt');
   return fixed;
 }
@@ -534,14 +544,14 @@ export function formatReport(report: Report, options: { warnings?: boolean } = {
   if (options.warnings !== false && report.warnings.length) out.push('', `${report.warnings.length} ${report.warnings.length === 1 ? 'warning' : 'warnings'} (judgment calls; fix or leave with a reason):`, ...report.warnings.map(show));
   if (report.fixed.length) out.push('', 'Brought in step:', ...report.fixed.map(f => `- ${f}`));
   out.push('', 'Library:');
-  for (const t of report.stats.topics) out.push(`- ${t.path}: ${t.principles} principles, ${t.accounts} accounts (${t.words} words), topic page about ${t.tokens} tokens`);
+  for (const t of report.stats.topics) out.push(`- ${t.path}: ${t.principles} principles, ${t.notes} notes (${t.words} words), topic page about ${t.tokens} tokens`);
   for (const s of report.stats.sources)
     out.push(
       s.mapped_words
-        ? `- ${s.key} ${s.id} [${s.status}]: ${s.mapped_words} of ${s.source_words} words mapped${s.unmapped ? ` (not yet: ${s.unmapped})` : ''}; ${s.compiled_words} words in ${s.accounts} accounts citing it, ${Math.round(s.ratio * 100)}% of what is mapped`
-        : `- ${s.key} ${s.id} [${s.status}]: ${s.source_words} words, not mapped yet; ${s.compiled_words} words in ${s.accounts} accounts citing it`,
+        ? `- ${s.key} ${s.id} [${s.status}]: ${s.mapped_words} of ${s.source_words} words mapped${s.unmapped ? ` (not yet: ${s.unmapped})` : ''}; evidence for ${count(s.principles, 'principle')}, cited by ${count(s.notes, 'note')}`
+        : `- ${s.key} ${s.id} [${s.status}]: ${s.source_words} words, not mapped yet; evidence for ${count(s.principles, 'principle')}, cited by ${count(s.notes, 'note')}`,
     );
-  if (report.stats.inbox) out.push(`- inbox: ${report.stats.inbox} ${report.stats.inbox === 1 ? 'note' : 'notes'} waiting to be woven in`);
+  if (report.stats.inbox) out.push(`- inbox: ${report.stats.inbox} ${report.stats.inbox === 1 ? 'item' : 'items'} waiting to be woven in`);
   return out.join('\n');
 }
 

@@ -2,7 +2,7 @@
 
 Contents: what you have · what must be true at the end · the order · choosing where to look · reading a frame · speech, screen and inference · the Frames line · exhibits · long recordings.
 
-This guide is for a video where the picture carries content: a chart, a slide, a tool's window. It adds to the ingest guide, which still governs the map, the plan, the accounts and the checks. A talking head needs none of this; say so on its Frames lines and read it as audio.
+This guide is for a video where the picture carries content: a chart, a slide, a tool's window. It adds to the ingest guide, which still governs the map, the plan, the principles, the notes and the checks. A talking head needs none of this; say so on its Frames lines and read it as audio.
 
 ## What you have
 
@@ -15,9 +15,9 @@ The filmstrip is a map made by arithmetic on pixels. It knows nothing about what
 
 ## What must be true at the end
 
-1. Wherever the teaching depended on the picture, the digest for that stretch says what the picture showed, in specifics.
-2. Every digest has a Frames line listing the frames you opened, or saying why none.
-3. Each frame an account's claim rests on is kept as an exhibit, with a record a reader can use without opening it.
+1. Wherever the teaching depended on the picture, what it showed is on record in specifics: in an exhibit record, and in the principle or note that uses it.
+2. Every map entry has a Frames line listing the frames you opened, or saying why none.
+3. Each frame a claim rests on is kept as an exhibit, with a record a reader can use without opening it.
 4. What the speaker said, what the screen showed and what you inferred are told apart.
 
 ## The order
@@ -27,7 +27,7 @@ The order matters here, because each step tells you what the next should spend o
 1. **Read the whole transcript and look at every filmstrip sheet** before you open a single frame at reading size. A sheet costs about what two full frames cost, so seeing all of them is cheap, and it shows you which charts appear, when the speaker returns to one, and where the picture changes while the words say little. You can't ask for what you don't know is there.
 2. **Choose where to look**, stretch by stretch (next section).
 3. **Open the frames in batches**, several calls in one step, in time order, with the transcript for that stretch beside them. Loading frames one at a time costs far more, because each step re-reads everything you have loaded.
-4. **Write each stretch's digest as you finish it**, with its Frames line, so an interruption loses one stretch. These digests are the Map the ingest guide asks for at its second stage; the plan, the accounts and the topic page come after it, as that guide says.
+4. **Write each stretch's map entry as you finish it**: its heading, a line saying what the stretch covers and what the picture carried, and its Frames line. Keep what you read off the frames in a reading-notes file as you go, so an interruption loses one stretch. These entries are the Map the ingest guide asks for at its second stage; the plan, the principles and the notes come after it, as that guide says.
 
 One reader takes a whole recording, because a lesson sets up at minute five what it pays off at minute forty.
 
@@ -51,26 +51,26 @@ Say how each number was read: **printed** when it is text on the screen (an axis
 
 When a detail is in doubt, crop it with `box`. Choose the box from the frame at reading size, not from a filmstrip thumbnail, where a guess easily lands on the wrong region. Small text, a price digit, whether a candle's wick or its body crossed a line, a thin or faint line: these are read from the crop, never guessed from the full frame. A webcam box, subtitles or a pop-up can cover part of the picture, so a mark missing under one is not a mark that isn't there.
 
-A mark on one chart is a case. It becomes a rule only when the speaker states it as one, or when several cases agree, and the account says which.
+A mark on one chart is a case. It becomes a rule only when the speaker states it as one, or when several cases agree, and what you write says which. A principle shown only on charts the speaker chose has `worked cases` as its support, however sure the speaker sounds.
 
 ## Speech, screen and inference
 
-Keep them apart in the digest and the accounts: what the speaker **said** (cite the sentence's time, `[KEY 12:31]`), what the screen **showed** (cite the frame's time with the word screen, `[KEY 12:36 screen]`), and what you **inferred** from the two. Words printed on the screen, such as a legend, a note on the chart or a label, can be quoted in double quotes before a screen citation. The checker can't read pixels, so it checks that a frame at that time was opened, and for a citation in an account or on the topic page it asks that the frame be kept. A projection drawn past the last candle is a forecast, not a result. When the audio and the picture disagree, give both and say which you could verify.
+Keep them apart in everything you write: what the speaker **said** (cite the sentence's time, `[KEY 12:31]`), what the screen **showed** (cite the frame's time with the word screen, `[KEY 12:36 screen]`), and what you **inferred** from the two. Words printed on the screen, such as a legend, a note on the chart or a label, can be quoted in double quotes before a screen citation. The checker can't read pixels, so it checks that a frame at that time was opened, and for a citation in a principle, a note or a topic page it asks that the frame be kept. A projection drawn past the last candle is a forecast, not a result. When the audio and the picture disagree, give both and say which you could verify.
 
 ## The Frames line
 
-End each digest with one:
+End each map entry with one:
 
 ```
 - **Frames:** 12:36, 13:02, 14:10 (crop of the price axis)
 - **Frames:** none: the speaker is on camera for this whole stretch
 ```
 
-List each frame by the time the tool gave it, which for `view: "screen"` is the time of the frame and not of the sentence. A note in brackets after a time is fine. `kf_check` compares the line with what happened. It warns when the screen changed three or more times in a stretch whose digest has no Frames line, and when the line names a frame that was never made. It can tell that a frame was made, not that it was looked at: `view: "screen"` often makes two, so list only the ones you read. The line is how the owner can tell a stretch that was looked at from one that was written from the words alone.
+List each frame by the time the tool gave it, which for `view: "screen"` is the time of the frame and not of the sentence. A note in brackets after a time is fine. `kf_check` compares the line with what happened. It warns when the screen changed three or more times in a stretch whose map entry has no Frames line, and when the line names a frame that was never made. It can tell that a frame was made, not that it was looked at: `view: "screen"` often makes two, so list only the ones you read. The line is how the owner can tell a stretch that was looked at from one that was written from the words alone.
 
 ## Exhibits
 
-When a claim in an account rests on what a frame shows, keep the frame: `kf_source` with `action: "keep"`, the source key and the time. With `box` it keeps that crop and the frame it was cut from. A kept frame stays in the source's `exhibits` folder. Every other frame is a cache that can be cleared, and a video file over 300 MB is left where it was and not copied into the library, so a kept frame is the only picture sure to be there later.
+When a claim in a principle or a note rests on what a frame shows, keep the frame: `kf_source` with `action: "keep"`, the source key and the time. With `box` it keeps that crop and the frame it was cut from. A kept frame stays in the source's `exhibits` folder. Every other frame is a cache that can be cleared, and a video file over 300 MB is left where it was and not copied into the library, so a kept frame is the only picture sure to be there later.
 
 Then write its record on the source page, under `## Exhibits`:
 
@@ -85,8 +85,8 @@ Then write its record on the source page, under `## Exhibits`:
 
 (The example is invented to show the shape.) Write the record so a reader who never opens the image still has its content. One record covers a moment: the frame and any crops kept from it, so name each crop's region in the record.
 
-Say each thing once. Text read off the screen word for word, such as a table or the notes on a chart, lives in the exhibit record. The digest for that stretch says the exhibit exists and what it is for. The account states the idea, gives the few values it needs, and cites the moment. Copying a table into the map, the record and an account makes three copies that drift apart when one is edited, and it is how a twenty-minute lesson turns into a library longer than its transcript. `kf_check` counts the words in exhibit records as source that was read, so what the screen showed doesn't count against the accounts as retelling; repeating it does. In accounts, cite the moment as `[KEY 12:36 screen]`; `kf_read` with `view: "image"` at that time returns the kept frame. Keep the few frames that carry a claim, not every frame you opened.
+Say each thing once. Text read off the screen word for word, such as a table or the notes on a chart, lives in the exhibit record. The principle or note states the idea, gives the few values it needs, and cites the moment. Copying a table into the record and a note makes two copies that drift apart when one is edited. Cite the moment as `[KEY 12:36 screen]`; `kf_read` with `view: "image"` at that time returns the kept frame. Keep the few frames that carry a claim, not every frame you opened.
 
 ## Long recordings
 
-Past about forty minutes, or about two hundred filmstrip frames, one context holds the frames poorly. Split the recording by its own chapters across readers, as the ingest guide describes for a long book. Give each reader the whole transcript and its own span of frames, and keep the plan and the topic page for yourself.
+Past about forty minutes, or about two hundred filmstrip frames, one context holds the frames poorly. Split the recording by its own chapters across readers, as the ingest guide describes for a long book. Give each reader the whole transcript and its own span of frames, and keep the plan, the principles and the topic page for yourself.

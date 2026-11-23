@@ -40,7 +40,7 @@ try {
     '',
     blocks.join('\n\n'),
     '',
-    'Each principle has accounts under it with the specifics (numbers, steps, cases, page citations). Before work that leans on a topic, load its full page with the Know Fu tool kf_brief (topic path); for a specific question use kf_recall. The tools are open in this project without invoking the skill.',
+    'Each principle has its own file (its reasoning, its limits, how well it stands up and what each source brings) and notes under it with the specifics (numbers, steps, cases, page citations). Before work that leans on a topic, load its full page with the Know Fu tool kf_brief (topic path); for a specific question use kf_recall. The tools are open in this project without invoking the skill.',
   ].join('\n');
   // Claude Code caps injected context at 10,000 characters and swaps anything longer for a file preview.
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: text.slice(0, 9500) } }));

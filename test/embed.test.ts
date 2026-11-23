@@ -55,13 +55,13 @@ async function withEmbedder(work: (fx: Awaited<ReturnType<typeof builtLibrary>>,
 test('a check embeds the compiled layer once, and again only for what changed', async () => {
   await withEmbedder(async (fx, counter) => {
     const first = (await runTool('kf_check', {})).text;
-    // 2 principles, 3 accounts, 1 topic frame. Source pages are left to keyword search.
-    assert.match(first, /semantic search: 6 principles, accounts and topics embedded \(6 new or changed\)/);
+    // 2 principles, 3 notes, 1 topic frame. Source pages are left to keyword search.
+    assert.match(first, /semantic search: 6 principles, notes and topics embedded \(6 new or changed\)/);
     assert.equal(counter.texts, 6);
     const second = (await runTool('kf_check', {})).text;
-    assert.match(second, /semantic search: 6 principles, accounts and topics embedded\n|embedded$/);
+    assert.match(second, /semantic search: 6 principles, notes and topics embedded\n|embedded$/);
     assert.equal(counter.texts, 6, 'nothing is sent twice');
-    const file = path.join(fx.root, 'knowledge/ceramics/wood-firing/accounts/body-reduction-window.md');
+    const file = path.join(fx.root, 'knowledge/ceramics/wood-firing/notes/body-reduction-window.md');
     fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('Reduction has a price in temperature.', 'Reduction costs temperature.'));
     assert.match((await runTool('kf_check', {})).text, /\(1 new or changed\)/);
     assert.equal(counter.texts, 7);
@@ -72,7 +72,7 @@ test('a check embeds the compiled layer once, and again only for what changed', 
 test('a question in other words is answered by meaning, and says so', async () => {
   await withEmbedder(async fx => {
     await runTool('kf_check', {});
-    // None of the question's distinctive words are in the library; its meaning is the hold account's.
+    // None of the question's distinctive words are in the library; its meaning is the hold note's.
     const question = 'pause at the top so the temperature can equalize';
     const config = JSON.parse(fs.readFileSync(fx.config, 'utf8'));
     const { embedder, ...plain } = config;
@@ -94,7 +94,7 @@ test('a near match in meaning that is not close enough is offered as a lead, nev
     const lead = (await runTool('kf_recall', { query: 'pause at the top so the temperature can equalize' })).text;
     assert.match(lead, /Nothing in the compiled library clearly answers this/);
     assert.match(lead, /## Closest in meaning \(a lead to follow, not an answer\)[\s\S]*hold-at-cone-9/);
-    assert.doesNotMatch(lead, /## Accounts\n/);
+    assert.doesNotMatch(lead, /## Notes\n/);
   });
 });
 

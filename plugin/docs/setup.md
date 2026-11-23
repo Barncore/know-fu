@@ -86,7 +86,7 @@ All in `~/.know-fu/config.json`. Set `KNOW_FU_CONFIG` to use a different file.
 
 ### Semantic search
 
-Keyword search works with no setup. To also find accounts by meaning, which helps most when a question uses different words from the library or comes from another field, add an OpenAI-compatible embeddings endpoint:
+Keyword search works with no setup. To also find notes by meaning, which helps most when a question uses different words from the library or comes from another field, add an OpenAI-compatible embeddings endpoint:
 
 ```json
 "embedder": {
@@ -96,7 +96,7 @@ Keyword search works with no setup. To also find accounts by meaning, which help
 }
 ```
 
-`api_key_env` names an environment variable as an alternative to a file, and a local server such as Ollama needs no key. The next `kf_check` in the home session sends each principle, account and topic frame to that endpoint and stores the vectors in the library's `.knowfu` folder; after that only new or changed ones are sent. Each recall sends the question. Source text is never sent. `min_similarity` (default 0.74, measured on one hosted model) is how close a match must be before recall trusts meaning alone; set it per model. Remove the `embedder` block to turn it off.
+`api_key_env` names an environment variable as an alternative to a file, and a local server such as Ollama needs no key. The next `kf_check` in the home session sends each principle, note and topic frame to that endpoint and stores the vectors in the library's `.knowfu` folder; after that only new or changed ones are sent. Each recall sends the question. Source text is never sent. `min_similarity` (default 0.74, measured on one hosted model) is how close a match must be before recall trusts meaning alone; set it per model. Remove the `embedder` block to turn it off.
 
 ### Audio and video
 

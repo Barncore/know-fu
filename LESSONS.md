@@ -2,6 +2,14 @@
 
 Things this project learned the hard way, newest first. Each one says what happened and what to do differently.
 
+## 2026-11-24 - A number that describes becomes a number to hit
+
+The checker printed words written against words read and warned above 35%. The guide said to read it "as a description and never as a target". In the first real video test one reader trimmed a good account to get under it, and the other shipped at 74% and ignored it. Neither outcome was the point: the retelling the number was meant to catch is writing that follows the source's order and voice, and a short text can do that. 0.5 had the same problem with evidence levels, which came out "moderate" 91% of the time. When the thing you care about is a judgment, teach the judgment in the guide with an example and let the reader make it. A number beside it will be aimed at, whatever the prose says.
+
+## 2026-11-24 - Read the project's earlier versions before outside prior art
+
+Asked how the library should judge the quality of what it takes in, the agent sent a subagent to skim three outside projects and proposed a second reader that audits every ingest against eight questions. The owner refused it. The answer he wanted was already in this repository: 0.5's note guide had a kind-of-support field with a one-line reason, chosen after a review of eight tools, and the 0.6 rebuild had dropped it without listing it. `git show v0.5.0:plugin/docs/lineage.md` took minutes to read. For any design question here, read the earlier versions' own guides first, yourself and in full.
+
 ## 2026-11-23 - A rebuild lists what it removes, capability by capability
 
 The owner asked for the 0.5 design to be assessed and improved. The 0.6 rebuild read "improve" as "make lighter", adopted "no installed dependencies" as a rule of its own, and wrote that rule into the north star's commitments as if the owner had set it. The rebuild record listed the machinery it dropped. It didn't list the capability that went with it: scene-change frames with a frame at least every 20 seconds, a crop from the native frame, contact sheets, padded audio chunks, word-level timestamps, a second transcription model, and OCR for scanned PDFs. The blind comparison tested book questions only, so nothing showed the loss. The owner found it two weeks later when he came back to video.

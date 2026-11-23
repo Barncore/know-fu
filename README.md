@@ -8,7 +8,7 @@
 
 **Feed your AI books, papers and videos. Get back a collaborator that knows the subject.**
 
-Know Fu is a local research library for an AI coding agent such as Claude Code or Codex. You hand it a source of specialist knowledge. The agent reads all of it and compiles what it learned into a library of plain Markdown: a page of principles for each subject, accounts that hold the specifics, and the original text kept searchable underneath. The next source doesn't get filed beside the first. It revises what's already there, so the library gets sharper as it grows.
+Know Fu is a local research library for an AI coding agent such as Claude Code or Codex. You hand it a source of specialist knowledge. The agent reads all of it and compiles what it learned into a library of plain Markdown: a front page for each subject that lists its principles, a file for each principle that says why it holds and how far to trust it, notes that hold the specifics, and the original text kept searchable underneath. The next source doesn't get filed beside the first. It revises what's already there, so the library gets sharper as it grows.
 
 Later, when you're building something (a tool, a strategy, a course, an invention), the agent loads the subject's principles and works from them, fetching a number, a procedure or a worked case when a decision needs one.
 
@@ -20,11 +20,13 @@ The model's weights never change. What changes is what it can reach, and how wel
 
 Three things decide whether a library makes an AI better at a subject, and Know Fu is built around them.
 
-**Store what the model doesn't already know.** A frontier model knows what a compressor is and what overfitting means. What it lacks from a specialist source is the author's frame, the claims that surprise, the numbers, the conditions where the usual advice breaks, and the worked cases. An ingest keeps those and leaves the rest in the source, which stays one search away. This is about what goes in, not about brevity: an account can run as long as its idea needs. What stays short is the page of principles.
+**Store what the model doesn't already know.** A frontier model knows what a compressor is and what overfitting means. What it lacks from a specialist source is the author's frame, the claims that surprise, the numbers, the conditions where the usual advice breaks, and the worked cases. An ingest keeps those and leaves the rest in the source, which stays one search away. This is about what goes in, not about brevity: a note can run as long as its idea needs. What stays short is the page of principles.
 
-**Organize by principle.** An expert sorts a problem by the principle that governs it, and can work out what to do in a case no book covered. So every topic has one page, small enough to read whole, that states the subject's principles: what each one says, why it's true, where it breaks, and which accounts are cases of it. That page is what the agent loads first.
+**Organize by principle.** An expert sorts a problem by the principle that governs it, and can work out what to do in a case no book covered. So every topic has a front page, small enough to read whole, that frames the subject and lists its principles in a line each. Each principle has its own file: what it says, why it's true, where it breaks, what each source brings to it, and which notes rest on it. The front page is what the agent loads first.
 
-**Hold each idea once, and revise it.** An account is one idea (a mechanism, a method, a case, a reference table, a debate), cited to the page. When a second source speaks to the same idea, the account is revised and both sources are listed on it. When two sources disagree, both stay, with an account of what separates them. That is how a library compounds.
+**Hold each idea once, and add to it.** When a second source speaks to an idea the library holds, it goes into that principle's file as a new evidence entry, and the principle is sharpened in place. When two sources disagree, both stay, with a note of what separates them. A note is one piece of detail behind the principles (a mechanism, a method, a case, a reference table, a debate, a definition), cited to the page. That is how a library compounds.
+
+**Weigh what goes in.** A library that repeats its sources hands over a teacher's confident assertion looking the same as a tested result. So as each principle is written, the agent judges its logic the way a sharp colleague would: does the reason follow, what is the strongest objection, where is the support thin. The principle carries that in a Merit line, names the kind of support it has (from a review of studies down to a bare assertion), and the front page shows how many independent sources hold it.
 
 ## How it works
 
@@ -32,10 +34,10 @@ Three things decide whether a library makes an AI better at a subject, and Know 
 flowchart LR
   S[Book, paper, video] --> X[Engine: extract text into citable pages]
   X --> R[Agent reads it all and maps it]
-  R --> P[Plan: which principles, which accounts, new or revised]
+  R --> P[Plan: each idea goes into an existing principle, or becomes a new principle or note]
   P --> W[Agent writes and revises Markdown files]
   W --> C[Engine: check links, citations, quotes, principles]
-  C --> L[(Library: topic pages, accounts, sources, git history)]
+  C --> L[(Library: topic pages, principles, notes, sources, git history)]
   L --> B[kf_brief: a topic's principles]
   L --> Q[kf_recall: answer material for a question]
   L --> O[kf_read: the original pages]
@@ -50,7 +52,8 @@ The library is a folder of Markdown files, and the files are the library. You ca
 library/
   INDEX.md
   knowledge/audio/mixing/TOPIC.md           the subject's frame and principles
-  knowledge/audio/mixing/accounts/*.md      one idea each, cited to pages
+  knowledge/audio/mixing/principles/*.md    one principle each: why, limits, merit, evidence
+  knowledge/audio/mixing/notes/*.md         the detail behind them, cited to pages
   sources/<id>/source.md                    a map of the source, and what it changed
   sources/<id>/text.txt                     the extracted text, by page
   ideas/                                    candidate inventions, kept apart from evidence
@@ -70,12 +73,12 @@ Know Fu runs when you invoke it: `/know-fu:know-fu` in Claude Code, `$know-fu` i
 |---|---|
 | `kf_status` | The library's location and contents, and what this session may do |
 | `kf_brief` | What the library covers, or one topic's frame and principles |
-| `kf_recall` | For a question: the principles in play, the best accounts in full, what disputes them, and where the sources speak to it |
-| `kf_read` | One account, principle or source page in full, including page images and video frames |
+| `kf_recall` | For a question: the principles in play, the best notes in full, what disputes them, and where the sources speak to it |
+| `kf_read` | One principle, note or source page in full, including page images and video frames |
 | `kf_connect` | How two ideas link |
 | `kf_source` | Register a source and extract its text |
 | `kf_check` | Check the whole library, bring derived parts in step, commit |
-| `kf_note` | Save something worth keeping from any project to the library's inbox |
+| `kf_inbox` | Save something worth keeping from any project to the library's inbox |
 | `kf_pin` | Pin a topic to a project |
 
 ## Getting started
@@ -110,6 +113,6 @@ The ideas come from Karpathy's LLM Wiki, Ars Contexta's Reweave, research on how
 
 ## Boundaries
 
-Ingesting a source isn't fine-tuning, and a library isn't expertise by itself: it is the footing for it. A link between two accounts is a recorded connection, not proof. Research memory stays separate from operational or project memory, which belongs in a different tool.
+Ingesting a source isn't fine-tuning, and a library isn't expertise by itself: it is the footing for it. A link between two notes is a recorded connection, not proof. Research memory stays separate from operational or project memory, which belongs in a different tool.
 
 The code is released under the [MIT licence](LICENSE). The README animation is third-party film imagery that the licence doesn't cover; see its [provenance note](assets/README.md). Your library, sources and credentials are never part of the repository.

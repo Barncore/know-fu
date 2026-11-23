@@ -82,21 +82,8 @@ A firing is three decisions made in order: how much heat work the ware gets, wha
 
 ## Principles
 
-### Heat work matures ware
-
-Ware matures by temperature held over time, so the schedule matters as much as the peak.
-
-- **Why:** glaze and body reactions need time at temperature, and a cone measures both together.
-- **Breaks when:** the chamber is so uneven that no single schedule suits every shelf.
-- **Held by:** WKH (stated, s.2)
-
-### Atmosphere decides colour
-
-What the flame takes from or gives to the ware sets its colour, and only while the body is still open.
-
-- **Why:** a starved flame pulls oxygen out of metal oxides in clay and glaze.
-- **Breaks when:** the body has sealed, after which atmosphere changes little.
-- **Held by:** WKH (stated, s.3)
+- [Heat work matures ware](principles/heat-work-matures-ware.md)
+- [Atmosphere decides colour](principles/atmosphere-decides-colour.md)
 
 ## Tensions
 
@@ -107,9 +94,58 @@ What the flame takes from or gives to the ware sets its colour, and only while t
 - Does a short hold of ten minutes keep the ash runs?
 `;
 
-export const ACCOUNTS: Record<string, string> = {
+export const PRINCIPLES: Record<string, string> = {
+  'heat-work-matures-ware': `---
+type: principle
+title: Heat work matures ware
+summary: Ware matures by temperature held over time, so the schedule matters as much as the peak, until the chamber is too uneven for one schedule.
+support: reasoned argument
+updated: 2026-11-10
+---
+# Heat work matures ware
+
+Ware matures by temperature held over time, so the schedule matters as much as the peak.
+
+- **Why:** glaze and body reactions need time at temperature, and a cone measures both together.
+- **Breaks when:** the chamber is so uneven that no single schedule suits every shelf.
+- **Merit:** the reason follows from how a cone works, which any potter can watch. The handbook measures nothing, and a speaker who stops at cone 9 shows that maturity is not the only goal a firing can have.
+
+## Evidence
+
+### WKH: states it
+
+The handbook gives the mechanism and the practice that follows from it: a slow climb to a lower peak can mature a glaze that a fast climb leaves raw, which is why potters read cones [WKH s.2].
+
+### ATK: qualifies it
+
+The talk accepts the mechanism and refuses the conclusion that every shelf must mature: its speaker stops when cone 9 is flat at the front and takes an uneven chamber as part of the work [ATK 1:10].
+`,
+  'atmosphere-decides-colour': `---
+type: principle
+title: Atmosphere decides colour
+summary: What the flame takes from or gives to the ware sets its colour, but only while the body is still open.
+support: bare assertion
+updated: 2026-11-10
+---
+# Atmosphere decides colour
+
+What the flame takes from or gives to the ware sets its colour, and only while the body is still open.
+
+- **Why:** a starved flame pulls oxygen out of metal oxides in clay and glaze.
+- **Breaks when:** the body has sealed, after which atmosphere changes little.
+- **Merit:** the chemistry is standard and the handbook only asserts it. The claim that nothing changes after sealing is stronger than its one sentence of support.
+
+## Evidence
+
+### WKH: states it
+
+Copper turns red and iron bodies grey only in reduction, and the window closes when the body seals [WKH s.3].
+`,
+};
+
+export const NOTES: Record<string, string> = {
   'hold-at-cone-9': `---
-type: account
+type: note
 kind: method
 title: Hold forty minutes once cone 9 bends
 summary: A forty minute hold at cone 9 evens a chamber that can differ by two cones front to back.
@@ -127,7 +163,7 @@ The handbook's instruction is exact: "Hold the kiln for forty minutes once cone 
 - see also [[body-reduction-window]]
 `,
   'body-reduction-window': `---
-type: account
+type: note
 kind: mechanism
 title: Body reduction only works before the body seals
 summary: Start body reduction at cone 010 and hold it an hour; later than that the body has sealed and colour never develops.
@@ -145,7 +181,7 @@ Reduction has a price in temperature. A reducing flame is cooler, and each hour 
 - depends on [[wood-firing#atmosphere-decides-colour]]
 `,
   'hold-or-stop-at-cone-9': `---
-type: account
+type: note
 kind: debate
 title: Hold at cone 9, or stop stoking when it falls
 summary: The handbook holds forty minutes for an even chamber; the Ash talk stops at cone 9 flat to keep ash runs, and places needy glazes near the firebox instead.
@@ -162,7 +198,7 @@ Two sources give opposite instructions for the same moment, and they disagree ab
 `,
 };
 
-/** A library with one topic, two sources and three accounts that passes the checker. */
+/** A library with one topic, two sources, two principles and three notes that passes the checker. */
 export async function builtLibrary(): Promise<Fixture & { handbook: string; talk: string }> {
   const fx = freshLibrary();
   const handbook = write(fx.dir, 'handbook.md', HANDBOOK);
@@ -172,11 +208,12 @@ export async function builtLibrary(): Promise<Fixture & { handbook: string; talk
   scaffold(fx.root, 'ceramics/wood-firing', 'Wood firing', 'Firing stoneware in a wood kiln.');
   write(fx.root, 'knowledge/ceramics/DOMAIN.md', '---\ntype: domain\ntitle: Ceramics\nsummary: Making and firing pottery.\nupdated: 2026-11-10\n---\n# Ceramics\n');
   write(fx.root, 'knowledge/ceramics/wood-firing/TOPIC.md', TOPIC);
-  for (const [slug, text] of Object.entries(ACCOUNTS)) write(fx.root, `knowledge/ceramics/wood-firing/accounts/${slug}.md`, text);
+  for (const [id, text] of Object.entries(PRINCIPLES)) write(fx.root, `knowledge/ceramics/wood-firing/principles/${id}.md`, text);
+  for (const [slug, text] of Object.entries(NOTES)) write(fx.root, `knowledge/ceramics/wood-firing/notes/${slug}.md`, text);
   compileSource(fx.root, 'venn-the-wood-kiln-handbook', [
     ['Front matter and heat work [s.1-2]', 'Heat work, not peak temperature, matures ware; cones measure it. Gives the forty minute hold at cone 9 and the two-cone spread across the chamber.'],
     ['Reduction [s.3]', 'How a starved flame changes colour, the cone 010 start for body reduction and its one hour length, and the thirty degrees an hour that reduction costs.'],
-    ['Cooling [s.4]', 'Slow cooling between 1000 and 800 for matte glazes, crash cooling for gloss, and the damper rule below 600. Not yet compiled into accounts in this fixture.'],
+    ['Cooling [s.4]', 'Slow cooling between 1000 and 800 for matte glazes, crash cooling for gloss, and the damper rule below 600. Not yet compiled into notes in this fixture.'],
   ]);
   compileSource(fx.root, 'carrow-against-the-long-hold', [['The whole talk [0:01-4:00]', 'Argues against the long hold: it flattens ash runs. Stop when cone 9 is flat at the front and place needy glazes near the firebox.']]);
   return { ...fx, handbook, talk };
@@ -199,7 +236,7 @@ export function compileSource(root: string, id: string, map: [string, string][])
     ...map.flatMap(([heading, digest]) => [`### ${heading}`, '', digest, '']),
     '## What it changed',
     '',
-    'It supplied the accounts in this fixture.',
+    'It supplied the notes in this fixture.',
     '',
   ].join('\n');
   fs.writeFileSync(file, head + '\n' + body);

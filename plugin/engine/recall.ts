@@ -4,8 +4,8 @@ import path from 'node:path';
 import type { Config } from './config.ts';
 import type { Semantic } from './embed.ts';
 import { asList, asText } from './frontmatter.ts';
-import { accountBySlug, accountPrinciples, isRetired, resolveLink, topicByPath } from './library.ts';
-import type { Account, Library, Principle, Topic } from './library.ts';
+import { independentSupport, noteBySlug, notePrinciples, notesUnder, isRetired, resolveLink, sourceByKey, topicByPath } from './library.ts';
+import type { Note, Library, Principle, Topic } from './library.ts';
 import { search } from './search.ts';
 import type { Hit } from './search.ts';
 import { findSource, readUnits, viewUnit } from './sources.ts';
@@ -34,7 +34,7 @@ export function compactTopic(topic: Topic, limit = 2600): string {
   const opening = topic.frame.split(/\n\s*\n/)[0]?.trim();
   if (opening) out.push('', opening);
   out.push('', 'Principles:');
-  for (const p of topic.principles) out.push(`- **${p.title}.** ${firstSentence(p.statement)}`);
+  for (const p of topic.principles) out.push(`- **${p.title}.** ${p.summary || firstSentence(p.statement)}`);
   let text = out.join('\n');
   if (text.length > limit) text = text.slice(0, limit).replace(/\n[^\n]*$/, '') + '\n- …';
   return text;
@@ -43,18 +43,18 @@ export function compactTopic(topic: Topic, limit = 2600): string {
 export function brief(lib: Library, topicRef?: string): string {
   if (topicRef) {
     const topic = requireTopic(lib, topicRef);
-    const accounts = lib.accounts.filter(a => a.topic === topic.path && !isRetired(a));
-    const sources = [...new Set(accounts.flatMap(a => asList(a.fm.sources)))];
+    const notes = lib.notes.filter(a => a.topic === topic.path && !isRetired(a));
+    const sources = [...new Set([...topic.principles.flatMap(p => p.evidence.map(e => e.key)).filter(key => sourceByKey(lib, key)), ...notes.flatMap(a => asList(a.fm.sources))])];
     return [
       `# ${asText(topic.fm.title) || topic.slug} (\`${topic.path}\`)`,
       '',
-      `${asText(topic.fm.summary)} Updated ${asText(topic.fm.updated)}; ${topic.principles.length} principles, ${accounts.length} accounts, sources: ${sources.join(', ') || 'none'}.`,
+      `${asText(topic.fm.summary)} Updated ${asText(topic.fm.updated)}; ${topic.principles.length} principles, ${notes.length} notes, sources: ${sources.join(', ') || 'none'}.`,
       '',
       // The page's own title line repeats the heading above.
       topic.body.trim().replace(/^# .*\n+/, ''),
       '',
       '---',
-      `This page is the frame. For a specific question, kf_recall with topic "${topic.path}". For one account in full, kf_read with its name from a Governs line. For every account with its one-line gist, kf_read ref "${topic.path}/_index".`,
+      `This page is the frame and the list of principles. For one principle in full (its reasoning, its limits, what each source brings and the notes under it), kf_read ref "${topic.path}#<id>", where the id is the file name in its link. For a note, kf_read with its name. For a specific question, kf_recall with topic "${topic.path}".`,
     ].join('\n');
   }
   const out = ['# Know Fu library', ''];
@@ -62,14 +62,14 @@ export function brief(lib: Library, topicRef?: string): string {
   for (const domain of lib.domains) {
     out.push(`## ${asText(domain.fm.title) || domain.name}`, '', asText(domain.fm.summary), '');
     for (const t of lib.topics.filter(t => t.domain === domain.name)) {
-      const accounts = lib.accounts.filter(a => a.topic === t.path && !isRetired(a));
-      out.push(`- \`${t.path}\`: ${asText(t.fm.summary)} (${t.principles.length} principles, ${accounts.length} accounts)`);
+      const notes = lib.notes.filter(a => a.topic === t.path && !isRetired(a));
+      out.push(`- \`${t.path}\`: ${asText(t.fm.summary)} (${t.principles.length} principles, ${notes.length} notes)`);
     }
     out.push('');
   }
   if (lib.sources.length) out.push(`Sources: ${lib.sources.map(s => `${s.key} (${asText(s.fm.title)}${asText(s.fm.status) === 'compiled' ? '' : ', ' + asText(s.fm.status)})`).join('; ')}.`);
   if (lib.ideas.length) out.push(`Ideas on file: ${lib.ideas.length}.`);
-  if (lib.inbox.length) out.push(`Inbox: ${lib.inbox.length} saved ${lib.inbox.length === 1 ? 'note' : 'notes'} not yet woven in.`);
+  if (lib.inbox.length) out.push(`Inbox: ${lib.inbox.length} saved ${lib.inbox.length === 1 ? 'item' : 'items'} not yet woven in.`);
   out.push('', 'Next: kf_brief with a topic path loads that topic\'s frame and principles. kf_recall answers a specific question.');
   return out.join('\n');
 }
@@ -81,19 +81,19 @@ export type RecallOptions = {
   topic?: string;
   /** Approximate token budget for the whole briefing. */
   budget?: number;
-  /** "accounts" loads the best accounts whole; "gists" returns one line each, to choose from. */
-  load?: 'accounts' | 'gists';
-  /** Account names the caller already holds; they are listed, not loaded again. */
+  /** "notes" loads the best notes whole; "gists" returns one line each, to choose from. */
+  load?: 'notes' | 'gists';
+  /** Note names the caller already holds; they are listed, not loaded again. */
   seen?: string[];
   ideas?: boolean;
 };
 
 type Ranked = { hit: Hit; score: number };
 
-function rank(lib: Library, queries: string[], topic: string | undefined, ideas: boolean, semantic?: Semantic | null): { accounts: Ranked[]; principles: Ranked[]; ideaHits: Ranked[] } {
+function rank(lib: Library, queries: string[], topic: string | undefined, ideas: boolean, semantic?: Semantic | null): { notes: Ranked[]; principles: Ranked[]; ideaHits: Ranked[] } {
   const merged = new Map<string, Ranked>();
   for (const query of queries) {
-    const hits = search(lib, query, { tiers: ['principle', 'account', ...(ideas ? (['idea'] as const) : [])], limit: 30, topic });
+    const hits = search(lib, query, { tiers: ['principle', 'note', ...(ideas ? (['idea'] as const) : [])], limit: 30, topic });
     const top = hits[0]?.score || 1;
     for (const hit of hits) {
       const normal = hit.score / top;
@@ -118,12 +118,12 @@ function rank(lib: Library, queries: string[], topic: string | undefined, ideas:
       const had = merged.get(key);
       if (had) had.score += 0.8 * lift;
       else if (lift >= 0.6) {
-        const account = found.tier === 'account' ? accountBySlug(lib, ref) : undefined;
+        const note = found.tier === 'note' ? noteBySlug(lib, ref) : undefined;
         const principle = found.tier === 'principle' ? findPrinciple(lib, ref) : null;
-        const home = account?.topic ?? principle?.topic.path ?? '';
-        if ((!account && !principle) || (topic && home !== topic)) continue;
-        const title = account ? asText(account.fm.title) : principle!.principle.title;
-        const summary = account ? asText(account.fm.summary) : principle!.principle.statement;
+        const home = note?.topic ?? principle?.topic.path ?? '';
+        if ((!note && !principle) || (topic && home !== topic)) continue;
+        const title = note ? asText(note.fm.title) : principle!.principle.title;
+        const summary = note ? asText(note.fm.summary) : principle!.principle.summary || principle!.principle.statement;
         merged.set(key, { hit: { tier: found.tier, ref, topic: home, title, summary, score: 0, snippet: '', coverage: 0 }, score: 0.8 * lift });
       }
     }
@@ -131,46 +131,46 @@ function rank(lib: Library, queries: string[], topic: string | undefined, ideas:
   const all = [...merged.values()];
   const principles = all.filter(r => r.hit.tier === 'principle').sort((a, b) => b.score - a.score);
   const strength = new Map(principles.map(p => [p.hit.ref, p.score]));
-  const accounts = all.filter(r => r.hit.tier === 'account');
-  for (const r of accounts) {
-    const account = accountBySlug(lib, r.hit.ref);
-    if (!account) continue;
-    // An account under a principle the question matched is likelier to be what the question is about.
-    for (const p of accountPrinciples(account)) r.score += 0.15 * (strength.get(p.includes('#') ? p : `${account.topic}#${p}`) ?? 0);
+  const notes = all.filter(r => r.hit.tier === 'note');
+  for (const r of notes) {
+    const note = noteBySlug(lib, r.hit.ref);
+    if (!note) continue;
+    // A note under a principle the question matched is likelier to be what the question is about.
+    for (const p of notePrinciples(note)) r.score += 0.15 * (strength.get(p.includes('#') ? p : `${note.topic}#${p}`) ?? 0);
   }
-  accounts.sort((a, b) => b.score - a.score);
-  return { accounts, principles, ideaHits: all.filter(r => r.hit.tier === 'idea').sort((a, b) => b.score - a.score) };
+  notes.sort((a, b) => b.score - a.score);
+  return { notes, principles, ideaHits: all.filter(r => r.hit.tier === 'idea').sort((a, b) => b.score - a.score) };
 }
 
-function accountBlock(account: Account): string {
-  const facts = [`\`${account.slug}\``, asText(account.fm.kind), `sources: ${asList(account.fm.sources).join(', ') || 'none'}`];
-  if (asText(account.fm.basis) !== 'source') facts.push(`basis: ${asText(account.fm.basis)}`);
-  // The account's own headings sit under this briefing's headings, so they move down two levels.
-  const body = account.body.trim().replace(/^(#{1,4}) /gm, (_, marks) => '#'.repeat(Math.min(6, marks.length + 2)) + ' ');
-  return `### ${asText(account.fm.title)}\n${facts.join(' · ')}\n\n${body}`;
+function noteBlock(note: Note): string {
+  const facts = [`\`${note.slug}\``, asText(note.fm.kind), `sources: ${asList(note.fm.sources).join(', ') || 'none'}`];
+  if (asText(note.fm.basis) !== 'source') facts.push(`basis: ${asText(note.fm.basis)}`);
+  // The note's own headings sit under this briefing's headings, so they move down two levels.
+  const body = note.body.trim().replace(/^(#{1,4}) /gm, (_, marks) => '#'.repeat(Math.min(6, marks.length + 2)) + ' ');
+  return `### ${asText(note.fm.title)}\n${facts.join(' · ')}\n\n${body}`;
 }
 
 const DISPUTE = new Set(['conflicts with', 'qualifies']);
 
-/** Accounts that dispute or qualify the loaded ones. These travel with what they qualify, whatever the budget. */
-function disputes(lib: Library, loaded: Account[]): string[] {
+/** Notes that dispute or qualify the loaded ones. These travel with what they qualify, whatever the budget. */
+function disputes(lib: Library, loaded: Note[]): string[] {
   const held = new Set(loaded.map(a => a.slug));
   const lines = new Map<string, string>();
-  const note = (other: Account, text: string) => {
+  const flag = (other: Note, text: string) => {
     if (!held.has(other.slug) && !isRetired(other)) lines.set(`${other.slug}|${text}`, `- \`${other.slug}\` ${text}: ${asText(other.fm.summary)}`);
   };
-  for (const account of loaded)
-    for (const link of account.links) {
+  for (const note of loaded)
+    for (const link of note.links) {
       if (!DISPUTE.has(link.verb)) continue;
-      const target = resolveLink(lib, link.to, link.anchor, account.topic);
-      if (target?.type === 'account') note(target.account, `(${account.slug} ${link.verb} it)`);
+      const target = resolveLink(lib, link.to, link.anchor, note.topic);
+      if (target?.type === 'note') flag(target.note, `(${note.slug} ${link.verb} it)`);
     }
-  for (const other of lib.accounts) {
+  for (const other of lib.notes) {
     if (held.has(other.slug)) continue;
     for (const link of other.links) {
       if (!held.has(link.to)) continue;
-      if (DISPUTE.has(link.verb)) note(other, `${link.verb} ${link.to}`);
-      else if (asText(other.fm.kind) === 'debate') note(other, `is a debate that involves ${link.to}`);
+      if (DISPUTE.has(link.verb)) flag(other, `${link.verb} ${link.to}`);
+      else if (asText(other.fm.kind) === 'debate') flag(other, `is a debate that involves ${link.to}`);
     }
   }
   return [...lines.values()];
@@ -182,7 +182,7 @@ export function recall(lib: Library, options: RecallOptions, semantic?: Semantic
   const topic = options.topic ? requireTopic(lib, options.topic).path : undefined;
   const budget = Math.max(400, options.budget ?? 6000);
   const seen = new Set(options.seen ?? []);
-  const { accounts, principles, ideaHits } = rank(lib, queries, topic, !!options.ideas, semantic);
+  const { notes, principles, ideaHits } = rank(lib, queries, topic, !!options.ideas, semantic);
   const out: string[] = [`# Recall: ${queries.join(' / ')}`, ''];
   let spent = 0;
   const say = (text: string) => {
@@ -195,12 +195,12 @@ export function recall(lib: Library, options: RecallOptions, semantic?: Semantic
   const pageHits = search(lib, queries.join(' '), { tiers: ['map', 'page'], limit: 8 })
     .filter(hit => hit.coverage >= 0.45)
     .slice(0, 5);
-  const best = Math.max(0, ...accounts.slice(0, 5).map(r => r.hit.coverage), ...principles.slice(0, 3).map(r => r.hit.coverage));
-  // Meaning can stand in for words: when no account shares the question's key terms but one is close in
+  const best = Math.max(0, ...notes.slice(0, 5).map(r => r.hit.coverage), ...principles.slice(0, 3).map(r => r.hit.coverage));
+  // Meaning can stand in for words: when no note shares the question's key terms but one is close in
   // meaning, that is a vocabulary gap between the question and the library, not a gap in the library.
   const byMeaning = best < 0.3 && !!semantic?.strong;
   if (best < 0.3 && !byMeaning) {
-    say(`Nothing in the compiled library${topic ? ` under ${topic}` : ''} clearly answers this${accounts.length ? ': the nearest accounts share only its common words' : ''}.`);
+    say(`Nothing in the compiled library${topic ? ` under ${topic}` : ''} clearly answers this${notes.length ? ': the nearest notes share only its common words' : ''}.`);
     const leads = semantic
       ? [...semantic.hits.entries()]
           .filter(([, h]) => h.tier !== 'topic' && h.sim >= semantic.mean + 0.6 * (semantic.top - semantic.mean))
@@ -211,16 +211,16 @@ export function recall(lib: Library, options: RecallOptions, semantic?: Semantic
       // Useful when inventing or borrowing across fields: the library may hold the same idea under other words.
       say('\n## Closest in meaning (a lead to follow, not an answer)\n');
       for (const [ref, lead] of leads) {
-        const account = lead.tier === 'account' ? accountBySlug(lib, ref) : undefined;
+        const note = lead.tier === 'note' ? noteBySlug(lib, ref) : undefined;
         const principle = lead.tier === 'principle' ? findPrinciple(lib, ref) : null;
-        if (account) say(`- \`${account.slug}\` (${asText(account.fm.kind)}, ${account.topic}): ${asText(account.fm.summary)}`);
+        if (note) say(`- \`${note.slug}\` (${asText(note.fm.kind)}, ${note.topic}): ${asText(note.fm.summary)}`);
         else if (principle) say(`- principle \`${ref}\`: ${principle.principle.statement}`);
       }
-    } else if (accounts.length) {
-      say('\n## Nearest accounts (probably not about this)\n');
-      for (const r of accounts.slice(0, 4)) {
-        const account = accountBySlug(lib, r.hit.ref);
-        if (account) say(`- \`${account.slug}\` (${asText(account.fm.kind)}, ${account.topic}): ${asText(account.fm.summary)}`);
+    } else if (notes.length) {
+      say('\n## Nearest notes (probably not about this)\n');
+      for (const r of notes.slice(0, 4)) {
+        const note = noteBySlug(lib, r.hit.ref);
+        if (note) say(`- \`${note.slug}\` (${asText(note.fm.kind)}, ${note.topic}): ${asText(note.fm.summary)}`);
       }
     }
     if (pageHits.length) {
@@ -230,30 +230,30 @@ export function recall(lib: Library, options: RecallOptions, semantic?: Semantic
     return out.join('\n');
   }
 
-  if (byMeaning) say("No account uses this question's key terms. What follows was matched by meaning, so check that it is about what you asked.\n");
+  if (byMeaning) say("No note uses this question's key terms. What follows was matched by meaning, so check that it is about what you asked.\n");
 
-  // Which accounts to load: the best ones, while they stay close to the top score and fit the budget.
-  const top = accounts[0]?.score ?? 0;
-  const loaded: Account[] = [];
+  // Which notes to load: the best ones, while they stay close to the top score and fit the budget.
+  const top = notes[0]?.score ?? 0;
+  const loaded: Note[] = [];
   const listed: Ranked[] = [];
-  const accountBudget = budget * 0.72;
-  let accountTokens = 0;
-  for (const r of accounts) {
-    const account = accountBySlug(lib, r.hit.ref);
-    if (!account) continue;
-    const size = tokens(account.body) + 40;
-    const wanted = options.load !== 'gists' && !seen.has(account.slug) && r.score >= top * 0.55 && (loaded.length === 0 || accountTokens + size <= accountBudget);
+  const noteBudget = budget * 0.72;
+  let noteTokens = 0;
+  for (const r of notes) {
+    const note = noteBySlug(lib, r.hit.ref);
+    if (!note) continue;
+    const size = tokens(note.body) + 40;
+    const wanted = options.load !== 'gists' && !seen.has(note.slug) && r.score >= top * 0.55 && (loaded.length === 0 || noteTokens + size <= noteBudget);
     if (wanted) {
-      loaded.push(account);
-      accountTokens += size;
+      loaded.push(note);
+      noteTokens += size;
     } else listed.push(r);
   }
 
   // Principles in play: those governing what was loaded, then any the question matched directly.
   const inPlay = new Map<string, { topic: Topic; principle: Principle }>();
-  for (const account of loaded)
-    for (const p of accountPrinciples(account)) {
-      const found = findPrinciple(lib, p.includes('#') ? p : `${account.topic}#${p}`);
+  for (const note of loaded)
+    for (const p of notePrinciples(note)) {
+      const found = findPrinciple(lib, p.includes('#') ? p : `${note.topic}#${p}`);
       if (found) inPlay.set(`${found.topic.path}#${found.principle.id}`, found);
     }
   for (const r of principles.slice(0, 4)) {
@@ -262,13 +262,13 @@ export function recall(lib: Library, options: RecallOptions, semantic?: Semantic
   }
   if (inPlay.size) {
     say('## Principles in play\n');
-    for (const { topic: t, principle: p } of [...inPlay.values()].slice(0, 7)) say(`- **${p.title}** (\`${t.path}\`): ${p.statement}${p.breaks ? ` *Breaks when:* ${p.breaks}` : ''}`);
+    for (const { topic: t, principle: p } of [...inPlay.values()].slice(0, 7)) say(`- **${p.title}** (\`${t.path}#${p.id}\`; ${p.support}, ${independentSupport(lib, p)} independent ${independentSupport(lib, p) === 1 ? 'source' : 'sources'}): ${p.statement}${p.breaks ? ` *Breaks when:* ${p.breaks}` : ''}${p.merit ? ` *Merit:* ${p.merit}` : ''}`);
     say('');
   }
 
   if (loaded.length) {
-    say('## Accounts\n');
-    for (const account of loaded) say(accountBlock(account) + '\n');
+    say('## Notes\n');
+    for (const note of loaded) say(noteBlock(note) + '\n');
   }
 
   const caveats = disputes(lib, loaded);
@@ -280,10 +280,10 @@ export function recall(lib: Library, options: RecallOptions, semantic?: Semantic
 
   const rest = listed.slice(0, options.load === 'gists' ? 14 : 8);
   if (rest.length) {
-    say(options.load === 'gists' ? '## Matching accounts\n' : '## Also relevant, not loaded\n');
+    say(options.load === 'gists' ? '## Matching notes\n' : '## Also relevant, not loaded\n');
     for (const r of rest) {
-      const account = accountBySlug(lib, r.hit.ref)!;
-      say(`- \`${account.slug}\` (${asText(account.fm.kind)}, ${account.topic})${seen.has(account.slug) ? ' [you have this]' : ''}: ${asText(account.fm.summary)}`);
+      const note = noteBySlug(lib, r.hit.ref)!;
+      say(`- \`${note.slug}\` (${asText(note.fm.kind)}, ${note.topic})${seen.has(note.slug) ? ' [you have this]' : ''}: ${asText(note.fm.summary)}`);
     }
     say('');
   }
@@ -300,7 +300,7 @@ export function recall(lib: Library, options: RecallOptions, semantic?: Semantic
     for (const hit of pageHits) if (spent < budget * 1.1) say(`- ${hit.ref}: ${hit.snippet}`);
     say('');
   }
-  out.push('---', `Loaded ${loaded.length} ${loaded.length === 1 ? 'account' : 'accounts'}, about ${spent} tokens. Open any listed account with kf_read ref "<name>".${semantic ? ' Ranked by words and by meaning.' : ''}`);
+  out.push('---', `Loaded ${loaded.length} ${loaded.length === 1 ? 'note' : 'notes'}, about ${spent} tokens. Open any listed note with kf_read ref "<name>".${semantic ? ' Ranked by words and by meaning.' : ''}`);
   return out.join('\n');
 }
 
@@ -312,7 +312,7 @@ export type ReadResult = { text: string; image?: string; images?: string[] };
 
 export function read(lib: Library, config: Config, options: ReadOptions, guides?: string): ReadResult {
   const ref = String(options.ref ?? '').trim();
-  if (!ref) fail('INVALID', 'Give kf_read a ref: an account name, a topic path, a source key, "index", or "guide:<name>".');
+  if (!ref) fail('INVALID', 'Give kf_read a ref: a note name, a topic path, a source key, "index", or "guide:<name>".');
   if (ref.startsWith('guide:')) {
     const name = ref.slice(6).replace(/[^a-z-]/g, '');
     const file = guides ? path.join(guides, name === 'skill' ? '../SKILL.md' : `${name}.md`) : '';
@@ -322,12 +322,6 @@ export function read(lib: Library, config: Config, options: ReadOptions, guides?
   if (ref === 'index') {
     const file = path.join(lib.root, 'INDEX.md');
     return { text: exists(file) ? readText(file) : brief(lib) };
-  }
-  if (ref.endsWith('/_index')) {
-    const topic = requireTopic(lib, ref.slice(0, -7));
-    const file = path.join(topic.dir, '_index.md');
-    if (!exists(file)) fail('NOT_FOUND', `${topic.path} has no index yet; kf_check builds it.`);
-    return { text: readText(file) };
   }
   if (options.loc || options.view) {
     const source = findSource(lib, ref);
@@ -339,11 +333,11 @@ export function read(lib: Library, config: Config, options: ReadOptions, guides?
     }
     return { text: readUnits(source, options.loc!) };
   }
-  const account = accountBySlug(lib, ref);
-  if (account) return { text: readText(account.file) };
+  const note = noteBySlug(lib, ref);
+  if (note) return { text: readText(note.file) };
   if (ref.includes('#')) {
     const found = findPrinciple(lib, ref);
-    if (found) return { text: `From ${found.topic.path}:\n\n${found.principle.text}` };
+    if (found) return { text: readText(found.principle.file) };
   }
   const topic = lib.topics.find(t => t.path === ref);
   if (topic) return { text: brief(lib, topic.path) };
@@ -353,13 +347,13 @@ export function read(lib: Library, config: Config, options: ReadOptions, guides?
   if (idea) return { text: readText(idea.file) };
   const bySlug = topicByPath(lib, ref);
   if (bySlug) return { text: brief(lib, bySlug.path) };
-  const near = search(lib, ref.replace(/-/g, ' '), { tiers: ['account', 'principle', 'topic'], limit: 5 });
+  const near = search(lib, ref.replace(/-/g, ' '), { tiers: ['note', 'principle', 'topic'], limit: 5 });
   fail('NOT_FOUND', `Nothing is named "${ref}".${near.length ? ` Close: ${near.map(h => h.ref).join(', ')}.` : ''}`);
 }
 
 // ---- connect ----
 
-type Edge = { from: string; to: string; verb: string; note: string };
+type Edge = { from: string; to: string; verb: string; reason: string };
 
 function graph(lib: Library): { edges: Edge[]; label: (id: string) => string } {
   const edges: Edge[] = [];
@@ -369,17 +363,24 @@ function graph(lib: Library): { edges: Edge[]; label: (id: string) => string } {
     for (const p of topic.principles) {
       const id = `${topic.path}#${p.id}`;
       labels.set(id, `${p.title} (principle)`);
-      edges.push({ from: id, to: topic.path, verb: 'principle of', note: '' });
+      edges.push({ from: id, to: topic.path, verb: 'principle of', reason: '' });
+      // What a principle file links to, apart from its own generated list of notes.
+      const under = new Set(notesUnder(lib, p).map(n => n.slug));
+      for (const link of p.links) {
+        const target = resolveLink(lib, link.to, link.anchor, topic.path);
+        const to = target?.type === 'note' ? target.note.slug : target?.type === 'principle' ? `${target.topic.path}#${target.principle.id}` : target?.type === 'topic' ? target.topic.path : null;
+        if (to && to !== id && !(link.verb === 'mentions' && under.has(to))) edges.push({ from: id, to, verb: link.verb, reason: link.reason });
+      }
     }
   }
-  for (const account of lib.accounts) {
-    if (isRetired(account)) continue;
-    labels.set(account.slug, asText(account.fm.title));
-    for (const p of accountPrinciples(account)) edges.push({ from: account.slug, to: p.includes('#') ? p : `${account.topic}#${p}`, verb: 'case of', note: '' });
-    for (const link of account.links) {
-      const target = resolveLink(lib, link.to, link.anchor, account.topic);
-      const to = target?.type === 'account' ? target.account.slug : target?.type === 'principle' ? `${target.topic.path}#${target.principle.id}` : target?.type === 'topic' ? target.topic.path : null;
-      if (to && to !== account.slug) edges.push({ from: account.slug, to, verb: link.verb, note: link.note });
+  for (const note of lib.notes) {
+    if (isRetired(note)) continue;
+    labels.set(note.slug, asText(note.fm.title));
+    for (const p of notePrinciples(note)) edges.push({ from: note.slug, to: p.includes('#') ? p : `${note.topic}#${p}`, verb: 'case of', reason: '' });
+    for (const link of note.links) {
+      const target = resolveLink(lib, link.to, link.anchor, note.topic);
+      const to = target?.type === 'note' ? target.note.slug : target?.type === 'principle' ? `${target.topic.path}#${target.principle.id}` : target?.type === 'topic' ? target.topic.path : null;
+      if (to && to !== note.slug) edges.push({ from: note.slug, to, verb: link.verb, reason: link.reason });
     }
   }
   return { edges, label: id => labels.get(id) ?? id };
@@ -390,7 +391,7 @@ function nodeFor(lib: Library, text: string, known: (id: string) => boolean): st
   if (known(ref)) return ref;
   const topic = topicByPath(lib, ref);
   if (topic) return topic.path;
-  const hit = search(lib, ref, { tiers: ['account', 'principle'], limit: 1 })[0];
+  const hit = search(lib, ref, { tiers: ['note', 'principle'], limit: 1 })[0];
   if (!hit) fail('NOT_FOUND', `Nothing in the library matches "${ref}".`);
   return hit.ref;
 }
@@ -405,7 +406,7 @@ export function connect(lib: Library, fromText: string, toText?: string): string
     const out = [`# What \`${from}\` connects to`, '', `**${label(from)}**`, ''];
     const first = step(from);
     if (!first.length) out.push('No recorded links. It stands alone in the library so far.');
-    for (const s of first) out.push(`- ${hop(s.edge, s.forward)} \`${s.next}\` ${label(s.next)}${s.edge.note ? `: ${s.edge.note}` : ''}`);
+    for (const s of first) out.push(`- ${hop(s.edge, s.forward)} \`${s.next}\` ${label(s.next)}${s.edge.reason ? `: ${s.edge.reason}` : ''}`);
     const second = new Map<string, string>();
     for (const s of first)
       for (const t of step(s.next))
@@ -425,7 +426,7 @@ export function connect(lib: Library, fromText: string, toText?: string): string
     for (const s of step(at)) {
       if (visited.has(s.next) && s.next !== to) continue;
       const isTopic = lib.topics.some(t => t.path === s.next);
-      const next = [...chain, hop(s.edge, s.forward) + (s.edge.note ? ` (${s.edge.note})` : ''), `\`${s.next}\` ${label(s.next)}`];
+      const next = [...chain, hop(s.edge, s.forward) + (s.edge.reason ? ` (${s.edge.reason})` : ''), `\`${s.next}\` ${label(s.next)}`];
       if (s.next === to) {
         found.push(next);
         continue;
@@ -436,8 +437,8 @@ export function connect(lib: Library, fromText: string, toText?: string): string
     }
   }
   if (!found.length) {
-    const sameTopic = accountBySlug(lib, from)?.topic && accountBySlug(lib, from)?.topic === accountBySlug(lib, to)?.topic;
-    return `# \`${from}\` to \`${to}\`\n\nNo chain of recorded links joins them${sameTopic ? ', though they sit in the same topic' : ''}. That is a fact about the library, not about the ideas: if you can see how they relate, that is a connection worth writing into one of the accounts.`;
+    const sameTopic = noteBySlug(lib, from)?.topic && noteBySlug(lib, from)?.topic === noteBySlug(lib, to)?.topic;
+    return `# \`${from}\` to \`${to}\`\n\nNo chain of recorded links joins them${sameTopic ? ', though they sit in the same topic' : ''}. That is a fact about the library, not about the ideas: if you can see how they relate, that is a connection worth writing into one of the notes.`;
   }
   return [`# \`${from}\` to \`${to}\``, '', ...found.map((chain, i) => `${i + 1}. ${chain.join(' ')}`), '', 'A chain shows how the library links two ideas. It is a path to read along, not proof that one causes the other.'].join('\n');
 }

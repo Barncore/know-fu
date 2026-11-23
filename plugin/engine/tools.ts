@@ -64,15 +64,15 @@ function status(): string {
   }
   const project = projectDir();
   out.push(`Library: ${config.library}${exists(config.library) ? '' : '  (this folder does not exist)'}`);
-  out.push(`This session: ${project} (${isHome(config) ? 'the home session: it can ingest and edit' : 'reads the library; saves notes to its inbox'})`);
+  out.push(`This session: ${project} (${isHome(config) ? 'the home session: it can ingest and edit' : 'reads the library; saves items to its inbox'})`);
   const pins = pinsFor(config);
   if (pins.length) out.push(`Pinned here: ${pins.join(', ')}`);
   out.push(`Use: ${config.deliberate_use === false ? 'open in every chat' : 'deliberate (tools open after /know-fu, or in a pinned project)'}`);
   if (!exists(config.library)) return out.join('\n');
   const lib = loadLibrary(config.library);
   const report = checkLibrary(config.library);
-  out.push('', `${lib.domains.length} domains, ${lib.topics.length} topics, ${report.stats.accounts} accounts, ${lib.sources.length} sources, ${lib.ideas.length} ideas, ${lib.inbox.length} inbox notes.`);
-  for (const t of report.stats.topics) out.push(`- ${t.path}: ${t.principles} principles, ${t.accounts} accounts`);
+  out.push('', `${lib.domains.length} domains, ${lib.topics.length} topics, ${report.stats.notes} notes, ${lib.sources.length} sources, ${lib.ideas.length} ideas, ${lib.inbox.length} inbox items.`);
+  for (const t of report.stats.topics) out.push(`- ${t.path}: ${t.principles} principles, ${t.notes} notes`);
   for (const s of report.stats.sources) out.push(`- ${s.key} ${s.id}: ${s.status}`);
   out.push(report.errors.length ? `Check: ${report.errors.length} errors, ${report.warnings.length} warnings. Run kf_check to see them.` : `Check: no errors, ${report.warnings.length} warnings.`);
   const git = spawnSync('git', ['status', '--porcelain'], { cwd: config.library, encoding: 'utf8' });
@@ -95,14 +95,14 @@ function status(): string {
   return out.join('\n');
 }
 
-function note(config: Config, args: Record<string, any>): string {
+function saveInbox(config: Config, args: Record<string, any>): string {
   const title = String(args.title ?? '').trim();
   const body = String(args.body ?? '').trim();
-  if (!title || !body) fail('INVALID', 'A note needs a title and a body.');
-  const file = path.join(config.library, 'inbox', `${today()}-${slugify(title).slice(0, 50) || 'note'}.md`);
-  if (exists(file)) fail('EXISTS', `A note with that title was already saved today (${file}). Give this one a different title.`);
-  writeText(file, formatFrontmatter({ type: 'note', title, date: today(), from: projectDir(), topic: args.topic ? String(args.topic) : undefined }) + '\n' + body + '\n');
-  return `Saved to the library's inbox: ${file}. It becomes part of the library when a home session weaves it into an account or an idea.`;
+  if (!title || !body) fail('INVALID', 'An inbox item needs a title and a body.');
+  const file = path.join(config.library, 'inbox', `${today()}-${slugify(title).slice(0, 50) || 'item'}.md`);
+  if (exists(file)) fail('EXISTS', `An item with that title was already saved today (${file}). Give this one a different title.`);
+  writeText(file, formatFrontmatter({ type: 'inbox', title, date: today(), from: projectDir(), topic: args.topic ? String(args.topic) : undefined }) + '\n' + body + '\n');
+  return `Saved to the library's inbox: ${file}. It becomes part of the library when a home session weaves it into a note or an idea.`;
 }
 
 function pin(config: Config, args: Record<string, any>): string {
@@ -146,7 +146,7 @@ export const TOOLS: Tool[] = [
   {
     name: 'kf_recall',
     description:
-      'Answer material for a specific question: the principles in play, the best-matching accounts in full, anything that disputes or qualifies them, and where the original sources speak to it. Split a compound question into sub-questions and pass them as a list.',
+      'Answer material for a specific question: the principles in play, the best-matching notes in full, anything that disputes or qualifies them, and where the original sources speak to it. Split a compound question into sub-questions and pass them as a list.',
     inputSchema: {
       type: 'object',
       required: ['query'],
@@ -154,8 +154,8 @@ export const TOOLS: Tool[] = [
         query: { description: 'The question in plain words, or a list of sub-questions.', anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }] },
         topic: str('Limit to one topic path.'),
         budget: { type: 'number', description: 'Approximate tokens to return. Default 6000; lower it for a quick lookup, raise it for broad synthesis.' },
-        load: { type: 'string', enum: ['accounts', 'gists'], description: '"gists" returns one line per matching account, to choose from before loading any.' },
-        seen: { type: 'array', items: { type: 'string' }, description: 'Account names already in context, so they are not loaded again.' },
+        load: { type: 'string', enum: ['notes', 'gists'], description: '"gists" returns one line per matching note, to choose from before loading any.' },
+        seen: { type: 'array', items: { type: 'string' }, description: 'Note names already in context, so they are not loaded again.' },
         ideas: { type: 'boolean', description: 'Also list matching ideas on file. Use when inventing.' },
       },
     },
@@ -164,22 +164,22 @@ export const TOOLS: Tool[] = [
       const lib = loadLibrary(config.library);
       const queries = (Array.isArray(args.query) ? args.query : [args.query]).map((q: unknown) => String(q ?? '').trim()).filter(Boolean);
       let semantic = null;
-      let note = '';
+      let warning = '';
       if (queries.length && embedderOf(config)) {
         try {
           semantic = await semanticSearch(lib, config, queries);
         } catch (error: any) {
           // Keyword search still answers when the embedder is down; say so, since the ranking is then words only.
-          note = `\n(Semantic search was unavailable for this call: ${error.message})`;
+          warning = `\n(Semantic search was unavailable for this call: ${error.message})`;
         }
       }
-      return { text: recall(lib, args as any, semantic) + note };
+      return { text: recall(lib, args as any, semantic) + warning };
     },
   },
   {
     name: 'kf_read',
     description:
-      'One thing in full. ref is an account name, a topic path, "domain/topic#principle-id", "domain/topic/_index" (every account with its gist), a source key or id, an idea name, "index", or "guide:ingest", "guide:video", "guide:format", "guide:use". With a source and loc ("p.67-80", "s.3", "12:30-20:00") it returns the original text; add view "image" for a page image or the video frame at that second, "layout" for a table-preserving reading of a PDF page. For a video: view "filmstrip" (loc a sheet number, or none to list them) shows the moments the screen changed, and view "screen" shows the settled picture for the sentence spoken at loc.',
+      'One thing in full. ref is a note name, a topic path, "domain/topic#principle-id" (that principle in full), a source key or id, an idea name, "index", or "guide:ingest", "guide:video", "guide:format", "guide:use". With a source and loc ("p.67-80", "s.3", "12:30-20:00") it returns the original text; add view "image" for a page image or the video frame at that second, "layout" for a table-preserving reading of a PDF page. For a video: view "filmstrip" (loc a sheet number, or none to list them) shows the moments the screen changed, and view "screen" shows the settled picture for the sentence spoken at loc.',
     inputSchema: {
       type: 'object',
       required: ['ref'],
@@ -198,8 +198,8 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'kf_connect',
-    description: 'How two ideas connect: chains of recorded links between them, each hop with its verb and reason. With only "from", what that idea links to. Names can be account names, principle ids, or plain words.',
-    inputSchema: { type: 'object', required: ['from'], properties: { from: str('An account, principle or phrase.'), to: str('A second account, principle or phrase.') } },
+    description: 'How two ideas connect: chains of recorded links between them, each hop with its verb and reason. With only "from", what that idea links to. Names can be note names, principle ids, or plain words.',
+    inputSchema: { type: 'object', required: ['from'], properties: { from: str('A note, principle or phrase.'), to: str('A second note, principle or phrase.') } },
     run: args => ({ text: connect(loadLibrary(loadConfig().library), String(args.from ?? ''), args.to ? String(args.to) : undefined) }),
   },
   {
@@ -293,7 +293,7 @@ export const TOOLS: Tool[] = [
   {
     name: 'kf_check',
     description:
-      'Checks the whole library: frontmatter, links, citations, quoted words against the source text, principles, source maps, sizes, and words written against words read. Brings the derived parts in step (Governs lines, indexes, search). With commit set to a message and no errors, records the change in log.md and commits it to the library\'s git history.',
+      'Checks the whole library: frontmatter, links, citations, quoted words against the source text, principles and their evidence, source maps and sizes. Brings the derived parts in step (the list of principles on each topic page, the notes under each principle, the index, search). With commit set to a message and no errors, records the change in log.md and commits it to the library\'s git history.',
     inputSchema: { type: 'object', properties: { commit: str('A one-line message, such as "ingest: The Wood Kiln Handbook". Home session only.'), warnings: { type: 'boolean', description: 'Set false to list errors only.' } } },
     run: async args => {
       const config = loadConfig();
@@ -307,7 +307,7 @@ export const TOOLS: Tool[] = [
           syncIndex(lib);
           try {
             const synced = await syncVectors(lib, config);
-            if (synced) embedded = `\n- semantic search: ${synced.total} principles, accounts and topics embedded${synced.embedded ? ` (${synced.embedded} new or changed)` : ''}`;
+            if (synced) embedded = `\n- semantic search: ${synced.total} principles, notes and topics embedded${synced.embedded ? ` (${synced.embedded} new or changed)` : ''}`;
           } catch (error: any) {
             embedded = `\n- semantic search: not updated (${error.message})`;
           }
@@ -320,10 +320,10 @@ export const TOOLS: Tool[] = [
     },
   },
   {
-    name: 'kf_note',
-    description: "Save something worth keeping from any project into the library's inbox: a result, a correction, an idea, a worked answer. A home session later weaves it into an account or an idea.",
-    inputSchema: { type: 'object', required: ['title', 'body'], properties: { title: str('A short title.'), body: str('The note, in Markdown. Say where it came from and what it rests on.'), topic: str('The topic it belongs to, if known.') } },
-    run: args => ({ text: note(loadConfig(), args) }),
+    name: 'kf_inbox',
+    description: "Save something worth keeping from any project into the library's inbox: a result, a correction, an idea, a worked answer. A home session later weaves it into a note or an idea.",
+    inputSchema: { type: 'object', required: ['title', 'body'], properties: { title: str('A short title.'), body: str('The text, in Markdown. Say where it came from and what it rests on.'), topic: str('The topic it belongs to, if known.') } },
+    run: args => ({ text: saveInbox(loadConfig(), args) }),
   },
   {
     name: 'kf_pin',

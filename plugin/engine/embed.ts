@@ -1,6 +1,6 @@
 // The optional semantic channel. Keyword search finds what shares a question's words. This finds what
 // shares its meaning, which matters when the question and the library use different vocabulary: a
-// question in one field's terms about an idea another field holds. It embeds principles, accounts and
+// question in one field's terms about an idea another field holds. It embeds principles, notes and
 // topic frames through any OpenAI-compatible /embeddings endpoint, keeps the vectors in a file under
 // .knowfu/ that can be deleted at any time, and never touches the library's own files.
 import fs from 'node:fs';
@@ -12,7 +12,7 @@ import type { Library } from './library.ts';
 import { exists, fail, readText, sha } from './util.ts';
 
 export type Embedder = NonNullable<Config['embedder']>;
-export type SemanticHit = { tier: 'principle' | 'account' | 'topic'; sim: number };
+export type SemanticHit = { tier: 'principle' | 'note' | 'topic'; sim: number };
 export type Semantic = { hits: Map<string, SemanticHit>; top: number; mean: number; strong: boolean };
 
 export function embedderOf(config: Config): Embedder | null {
@@ -82,11 +82,11 @@ function entries(lib: Library, e: Embedder): Entry[] {
   const out: Omit<Entry, 'hash'>[] = [];
   for (const topic of lib.topics) {
     out.push({ ref: topic.path, tier: 'topic', text: `${asText(topic.fm.title)}\n${asText(topic.fm.summary)}\n\n${topic.frame}` });
-    for (const p of topic.principles) out.push({ ref: `${topic.path}#${p.id}`, tier: 'principle', text: `${p.title}\n${p.statement}\nWhy: ${p.why}\nBreaks when: ${p.breaks}` });
+    for (const p of topic.principles) out.push({ ref: `${topic.path}#${p.id}`, tier: 'principle', text: `${p.title}\n${p.summary}\n${p.statement}\nWhy: ${p.why}\nBreaks when: ${p.breaks}` });
   }
-  for (const account of lib.accounts) {
-    if (isRetired(account)) continue;
-    out.push({ ref: account.slug, tier: 'account', text: `${asText(account.fm.title)}\n${asText(account.fm.summary)}\n${asList(account.fm.keywords).join(', ')}\n\n${account.body}` });
+  for (const note of lib.notes) {
+    if (isRetired(note)) continue;
+    out.push({ ref: note.slug, tier: 'note', text: `${asText(note.fm.title)}\n${asText(note.fm.summary)}\n${asList(note.fm.keywords).join(', ')}\n\n${note.body}` });
   }
   // The hash covers the model too, so changing the model re-embeds everything instead of mixing spaces.
   return out.map(entry => ({ ...entry, hash: sha(`${e.base_url}|${e.model}|${e.dimensions ?? 'full'}|${entry.text}`) }));
@@ -132,7 +132,7 @@ export async function syncVectors(lib: Library, config: Config, fetcher?: typeof
 }
 
 /**
- * How close each principle, account and topic is in meaning to the question. Null when no embedder is
+ * How close each principle, note and topic is in meaning to the question. Null when no embedder is
  * configured or nothing has been embedded yet. `strong` says whether the best match is close enough to
  * trust by itself, which is what lets recall answer a question that shares no words with the library.
  */

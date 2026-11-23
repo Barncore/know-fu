@@ -65,16 +65,16 @@ test('a PDF becomes one unit per page, with page images on request', async t => 
     assert.ok(image.image && fs.statSync(image.image).size > 500, 'a PNG was rendered');
     assert.match((await runTool('kf_read', { ref: 'PBT', loc: 'p.1', view: 'layout' })).text, /Thirty trades/);
     // A quote is checked against the page it cites, with one page of slack either side and no more.
-    const account = (page: number) =>
-      `---\ntype: account\nkind: reference\ntitle: Trades per parameter\nsummary: Thirty trades per free parameter.\nprinciples: []\nsources: [PBT]\nbasis: source\nupdated: 2026-11-10\n---\nThe floor is stated outright: "Thirty trades per free parameter is the floor" [PBT p.${page}].\n`;
+    const note = (page: number) =>
+      `---\ntype: note\nkind: reference\ntitle: Trades per parameter\nsummary: Thirty trades per free parameter.\nprinciples: []\nsources: [PBT]\nbasis: source\nupdated: 2026-11-10\n---\nThe floor is stated outright: "Thirty trades per free parameter is the floor" [PBT p.${page}].\n`;
     write(fx.root, 'knowledge/trading/DOMAIN.md', '---\ntype: domain\ntitle: Trading\nsummary: Markets.\n---\n# Trading\n');
     write(fx.root, 'knowledge/trading/backtesting/TOPIC.md', '---\ntype: topic\ntitle: Backtesting\nsummary: Testing strategies on history.\nupdated: 2026-11-10\n---\n# Backtesting\n\n## Frame\n\nA backtest is evidence only as far as its sample allows.\n\n## Principles\n');
-    const file = write(fx.root, 'knowledge/trading/backtesting/accounts/trades-per-parameter.md', account(1));
+    const file = write(fx.root, 'knowledge/trading/backtesting/notes/trades-per-parameter.md', note(1));
     const errors = async () => (await runTool('kf_check', { warnings: false })).text;
     assert.doesNotMatch(await errors(), /\[quote\]/);
-    fs.writeFileSync(file, account(2));
+    fs.writeFileSync(file, note(2));
     assert.doesNotMatch(await errors(), /\[quote\]/);
-    fs.writeFileSync(file, account(3));
+    fs.writeFileSync(file, note(3));
     assert.match(await errors(), /\[quote\]/);
   } finally {
     fx.cleanup();
@@ -445,10 +445,10 @@ test('a video link is fetched after the cost is approved, with its captions, and
 test("the format guide's own examples parse", () => {
   const guide = fs.readFileSync(path.join(PLUGIN, 'skills', 'know-fu', 'references', 'format.md'), 'utf8');
   const blocks = [...guide.matchAll(/```markdown\n([\s\S]*?)```/g)].map(m => m[1]);
-  assert.ok(blocks.length >= 3, 'topic, account and idea examples');
+  assert.ok(blocks.length >= 4, 'topic, principle, note and idea examples');
   for (const block of blocks) {
     const parsed = parseFrontmatter(block);
     assert.deepEqual(parsed.errors, []);
-    assert.ok(['topic', 'account', 'idea'].includes(String(parsed.fm.type)));
+    assert.ok(['topic', 'principle', 'note', 'idea'].includes(String(parsed.fm.type)));
   }
 });

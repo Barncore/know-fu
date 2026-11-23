@@ -35,14 +35,14 @@ export type AddOptions = {
 
 /**
  * The words a topic uses in its own way: the terms under its Vocabulary heading, and the keywords on the topic and
- * its accounts. A transcriber told these terms hears them (measured on one trading lesson: three of four jargon errors
+ * its notes. A transcriber told these terms hears them (measured on one trading lesson: three of four jargon errors
  * in a chunk were fixed), so each recording added to a topic is transcribed better than the one before.
  */
 export function topicTerms(lib: Library, topicPath: string): string[] {
   const topic = lib.topics.find(t => t.path === topicPath.replace(/^\/+|\/+$/g, ''));
   if (!topic) fail('NOT_FOUND', `No topic "${topicPath}". Topics: ${lib.topics.map(t => t.path).join(', ') || 'none yet'}. Leave topic out for a recording on a new subject, and pass its terms in "terms".`);
   const vocabulary = [...(section(topic.sections, 'Vocabulary')?.raw ?? '').matchAll(/^\s*[-*]\s+\*\*(.+?)\*\*/gm)].map(m => m[1].replace(/[:.]\s*$/, ''));
-  const keywords = [topic, ...lib.accounts.filter(a => a.topic === topic.path && !isRetired(a))].flatMap(doc => asList(doc.fm.keywords));
+  const keywords = [topic, ...lib.notes.filter(a => a.topic === topic.path && !isRetired(a))].flatMap(doc => asList(doc.fm.keywords));
   return [...vocabulary, ...keywords];
 }
 
@@ -98,7 +98,7 @@ export async function addSource(config: Config, options: AddOptions) {
   // The folder name comes from the author and the title up to any subtitle, so it stays short enough to type in a link.
   const id = options.id ? options.id : slugify(`${surname} ${title.split(/[:—–(]/)[0]}`).split('-').slice(0, 7).join('-');
   if (!isSlug(id)) fail('INVALID', `A source id is lower-case words joined by hyphens; got "${id}".`);
-  const taken = new Set([...lib.accounts.map(a => a.slug), ...lib.ideas.map(i => i.slug), ...lib.sources.map(s => s.id)]);
+  const taken = new Set([...lib.notes.map(a => a.slug), ...lib.ideas.map(i => i.slug), ...lib.sources.map(s => s.id)]);
   if (taken.has(id)) fail('EXISTS', `"${id}" is already used in this library. Pass a different id, or see the existing source with kf_read.`);
   const sha = fileSha(file);
   const same = lib.sources.find(s => asText(s.fm.sha256) === sha);
@@ -179,11 +179,11 @@ export async function addSource(config: Config, options: AddOptions) {
       '',
       '## Map',
       '',
-      `TODO: one "### Part or chapter title [${units[0].kind === 'page' ? 'p.A-B' : units[0].kind === 'section' ? 's.A-B' : 'mm:ss-mm:ss'}]" heading per stretch of the source, in order, covering ${range}. Under each, a digest: what this stretch argues, and what in it is worth keeping (see the ingest guide).`,
+      `TODO: one "### Part or chapter title [${units[0].kind === 'page' ? 'p.A-B' : units[0].kind === 'section' ? 's.A-B' : 'mm:ss-mm:ss'}]" heading per stretch of the source, in order, covering ${range}. Under each, one line saying what the stretch covers, so a later session can find where the source deals with something.`,
       '',
       '## What it changed',
       '',
-      'TODO: after compiling. Which principles it added, sharpened or disputed, which accounts are new and which were revised, and what it leaves open.',
+      'TODO: after compiling. Which principles it added, strengthened, sharpened, qualified or disputed, which notes are new and which were revised, and what it leaves open.',
       '',
     ].join('\n');
     writeText(path.join(staging, 'source.md'), fm + '\n' + body);
