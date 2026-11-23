@@ -6,7 +6,7 @@
   <img src="assets/i-know-kung-fu.gif" width="800" alt="Neo opens his eyes after the knowledge upload: I know kung fu">
 </p>
 
-**Feed your AI books, papers and videos. Get back a collaborator that knows the subject.**
+**Feed your AI books, papers and videos. Get back an expert you can build with.**
 
 Know Fu is a local research library for an AI coding agent such as Claude Code or Codex. You hand it a source of specialist knowledge. The agent reads all of it and compiles what it learned into a library of plain Markdown: a front page for each subject that lists its principles, a file for each principle that says why it holds and how far to trust it, notes that hold the specifics, and the original text kept searchable underneath. The next source doesn't get filed beside the first. It revises what's already there, so the library gets sharper as it grows.
 
@@ -71,17 +71,17 @@ Know Fu runs when you invoke it: `/know-fu:know-fu` in Claude Code, `$know-fu` i
 - **Use:** in any project, invoke Know Fu and ask. The agent loads the topic's principles, then recalls specifics as it works.
 - **Pin:** pin a topic to a project, and every session there starts with that topic's principles already in context.
 
-| Tool | What it does |
-|---|---|
-| `kf_status` | The library's location and contents, and what this session may do |
-| `kf_brief` | What the library covers, or one topic's frame and principles |
-| `kf_recall` | For a question: the principles in play, the best notes in full, what disputes them, and where the sources speak to it |
-| `kf_read` | One principle, note or source page in full, including page images and video frames |
-| `kf_connect` | How two ideas link |
-| `kf_source` | Register a book, paper, recording or video link and extract it; keep a video frame a claim rests on |
-| `kf_check` | Check the whole library, bring derived parts in step, commit |
-| `kf_inbox` | Save something worth keeping from any project to the library's inbox |
-| `kf_pin` | Pin a topic to a project |
+| Tool         | What it does                                                                                                          |
+| ------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `kf_status`  | The library's location and contents, and what this session may do                                                     |
+| `kf_brief`   | What the library covers, or one topic's frame and principles                                                          |
+| `kf_recall`  | For a question: the principles in play, the best notes in full, what disputes them, and where the sources speak to it |
+| `kf_read`    | One principle, note or source page in full, including page images and video frames                                    |
+| `kf_connect` | How two ideas link                                                                                                    |
+| `kf_source`  | Register a book, paper, recording or video link and extract it; keep a video frame a claim rests on                   |
+| `kf_check`   | Check the whole library, bring derived parts in step, commit                                                          |
+| `kf_inbox`   | Save something worth keeping from any project to the library's inbox                                                  |
+| `kf_pin`     | Pin a topic to a project                                                                                              |
 
 ## Getting started
 
