@@ -123,7 +123,7 @@ Extracted text loses what a figure shows and scrambles some tables. `kf_read` ma
 
 When you add a recording, give `kf_source` its `topic` if the topic exists, and `terms`: the speaker's name, the method's own labels, tickers, and any term of art you can see in the title or description that the topic doesn't hold yet. They go to the transcriber, which then hears them; without them a coined term comes back as the nearest common word. A transcribed recording has one sentence per line, each starting with the time it was spoken.
 
-For a recording, citations are timestamps like `[KEY 12:34]`. Frames are sampled once a minute into the source's `frames` folder, and `kf_read` with `view: "image"` and a timestamp takes one at full size. Look when the speaker points at something. Transcripts mishear names, numbers and terms of art, so check those before quoting them. Keep apart what a speaker shows and what they assert.
+For a recording, citations are timestamps like `[KEY 12:34]`. Transcripts mishear names, numbers and terms of art, so check those before quoting them. When the recording has a screen that carries content (a chart, slides, a tool's window), read the video guide before you start (`kf_read` ref "guide:video", or `references/video.md`): it covers the filmstrips made when the video was added, choosing where to look, the Frames line each digest ends with, and keeping the frames an account relies on.
 
 If a source's own numbers don't add up, keep what it says, cite it, and state the discrepancy beside it. Never repair a source silently.
 

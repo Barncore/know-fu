@@ -306,8 +306,9 @@ export function recall(lib: Library, options: RecallOptions, semantic?: Semantic
 
 // ---- read ----
 
-export type ReadOptions = { ref: string; loc?: string; view?: 'text' | 'image' | 'layout' };
-export type ReadResult = { text: string; image?: string };
+export type ReadOptions = { ref: string; loc?: string; view?: 'text' | 'image' | 'layout' | 'screen' | 'filmstrip'; box?: string };
+/** `image` is the first of `images`, kept for callers that show one. */
+export type ReadResult = { text: string; image?: string; images?: string[] };
 
 export function read(lib: Library, config: Config, options: ReadOptions, guides?: string): ReadResult {
   const ref = String(options.ref ?? '').trim();
@@ -315,7 +316,7 @@ export function read(lib: Library, config: Config, options: ReadOptions, guides?
   if (ref.startsWith('guide:')) {
     const name = ref.slice(6).replace(/[^a-z-]/g, '');
     const file = guides ? path.join(guides, name === 'skill' ? '../SKILL.md' : `${name}.md`) : '';
-    if (!file || !exists(file)) fail('NOT_FOUND', `No guide "${name}". Guides: skill, ingest, format, use.`);
+    if (!file || !exists(file)) fail('NOT_FOUND', `No guide "${name}". Guides: skill, ingest, video, format, use.`);
     return { text: readText(file) };
   }
   if (ref === 'index') {
@@ -330,10 +331,11 @@ export function read(lib: Library, config: Config, options: ReadOptions, guides?
   }
   if (options.loc || options.view) {
     const source = findSource(lib, ref);
-    if (options.view === 'image' || options.view === 'layout') {
-      if (!options.loc) fail('INVALID', 'Name the page or moment to view in loc, like "p.112" or "12:34".');
-      const viewed = viewUnit(config, source, options.loc, options.view);
-      return viewed.path ? { text: `${source.key} ${options.loc}: ${viewed.path}`, image: viewed.path } : { text: `===== ${source.key} ${options.loc} (layout) =====\n${viewed.text}` };
+    if (options.view && options.view !== 'text') {
+      if (!options.loc && options.view !== 'filmstrip') fail('INVALID', 'Name the page or moment to view in loc, like "p.112" or "12:34".');
+      const viewed = viewUnit(config, source, options.loc, options.view, options.box);
+      if (!viewed.paths?.length) return { text: options.view === 'layout' ? `===== ${source.key} ${options.loc} (layout) =====\n${viewed.text}` : (viewed.text ?? '') };
+      return { text: `${viewed.text}\n${viewed.paths.join('\n')}`, image: viewed.paths[0], images: viewed.paths };
     }
     return { text: readUnits(source, options.loc!) };
   }

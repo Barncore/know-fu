@@ -11,10 +11,10 @@ import { formatFrontmatter, asText } from './frontmatter.ts';
 import { loadLibrary, topicByPath } from './library.ts';
 import { brief, connect, read, recall } from './recall.ts';
 import { syncIndex } from './search.ts';
-import { addSource } from './sources.ts';
+import { addSource, findSource, keepExhibit } from './sources.ts';
 import { exists, fail, readJson, samePath, slugify, today, writeText } from './util.ts';
 
-export type ToolResult = { text: string; image?: string };
+export type ToolResult = { text: string; image?: string; images?: string[] };
 export type Tool = { name: string; description: string; inputSchema: Record<string, unknown>; run: (args: Record<string, any>) => Promise<ToolResult> | ToolResult };
 
 const ENGINE_DIR = import.meta.dirname;
@@ -176,16 +176,21 @@ export const TOOLS: Tool[] = [
   {
     name: 'kf_read',
     description:
-      'One thing in full. ref is an account name, a topic path, "domain/topic#principle-id", "domain/topic/_index" (every account with its gist), a source key or id, an idea name, "index", or "guide:ingest", "guide:format", "guide:use". With a source and loc ("p.67-80", "s.3", "12:30-20:00") it returns the original text; add view "image" for a page image or video frame, "layout" for a table-preserving reading of a PDF page.',
+      'One thing in full. ref is an account name, a topic path, "domain/topic#principle-id", "domain/topic/_index" (every account with its gist), a source key or id, an idea name, "index", or "guide:ingest", "guide:video", "guide:format", "guide:use". With a source and loc ("p.67-80", "s.3", "12:30-20:00") it returns the original text; add view "image" for a page image or the video frame at that second, "layout" for a table-preserving reading of a PDF page. For a video: view "filmstrip" (loc a sheet number, or none to list them) shows the moments the screen changed, and view "screen" shows the settled picture for the sentence spoken at loc.',
     inputSchema: {
       type: 'object',
       required: ['ref'],
-      properties: { ref: str('What to read.'), loc: str('For a source: pages, sections or a time range.'), view: { type: 'string', enum: ['text', 'image', 'layout'] } },
+      properties: {
+        ref: str('What to read.'),
+        loc: str('For a source: pages, sections, a time or a time range.'),
+        view: { type: 'string', enum: ['text', 'image', 'layout', 'screen', 'filmstrip'] },
+        box: str('With view "image" on a video: a crop from the original frame, "x,y,w,h" in percent (left, top, width, height).'),
+      },
     },
     run: args => {
       const config = loadConfig();
       const result = read(loadLibrary(config.library), config, args as any, GUIDES_DIR);
-      return { text: result.text, image: result.image };
+      return { text: result.text, image: result.image, images: result.images };
     },
   },
   {
@@ -197,12 +202,15 @@ export const TOOLS: Tool[] = [
   {
     name: 'kf_source',
     description:
-      'Home session only. action "add" registers a file (PDF, text, Markdown, .srt/.vtt, EPUB/DOCX/HTML, audio or video) as a source: copies the original, extracts its text into citable pages, sections or time units, and writes sources/<id>/source.md to fill in. action "list" shows every source.',
+      'Home session only. action "add" registers a file (PDF, text, Markdown, .srt/.vtt, EPUB/DOCX/HTML, audio or video) as a source: copies the original, extracts its text into citable pages, sections or time units, and writes sources/<id>/source.md to fill in. action "list" shows every source. action "keep" (ref, loc, optional box) keeps a video frame as an exhibit the write-up can rely on.',
     inputSchema: {
       type: 'object',
       required: ['action'],
       properties: {
-        action: { type: 'string', enum: ['add', 'list'] },
+        action: { type: 'string', enum: ['add', 'list', 'keep'] },
+        ref: str('For "keep": the source key.'),
+        loc: str('For "keep": the moment, like "12:34".'),
+        box: str('For "keep": a crop, "x,y,w,h" in percent.'),
         file: str('Full path of the file to add.'),
         title: str("The source's title."),
         authors: { type: 'array', items: { type: 'string' } },
@@ -222,6 +230,16 @@ export const TOOLS: Tool[] = [
       if (args.action === 'list') {
         const lib = loadLibrary(config.library);
         return { text: lib.sources.length ? lib.sources.map(s => `${s.key} · ${s.id} · ${asText(s.fm.title)} (${asText(s.fm.kind)}; ${asText(s.fm.units)}; ${asText(s.fm.words)} words; ${asText(s.fm.status)})`).join('\n') : 'No sources yet.' };
+      }
+      if (args.action === 'keep') {
+        requireHome(config, 'Keeping an exhibit');
+        if (!args.ref || !args.loc) fail('INVALID', 'action "keep" needs ref (the source key) and loc (the moment, like "12:34").');
+        const source = findSource(loadLibrary(config.library), String(args.ref));
+        const kept = await withLock(config, 'keeping an exhibit', async () => keepExhibit(config, source, String(args.loc), args.box ? String(args.box) : undefined));
+        return {
+          text: `Kept ${source.key} ${args.loc} as an exhibit: ${kept}\nWrite its record under "## Exhibits" in ${path.join(source.dir, 'source.md')}, as a "### ${args.loc} <what it shows>" heading (the format guide has the fields). kf_read with view "image" at this time now returns the kept copy.`,
+          image: kept,
+        };
       }
       requireHome(config, 'Adding a source');
       if (!args.file) fail('INVALID', 'action "add" needs file: the full path of the source.');
@@ -243,8 +261,12 @@ export const TOOLS: Tool[] = [
         lines.push(
           `${added.worth_viewing.length} units have a figure or table caption, number-heavy text, or sparse or damaged text, so their plain text may not carry everything. Each is flagged on its marker line when you read it (for example "(figure)"). Look at the ones that matter with kf_read view "image".`,
         );
-      if (added.frames) lines.push(`${added.frames} frames sampled into ${path.join(added.folder, 'frames')} (one a minute, named by second).`);
-      lines.push(...added.notes, `Registration ${committed}. The original, page images and frames stay out of git; they sit in the source's folder.`, 'Next: read it and compile it, following the ingest guide (kf_read ref "guide:ingest").');
+      if (added.sheets) lines.push(`The screen changed and settled at ${added.frames} moments, laid out on ${added.sheets} filmstrip ${added.sheets === 1 ? 'sheet' : 'sheets'}: kf_read ref "${added.key}" view "filmstrip".`);
+      lines.push(
+        ...added.notes,
+        `Registration ${committed}. The original, page images, frames and exhibits stay out of git; they sit in the source's folder.`,
+        `Next: read it and compile it, following the ingest guide (kf_read ref "guide:ingest")${added.kind === 'video' ? ' and, for a recording with a screen, the video guide (kf_read ref "guide:video")' : ''}.`,
+      );
       return { text: lines.join('\n') };
     },
   },

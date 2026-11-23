@@ -36,6 +36,7 @@ const GITIGNORE = `.knowfu/
 sources/*/original/
 sources/*/pages/
 sources/*/frames/
+sources/*/exhibits/
 *.adding/
 `;
 

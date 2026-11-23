@@ -13,10 +13,11 @@ async function call(params: any) {
   try {
     const result = await runTool(String(params?.name ?? ''), params?.arguments ?? {});
     const content: any[] = [{ type: 'text', text: result.text }];
-    if (result.image && fs.existsSync(result.image)) {
-      const mimeType = MIME[path.extname(result.image).toLowerCase()];
+    for (const image of result.images ?? (result.image ? [result.image] : [])) {
+      if (!fs.existsSync(image)) continue;
+      const mimeType = MIME[path.extname(image).toLowerCase()];
       // Sent inline so a session in another folder, which can't open the library's files, still sees the page.
-      if (mimeType && fs.statSync(result.image).size < 4_000_000) content.push({ type: 'image', data: fs.readFileSync(result.image).toString('base64'), mimeType });
+      if (mimeType && fs.statSync(image).size < 4_000_000) content.push({ type: 'image', data: fs.readFileSync(image).toString('base64'), mimeType });
     }
     return { content };
   } catch (error: any) {

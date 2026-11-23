@@ -44,4 +44,4 @@ The owner can pin a topic to a project with `kf_pin`. Sessions there then start 
 - One idea is held once. Before writing a new account, look for the one it belongs in.
 - Keep what a source says apart from what you conclude. `basis` on an account and "stated" or "inferred" on a principle's Held by line carry that difference.
 - Ideas rest on knowledge, and knowledge never rests on an idea.
-- Hosts without file access can read the guides with `kf_read`: `guide:ingest`, `guide:format`, `guide:use`.
+- Hosts without file access can read the guides with `kf_read`: `guide:ingest`, `guide:video`, `guide:format`, `guide:use`.

@@ -15,12 +15,13 @@ import {
   resolveLoc,
   section,
   sourceByKey,
+  splitSections,
   unitLabel,
   unitText,
 } from './library.ts';
 import type { Account, Doc, Library, Source, Topic } from './library.ts';
-import { SOURCE_KINDS } from './sources.ts';
-import { countWords, exists, isSlug, readText, slugify, squash, today, tokens, writeText } from './util.ts';
+import { SOURCE_KINDS, framesLooked, keptExhibits, screenTrack } from './sources.ts';
+import { countWords, exists, formatTime, isSlug, parseTime, readText, slugify, squash, today, tokens, writeText } from './util.ts';
 
 export type Issue = { level: 'error' | 'warn'; code: string; file: string; line?: number; message: string };
 
@@ -297,6 +298,46 @@ export function checkLibrary(root: string, options: { fix?: boolean } = {}): Rep
       ratio: Math.round(ratio * 1000) / 1000,
       accounts: citing.length,
     });
+    // A recording with a screen: the digests say which frames the reader opened, and the folder shows which were.
+    // A reader that skips the picture writes a fluent digest from the words alone, and nothing else would show it.
+    const track = screenTrack(source);
+    if (track) {
+      const looked = framesLooked(source);
+      for (const entry of source.map) {
+        if (entry.from < 0) continue;
+        // Units begin and end with speech; the picture before the first word and after the last belongs to the ends.
+        const from = entry.from === 0 ? 0 : source.units[entry.from].n;
+        const to = entry.to === source.units.length - 1 ? Infinity : (source.units[entry.to].end ?? Infinity);
+        const changes = track.candidates.filter(c => c.t >= from && c.t < to).length;
+        const line = /^\s*[-*]\s+\*\*Frames:\*\*(.*)$/m.exec(entry.text);
+        if (!line) {
+          if (changes >= 3)
+            add({ level: 'warn', code: 'frames', line: entry.line, message: `the screen changed ${changes} times during "${entry.title}" and its digest has no "- **Frames:**" line. List the frames you opened (like 12:36, 13:02), or write "none" and why.` });
+          continue;
+        }
+        for (const m of line[1].matchAll(/\b(\d{1,2}(?::\d{2}){1,2})\b/g)) {
+          const at = parseTime(m[1]);
+          if (at !== null && !looked.some(t => Math.abs(t - at) <= 1))
+            add({ level: 'warn', code: 'frames', line: entry.line, message: `the digest under "${entry.title}" lists a frame at ${m[1]}, but no frame near that time was opened. Open it with kf_read view "image" or "screen", or take it off the line.` });
+        }
+      }
+      const kept = keptExhibits(source);
+      const block = section(source.sections, 'Exhibits');
+      const recorded: number[] = [];
+      for (const exhibit of block ? splitSections(block.raw, block.line + 1, 3) : []) {
+        const at = parseTime(exhibit.title.split(/\s+/)[0] ?? '');
+        if (at === null) {
+          add({ level: 'error', code: 'exhibit', line: exhibit.line, message: `the exhibit heading "${exhibit.title}" starts with no time. Write it as "### 12:36 What the frame shows".` });
+          continue;
+        }
+        recorded.push(at);
+        if (!kept.some(t => Math.abs(t - at) < 1))
+          add({ level: 'error', code: 'exhibit', line: exhibit.line, message: `the exhibit "${exhibit.title}" has no kept frame. Keep it with kf_source action "keep", ref "${source.key}", loc "${formatTime(at)}".` });
+        if (countWords(exhibit.text) < 15) add({ level: 'warn', code: 'exhibit', line: exhibit.line, message: `the record under "${exhibit.title}" is nearly empty. Say what the frame shows, so a reader who never opens it still has its content.` });
+      }
+      for (const t of kept)
+        if (!recorded.some(at => Math.abs(t - at) < 1)) add({ level: 'warn', code: 'exhibit', message: `a frame at ${formatTime(t)} was kept as an exhibit, but "## Exhibits" has no "### ${formatTime(t)} …" record for it` });
+    }
     if (covered.size && ratio > LIMITS.retelling)
       add({ level: 'warn', code: 'retelling', message: `accounts citing this source total ${compiledWords} words against the ${mappedWords} words mapped so far: ${Math.round(ratio * 100)}%. That is a lot of the source to have kept. Check for retelling: an account explains an idea in full, but it doesn't repeat background any model already has, and the original stays searchable.` });
     if (status !== 'compiled') continue;

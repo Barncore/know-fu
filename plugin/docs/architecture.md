@@ -43,7 +43,8 @@ The engine does what an agent is bad at or shouldn't spend tokens on. It never c
 
 | Part | File | Job |
 |---|---|---|
-| Extraction | `engine/extract.ts`, `sources.ts` | PDF to page text with Poppler; text and Markdown to sections; subtitles and timestamped transcripts to time units; EPUB, DOCX and HTML through pandoc; audio and video through a transcription API, sent in padded chunks with the topic's vocabulary as key terms and returned one sentence per line with its time; video frames sampled once a minute. Page images and video frames on request |
+| Extraction | `engine/extract.ts`, `sources.ts` | PDF to page text with Poppler; text and Markdown to sections; subtitles and timestamped transcripts to time units; EPUB, DOCX and HTML through pandoc; audio and video through a transcription API, sent in padded chunks with the topic's vocabulary as key terms and returned one sentence per line with its time. Page images on request |
+| Video screen | `engine/frames.ts` | Maps what a video showed: the moments the picture changed and then held still, laid out as filmstrips. Serves any frame at reading size, a crop from the original frame, and the settled picture for a sentence |
 | Library model | `engine/library.ts`, `frontmatter.ts` | Reads the folder into memory: topics with their principles, accounts with their links and citations, sources with their units and maps |
 | Checker | `engine/check.ts` | Frontmatter, links, citations, quoted words against the source text, principles, source maps, sizes, and words compiled against words read. Writes the derived parts: each principle's Governs line, `_index.md`, `INDEX.md`. Commits to git |
 | Search | `engine/search.ts`, `embed.ts` | A SQLite full-text index under `.knowfu/`, rebuilt a file at a time when a file changes. Optionally, vectors for the compiled layer |
@@ -73,6 +74,16 @@ Keywords fail in one place that matters: when the question and the library use d
 The last two differ because similarity separates related from unrelated well, and answered from merely related poorly. Measured on one model with one topic, questions the library answers in other words scored 0.74 to 0.77 at best, a subject it lacks scored 0.70, and unrelated questions scored under 0.60. So the bar for trusting meaning alone (`min_similarity`) is high, and it needs setting per model.
 
 Source pages aren't embedded. They are found by keyword and through the accounts that cite them. The vectors file is derived and can be deleted; nothing in the library's own files depends on it, so the embedding model can change without re-ingesting anything. If the embedder is unreachable, recall answers by keyword and says so.
+
+### Video: the transcript decides where to look, and code makes that possible
+
+Much of what a teaching video teaches is on its screen, and only a reader can tell which sentences lean on it. But a reader has two blind spots: it can't ask for a picture it doesn't know exists, and a speaker says "this one here" a few seconds before the line is drawn. So code does two jobs, and no choosing.
+
+When a video is added, `frames.ts` decodes it once at two frames a second and maps the screen. It masks regions that move in most samples (a webcam box, a ticker), looks every ten seconds or at a cut, waits up to six seconds for the picture to settle, and keeps the frame unless it never settled or matches one already kept. The kept moments go onto filmstrip sheets of twenty small thumbnails with their times. Measured against lists of every chart state in three lessons, written before any picker ran, this covered 93% of the states with no frame taken mid-movement, where one frame a minute covered 39% and a scene filter with a twenty-second timer covered 82%, with 53 of its 221 frames taken mid-movement and 44 showing no chart. About a third of the kept frames repeat a neighbour, which is why they are thumbnails to choose from and not frames to read.
+
+When the reader asks, the engine serves: a filmstrip sheet; the frame at any second, at reading size (a source above 2,576 px wide comes down to it, 1080p is left alone, and anything smaller is enlarged to 2,576 px, each from a test on chart frames); a crop cut from the original frame; and the screen for a sentence, which is the settled picture as the sentence ends plus the picture before it when they differ. A frame the reader keeps is copied to the source's `exhibits` folder with a record on the source page, because every other frame is a cache and a large video is never copied into the library.
+
+The checker closes the loop. Each digest ends with a Frames line, and `kf_check` warns when the screen changed several times in a stretch with no Frames line, or when the line names a frame that was never opened. Reading a video from its words alone produces a fluent digest, so this is the one place the skip would otherwise be invisible.
 
 ### Why there is no graph database
 

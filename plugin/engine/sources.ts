@@ -3,11 +3,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Config } from './config.ts';
-import { assemble, extract, isMedia, isVideo, sampleFrames, pdfPageImage, pdfText, frameAt } from './extract.ts';
+import { assemble, extract, isMedia, isVideo, pdfPageImage, pdfText } from './extract.ts';
+import { frameImage, frameSecond, loadTrack, mapScreen, parseBox, screenFor } from './frames.ts';
 import { formatFrontmatter, asList, asText } from './frontmatter.ts';
 import { isRetired, loadLibrary, resolveLoc, section, unitText, unitLabel } from './library.ts';
 import type { Library, Source } from './library.ts';
-import { exists, fail, fileSha, isSlug, parseTime, slugify, today, writeJson, writeText } from './util.ts';
+import { countWords, exists, fail, fileSha, formatTime, isSlug, parseTime, slugify, today, writeJson, writeText } from './util.ts';
 
 export type AddOptions = {
   file: string;
@@ -100,7 +101,17 @@ export async function addSource(config: Config, options: AddOptions) {
     const copied = size <= 300 * 1024 * 1024;
     if (copied) fs.copyFileSync(file, path.join(staging, 'original', path.basename(file)));
     let frames = 0;
-    if (isVideo(file)) frames = sampleFrames(config, file, path.join(staging, 'frames'));
+    let sheets = 0;
+    if (isVideo(file)) {
+      try {
+        const track = mapScreen(config, file, path.join(staging, 'frames'));
+        frames = track.candidates.length;
+        sheets = track.sheets.length;
+      } catch (error: any) {
+        // The transcript is still worth having when the picture can't be mapped; frames can be asked for by time.
+        extracted.notes.push(`The screen map wasn't made (${String(error?.message ?? error).slice(0, 200)}), so there are no filmstrips for this recording.`);
+      }
+    }
     const words = units.reduce((sum, u) => sum + u.words, 0);
     const noun = units[0].kind === 'page' ? 'pages' : units[0].kind === 'section' ? 'sections' : 'time units';
     const flagged = (flag: string) => units.filter(u => u.flags.includes(flag)).map(u => u.loc);
@@ -152,6 +163,7 @@ export async function addSource(config: Config, options: AddOptions) {
       extractor: extracted.extractor,
       original: copied ? 'copied into the library' : `left in place at ${file} (over 300 MB)`,
       frames,
+      sheets,
       blank: flagged('blank').length,
       worth_viewing: visual,
       notes: extracted.notes,
@@ -209,22 +221,133 @@ function originalFile(source: Source): string {
   return file;
 }
 
-/** A page image, a layout-preserving text reading of a page, or a video frame: for when the plain text isn't enough. */
-export function viewUnit(config: Config, source: Source, loc: string, view: 'image' | 'layout'): { path?: string; text?: string } {
+export type View = 'image' | 'layout' | 'screen' | 'filmstrip';
+export type Viewed = { text?: string; paths?: string[] };
+
+const framesDir = (source: Source) => path.join(source.dir, 'frames');
+const exhibitsDir = (source: Source) => path.join(source.dir, 'exhibits');
+
+/** A frame the owner's library kept is served from where it was kept, so it outlives the video file. */
+function frameFor(config: Config, source: Source, file: string, seconds: number, box?: [number, number, number, number]): string {
+  if (!box && exists(exhibitsDir(source))) {
+    const kept = fs.readdirSync(exhibitsDir(source)).find(f => !/-c[\d-]+\.jpg$/.test(f) && frameSecond(f) === Math.round(seconds * 10) / 10);
+    if (kept) return path.join(exhibitsDir(source), kept);
+  }
+  return frameImage(config, file, seconds, framesDir(source), box);
+}
+
+/** The transcript line that holds a moment: its text, the time it starts and the time the next line starts. */
+function sentenceAt(source: Source, seconds: number): { from: number; to: number; text: string } {
+  const lines: { at: number; text: string }[] = [];
+  source.units.forEach((unit, i) => {
+    if (unit.kind !== 'time') return;
+    for (const line of unitText(source, i).split('\n')) {
+      const m = /^\[(\d{1,2}(?::\d{2}){1,2})\]\s*(.*)$/.exec(line);
+      const at = m ? parseTime(m[1]) : null;
+      if (m && at !== null) lines.push({ at, text: m[2] });
+    }
+  });
+  if (!lines.length) return { from: seconds, to: seconds + 10, text: '' };
+  let i = lines.findLastIndex(l => l.at <= seconds);
+  if (i < 0) i = 0;
+  // The text carries when a sentence starts, not when it ends. Speech runs near two and a half words a second,
+  // and a drawing often lands a moment after the words, so the sentence's stretch is its length plus three seconds,
+  // and never past the start of the next one. A silence afterwards belongs to no sentence.
+  const spoken = countWords(lines[i].text) / 2.5 + 3;
+  return { from: lines[i].at, to: Math.min(lines[i + 1]?.at ?? Infinity, lines[i].at + spoken), text: lines[i].text };
+}
+
+/**
+ * A page image, a layout-preserving text reading of a page, or what a video showed: for when the plain text
+ * isn't enough. For a video: "image" is one frame at the second named (with `box`, a crop from the original
+ * frame); "screen" is the settled picture for the sentence at that time; "filmstrip" is a sheet of the moments
+ * the screen changed.
+ */
+export function viewUnit(config: Config, source: Source, loc: string | undefined, view: View, box?: string): Viewed {
   const file = originalFile(source);
   const isPdf = /\.pdf$/i.test(file);
   if (isPdf) {
-    const m = /^p\.(\d+)$/.exec(loc);
-    if (!m) fail('INVALID', `Name one page, like "p.112"; got "${loc}".`);
+    const m = /^p\.(\d+)$/.exec(loc ?? '');
+    if (!m) fail('INVALID', `Name one page, like "p.112"; got "${loc ?? ''}".`);
     const page = Number(m[1]);
     if (!source.units.some(u => u.kind === 'page' && u.n === page)) fail('NOT_FOUND', `${source.key} has no page ${page}.`);
     if (view === 'layout') return { text: pdfText(config, file, { layout: true, first: page, last: page }).join('\n') };
-    return { path: pdfPageImage(config, file, page, path.join(source.dir, 'pages')) };
+    return { text: `${source.key} p.${page}`, paths: [pdfPageImage(config, file, page, path.join(source.dir, 'pages'))] };
   }
-  if (isVideo(file)) {
-    const seconds = parseTime(loc);
-    if (seconds === null) fail('INVALID', `Name a moment, like "12:34"; got "${loc}".`);
-    return { path: frameAt(config, file, seconds, path.join(source.dir, 'frames')) };
+  if (!isVideo(file)) fail('UNSUPPORTED', `${source.key} is ${path.extname(file) || 'a file'} with no page images or frames to view.`);
+  const track = loadTrack(framesDir(source));
+  if (view === 'filmstrip') {
+    if (!track?.sheets.length) fail('NOT_FOUND', `${source.key} has no filmstrips. Ask for a frame by time with view "image", or the screen for a sentence with view "screen".`);
+    const span = (s: { times: number[] }) => `${formatTime(s.times[0])}-${formatTime(s.times.at(-1)!)}`;
+    if (!loc) return { text: [`${source.key}: ${track.candidates.length} moments where the screen changed and settled, on ${track.sheets.length} sheets. Open each with loc "1" to "${track.sheets.length}".`, ...track.sheets.map((s, i) => `- sheet ${i + 1}: ${span(s)} (${s.times.length} frames)`)].join('\n') };
+    const asTime = parseTime(loc);
+    const index = /^\d+$/.test(loc) ? Number(loc) - 1 : asTime === null ? -1 : Math.max(0, track.sheets.findLastIndex(s => s.times[0] <= asTime));
+    const sheet = track.sheets[index];
+    if (!sheet) fail('NOT_FOUND', `${source.key} has sheets 1 to ${track.sheets.length}; got "${loc}".`);
+    const rows: string[] = [];
+    for (let i = 0; i < sheet.times.length; i += 4) rows.push(sheet.times.slice(i, i + 4).map(formatTime).join('  '));
+    return {
+      text: `${source.key} filmstrip ${index + 1} of ${track.sheets.length}, ${span(sheet)}. Thumbnails left to right, top to bottom${track.stamped ? ', each with its time burned in' : ''}:\n${rows.join('\n')}\nThese are small: open one at reading size with view "image" and its time, or view "screen" for the sentence spoken then.`,
+      paths: [path.join(framesDir(source), sheet.file)],
+    };
   }
-  fail('UNSUPPORTED', `${source.key} is ${path.extname(file) || 'a file'} with no page images or frames to view.`);
+  const seconds = parseTime(loc ?? '');
+  if (seconds === null) fail('INVALID', `Name a moment, like "12:34"; got "${loc ?? ''}".`);
+  if (view === 'screen') {
+    const said = sentenceAt(source, seconds);
+    if (!track) return { text: `${source.key} ${formatTime(seconds)} (no screen map, so this is the frame at that second)\n"${said.text}"`, paths: [frameFor(config, source, file, seconds)] };
+    const shot = screenFor(track, said.from, said.to);
+    const times = shot.before === undefined ? [shot.after] : [shot.before, shot.after];
+    return {
+      text:
+        `${source.key} [${formatTime(said.from)}] "${said.text}"\n` +
+        (shot.before === undefined ? `The screen held still through this sentence. Frame at ${formatTime(shot.after)}.` : `The screen changed as this was said. First frame: ${formatTime(shot.before)}, before. Second frame: ${formatTime(shot.after)}, settled after.`),
+      paths: times.map(t => frameFor(config, source, file, t)),
+    };
+  }
+  const cut = box ? parseBox(box) : undefined;
+  return { text: `${source.key} ${formatTime(seconds)}${cut ? `, the region ${cut.map(v => Math.round(v)).join(',')} (percent: left, top, width, height), cut from the original frame` : ''}`, paths: [frameFor(config, source, file, seconds, cut)] };
+}
+
+/**
+ * Keeps a frame the write-up relies on: a copy in the source's exhibits folder, which is never cleared. The frames
+ * folder is a cache, and a video over 300 MB is never copied into the library, so a kept frame is the only picture
+ * sure to be there later.
+ */
+export function keepExhibit(config: Config, source: Source, loc: string, box?: string): string {
+  const file = originalFile(source);
+  if (!isVideo(file)) fail('UNSUPPORTED', `${source.key} isn't a video. A PDF page is always there to view again, so it needs no keeping.`);
+  const seconds = parseTime(loc);
+  if (seconds === null) fail('INVALID', `Name the moment to keep, like "12:34"; got "${loc}".`);
+  const made = frameImage(config, file, seconds, framesDir(source), box ? parseBox(box) : undefined);
+  fs.mkdirSync(exhibitsDir(source), { recursive: true });
+  const target = path.join(exhibitsDir(source), path.basename(made));
+  if (!exists(target)) fs.copyFileSync(made, target);
+  // A library made before exhibits existed doesn't leave them out of git yet.
+  const ignore = path.join(config.library, '.gitignore');
+  const line = 'sources/*/exhibits/';
+  if (exists(ignore) && !fs.readFileSync(ignore, 'utf8').split(/\r?\n/).includes(line)) fs.appendFileSync(ignore, `${line}\n`);
+  return target;
+}
+
+/** Seconds of every frame that was opened or kept for a source: what a reader actually looked at. */
+export function framesLooked(source: Source): number[] {
+  const out: number[] = [];
+  for (const dir of [framesDir(source), exhibitsDir(source)]) {
+    if (!exists(dir)) continue;
+    for (const f of fs.readdirSync(dir)) {
+      const at = frameSecond(f);
+      if (at !== null) out.push(at);
+    }
+  }
+  return out;
+}
+
+export function keptExhibits(source: Source): number[] {
+  if (!exists(exhibitsDir(source))) return [];
+  return fs.readdirSync(exhibitsDir(source)).map(frameSecond).filter((t): t is number => t !== null);
+}
+
+export function screenTrack(source: Source) {
+  return loadTrack(framesDir(source));
 }

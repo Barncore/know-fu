@@ -408,30 +408,7 @@ async function extractMedia(config: Config, file: string, workDir: string, maxCo
   return out;
 }
 
-/** One frame a minute, small, so a reader can see what was on screen when the speaker points at something. */
-export function sampleFrames(config: Config, file: string, outDir: string, every = 60): number {
-  const ffmpeg = findTool(config, 'ffmpeg');
-  fs.mkdirSync(outDir, { recursive: true });
-  const run = spawnSync(ffmpeg, ['-nostdin', '-y', '-i', file, '-vf', `fps=1/${every},scale=960:-2`, '-q:v', '5', path.join(outDir, 'f%05d.jpg')], { stdio: 'ignore', timeout: 3600000 });
-  if (run.status !== 0) return 0;
-  // ffmpeg numbers frames from 1; rename each to the second it shows.
-  const frames = fs.readdirSync(outDir).filter(f => /^f\d{5}\.jpg$/.test(f));
-  for (const f of frames) {
-    const second = (Number(f.slice(1, 6)) - 1) * every;
-    fs.renameSync(path.join(outDir, f), path.join(outDir, `t${String(second).padStart(6, '0')}.jpg`));
-  }
-  return frames.length;
-}
-
-export function frameAt(config: Config, file: string, seconds: number, outDir: string): string {
-  const target = path.join(outDir, `t${String(Math.floor(seconds)).padStart(6, '0')}-full.jpg`);
-  if (exists(target)) return target;
-  fs.mkdirSync(outDir, { recursive: true });
-  const ffmpeg = findTool(config, 'ffmpeg');
-  const run = spawnSync(ffmpeg, ['-nostdin', '-y', '-ss', String(seconds), '-i', file, '-frames:v', '1', '-q:v', '3', target], { stdio: 'ignore', timeout: 120000 });
-  if (run.status !== 0 || !exists(target)) fail('EXTRACTION_FAILED', `ffmpeg couldn't take a frame at ${formatTime(seconds)}.`);
-  return target;
-}
+// Video frames live in frames.ts: the screen map made when a video is added, and the frames a reader asks for.
 
 // ---- entry point ----
 

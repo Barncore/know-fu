@@ -35,9 +35,10 @@ const HELP = `Know Fu command line. Commands:
   new <domain>[/<topic>]              create a domain or topic page to fill in (--title, --summary)
   brief [topic]                       library overview, or one topic's frame and principles
   recall "<question>"                 answer material (--topic, --budget, --gists, --ideas)
-  read <ref> [loc]                    an account, topic, source, or source text (--view image|layout)
+  read <ref> [loc]                    an account, topic, source, or source text (--view image|layout|screen|filmstrip, --box "x,y,w,h")
   connect <from> [to]                 how two ideas link
-  source add <file> | source list     register a source (--title, --authors "A; B", --year, --kind, --id, --key, --family, --url, --max-cost)
+  source add <file> | source list     register a source (--title, --authors "A; B", --year, --kind, --id, --key, --family, --url, --max-cost, --topic, --terms "a; b")
+  source keep <key> <time>            keep a video frame as an exhibit (--box "x,y,w,h")
   check                               check the library (--commit "message", --errors-only)
   note --title "…" --body "…"         save a note to the inbox
   pin [topic]                         pin a topic to a project (--project, --remove)`;
@@ -80,13 +81,21 @@ async function main() {
       });
     case 'read':
     case 'text':
-      return out('kf_read', { ref: positional[0], loc: positional[1], view: text('view') });
+      return out('kf_read', { ref: positional[0], loc: positional[1], view: text('view'), box: text('box') });
     case 'connect':
       return out('kf_connect', { from: positional[0], to: positional[1] });
     case 'source':
       return out('kf_source', {
         action: positional[0] ?? 'list',
-        file: positional[1],
+        file: positional[0] === 'keep' ? undefined : positional[1],
+        ref: positional[0] === 'keep' ? positional[1] : undefined,
+        loc: positional[0] === 'keep' ? positional[2] : undefined,
+        box: text('box'),
+        topic: text('topic'),
+        terms: text('terms')
+          ?.split(';')
+          .map(a => a.trim())
+          .filter(Boolean),
         title: text('title'),
         authors: text('authors')
           ?.split(';')

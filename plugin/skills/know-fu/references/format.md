@@ -16,12 +16,13 @@ knowledge/<domain>/<topic>/accounts/<name>.md
 sources/<id>/source.md
 sources/<id>/text.txt, units.json         the extraction; never edit
 sources/<id>/original/                    the file as added; never edit
-sources/<id>/pages/, frames/              page images and video frames, rendered when asked for
+sources/<id>/pages/, frames/              page images; a video's screen map, filmstrips and opened frames (a cache)
+sources/<id>/exhibits/                    video frames kept because an account relies on them
 ideas/<name>.md
 inbox/<date>-<name>.md
 ```
 
-The library's git history holds every Markdown file and the extracted text. `original/`, `pages/` and `frames/` are left out of git: they sit in the folder and don't change.
+The library's git history holds every Markdown file and the extracted text. `original/`, `pages/`, `frames/` and `exhibits/` are left out of git: they sit in the folder. `pages/` and `frames/` can be made again from the original; `exhibits/` can't once a video has moved, so it is never cleared.
 
 A domain is a broad area (audio, trading). A topic is a subject inside it with its own principles (mixing, mastering). Names are lower-case words joined by hyphens. Every account, idea and source needs a name no other one has, because a bare `[[name]]` link finds it anywhere in the library.
 
@@ -140,6 +141,8 @@ A link in running text is a mention. A link in a bullet under `## Connections` i
 - **Map:** one `### Title [p.A-B]` heading per stretch, in order, each with its digest. Ranges use the source's own locators (`[s.1-4]`, `[0:00-12:30]`), and together they cover every unit that has text. Inside this file, cite with a bare locator, `[p.68]`, with no key: it is resolved against this source and checked like any citation.
 - **What it changed:** the principles and accounts this source added or altered, and what it leaves open.
 
+A video with a screen adds two things, both described in the video guide. Each digest in the Map ends with a `- **Frames:**` line naming the frames that were opened, like `12:36, 13:02`, or `none` and why. And an optional `## Exhibits` section holds one `### 12:36 What the frame shows` heading for each frame kept with `kf_source` action "keep", with its record underneath: what it shows, its marks as data with how each number was read, what was said, and which accounts it supports.
+
 Set `status: compiled` when all three are written. `family` groups sources that share an origin, such as a book and its author's talk on the same material, so they count once when asking how many sources hold a principle. Use `owner` for the owner's own notes.
 
 ## Ideas
@@ -166,6 +169,6 @@ What the idea is, why it might work given its premises, what would show it is wr
 
 ## What the checker enforces
 
-Errors block a commit: malformed or unknown frontmatter, a link or citation that points at nothing, quoted words that aren't in the source, a cited key missing from `sources`, a principle with no statement, Why, Breaks when or Held by, a principle that governs no account, an account naming a principle that doesn't exist, knowledge linking to an idea, a compiled source with placeholders or with pages no digest covers, two things with one name.
+Errors block a commit: malformed or unknown frontmatter, a link or citation that points at nothing, quoted words that aren't in the source, a cited key missing from `sources`, a principle with no statement, Why, Breaks when or Held by, a principle that governs no account, an account naming a principle that doesn't exist, knowledge linking to an idea, a compiled source with placeholders or with pages no digest covers, an exhibit record with no kept frame or no time in its heading, two things with one name.
 
-Warnings are judgment calls, each worded as the question to answer: an account under 80 or over 1,500 words, a summary over 60 words, an account under no principle, a principle governing a single account, two accounts with nearly the same title, a topic page too long to read whole, and accounts citing a source that total more than 35% of the length of what was read.
+Warnings are judgment calls, each worded as the question to answer: a stretch of video where the screen changed three or more times and the digest has no Frames line, a Frames line naming a frame nobody opened, a kept frame with no record, an account under 80 or over 1,500 words, a summary over 60 words, an account under no principle, a principle governing a single account, two accounts with nearly the same title, a topic page too long to read whole, and accounts citing a source that total more than 35% of the length of what was read.

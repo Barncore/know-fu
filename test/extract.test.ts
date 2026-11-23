@@ -253,6 +253,70 @@ test('a recording is sent in padded chunks with key terms, and each sentence kee
   }
 });
 
+test("a video's screen is mapped into filmstrips, served by sentence, cropped, kept, and checked against what the digest says was opened", async t => {
+  const fx = freshLibrary();
+  try {
+    if (!has(() => findTool(loadConfig(), 'ffmpeg')) || !has(() => findTool(loadConfig(), 'ffprobe'))) return t.skip("FFmpeg isn't installed");
+    // Three still pictures of twelve seconds each: a box that sits in a different place in each. A small box
+    // jitters in the corner the whole time, the way a webcam does.
+    const video = path.join(fx.dir, 'lesson.mp4');
+    const still = (x: number) => `color=c=white:s=640x360:r=10:d=12,drawbox=x=${x}:y=120:w=120:h=90:color=black:t=fill`;
+    const graph = `${still(60)}[a];${still(260)}[b];${still(460)}[c];[a][b][c]concat=n=3:v=1:a=0[base];color=c=red:s=40x40:r=10:d=36[r];[base][r]overlay=x='560+10*mod(n\\,5)':y=10[v]`;
+    const made = spawnSync(findTool(loadConfig(), 'ffmpeg'), ['-nostdin', '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=36', '-filter_complex', graph, '-map', '[v]', '-map', '0:a', '-pix_fmt', 'yuv420p', '-shortest', video], { stdio: 'ignore' });
+    if (made.status !== 0) return t.skip("this FFmpeg can't synthesize a test video");
+    const raw = JSON.parse(fs.readFileSync(fx.config, 'utf8'));
+    fs.writeFileSync(fx.config, JSON.stringify({ ...raw, transcription: { endpoint: 'https://transcribe.invalid/v1/audio/transcriptions', model: 'vendor/words-model', api_key_file: write(fx.dir, 'key.txt', 'not-a-real-key'), cost_per_minute: 0.06 } }));
+    const say = (at: number, text: string) => text.split(' ').map((word, i) => ({ word, start: at + i * 0.3, end: at + i * 0.3 + 0.25 }));
+    const words = [...say(2, 'The box starts on the left.'), ...say(10, 'Now watch it move over here.'), ...say(15, 'It stays in the middle now.'), ...say(30, 'And it ends on the right.')];
+    const fetcher = (async () => new Response(JSON.stringify({ text: words.map(w => w.word).join(' '), segments: [], words }), { status: 200 })) as typeof fetch;
+    const added = await addSource(loadConfig(), { file: video, title: 'Box lesson', key: 'BOX', fetcher, max_cost: 1 });
+    assert.equal(added.frames, 3, 'one candidate for each still picture, and none for the jitter');
+    assert.equal(added.sheets, 1);
+    const strip = await runTool('kf_read', { ref: 'BOX', view: 'filmstrip', loc: '1' });
+    assert.ok(strip.image && fs.statSync(strip.image).size > 2000, 'a filmstrip sheet was built');
+    assert.match(strip.text, /0:0\d  0:1\d  0:2\d/);
+    // The sentence at 0:10 is spoken across the change at 0:12, so it gets the picture before and after.
+    const moved = await runTool('kf_read', { ref: 'BOX', view: 'screen', loc: '0:10' });
+    assert.match(moved.text, /"Now watch it move over here\."/);
+    assert.match(moved.text, /changed as this was said/);
+    assert.equal(moved.images?.length, 2);
+    // The next sentence is over long before the change at 0:24, and the silence after it belongs to no sentence.
+    const held = await runTool('kf_read', { ref: 'BOX', view: 'screen', loc: '0:15' });
+    assert.match(held.text, /held still/);
+    assert.equal(held.images?.length, 1);
+    // A 640x360 source is under 1080p, so a frame comes back enlarged; a crop is cut from the original.
+    const frame = await runTool('kf_read', { ref: 'BOX', view: 'image', loc: '0:05' });
+    const width = (file: string) => Number(spawnSync(findTool(loadConfig(), 'ffprobe'), ['-v', 'error', '-show_entries', 'stream=width', '-of', 'csv=p=0', file], { encoding: 'utf8' }).stdout.trim());
+    assert.equal(width(frame.image!), 2576);
+    const crop = await runTool('kf_read', { ref: 'BOX', view: 'image', loc: '0:05', box: '0,25,50,50' });
+    assert.equal(width(crop.image!), 1200, 'a small crop is enlarged to 1,200 px on its long edge');
+    await assert.rejects(runTool('kf_read', { ref: 'BOX', view: 'image', loc: '0:05', box: '90,0,40,40' }), /percent of the frame/);
+
+    // The checker reads the digest's Frames line against what was opened.
+    const page = path.join(fx.root, 'sources', 'box-lesson', 'source.md');
+    const digest = (frames: string, exhibits = '') =>
+      fs
+        .readFileSync(page, 'utf8')
+        .replace(/## Map\n\n[\s\S]*?\n\n## What it changed/, `## Map\n\n### The whole lesson [0:02-0:32]\n\nA box sits on the left, moves to the middle and ends on the right, which is all this recording shows and all that the speaker says about it in four short sentences.\n${frames}\n${exhibits}\n## What it changed`);
+    const warnings = async () => (await runTool('kf_check', {})).text;
+    fs.writeFileSync(page, digest(''));
+    assert.match(await warnings(), /\[frames\][^\n]*the screen changed 3 times/);
+    fs.writeFileSync(page, digest('- **Frames:** 0:05, 0:29\n'));
+    assert.match(await warnings(), /lists a frame at 0:29, but no frame near that time was opened/);
+    assert.doesNotMatch(await warnings(), /lists a frame at 0:05/);
+    // An exhibit record needs its kept frame, and a kept frame is served from where it was kept.
+    fs.writeFileSync(page, digest('- **Frames:** 0:05\n', '\n## Exhibits\n\n### 0:05 The box on the left\n\nA black box at the left of a white frame, with nothing else drawn on it and no labels or axes of any kind.\n'));
+    assert.match(await warnings(), /\[exhibit\][^\n]*has no kept frame/);
+    const kept = await runTool('kf_source', { action: 'keep', ref: 'BOX', loc: '0:05' });
+    assert.match(kept.image!, /exhibits/);
+    assert.doesNotMatch(await warnings(), /\[exhibit\]/);
+    fs.rmSync(path.join(fx.root, 'sources', 'box-lesson', 'frames'), { recursive: true });
+    assert.match((await runTool('kf_read', { ref: 'BOX', view: 'image', loc: '0:05' })).image!, /exhibits/);
+  } finally {
+    fx.cleanup();
+  }
+});
+
 test("the format guide's own examples parse", () => {
   const guide = fs.readFileSync(path.join(PLUGIN, 'skills', 'know-fu', 'references', 'format.md'), 'utf8');
   const blocks = [...guide.matchAll(/```markdown\n([\s\S]*?)```/g)].map(m => m[1]);

@@ -73,6 +73,18 @@ The six rules that follow:
 
 Newest first. Each entry is the owner's decision unless it says otherwise.
 
+### 23 November 2026: how a video's frames are chosen
+
+The owner's starting point: "I think it needs to be based on what it reads from the time-coded transcript." A frame once a minute is "kinda random and not targeted". He approved this division after asking for it to be explained in full, because an unexplained rebuild is how capability was lost before:
+
+- **The transcript drives.** The reader decides where to look. If a point can't be restated with its specifics without the picture, it looks.
+- **Code makes a map and no choices.** A filmstrip of the moments the screen changed and settled, so the reader knows what is there to ask about. The owner: "the code-based frame picker is just for the filmstrip."
+- **Any second can be asked for**, and the screen for a sentence comes back settled, because the drawing lands after the words.
+- **Skipping shows.** Each digest lists the frames opened, and the checker compares that with what was opened.
+- **Sizes**, from the owner's test on chart frames: 1080p as it is, larger sources at 2,576 px, smaller ones enlarged to 2,576 px, and a crop when a detail needs it.
+
+Removed with his agreement: the frame sampled once a minute. The filmstrip replaces it.
+
 ### 23 November 2026: one transcriber, taught the library's vocabulary
 
 The owner's earlier video work used two OpenAI models per recording, one for accurate words and one for timestamps. OpenAI shuts the timestamp model, `whisper-1`, down on 26 February 2027. A test on one of the owner's trading lessons put one hosted model, MAI-Transcribe 2 through OpenRouter, level with the better of the pair on words and ahead of the other on timing, at about a sixth of the cost. The owner's decision: "Switch to MAI-Transcribe 2, lock it in."
