@@ -19,7 +19,7 @@ Why: the owner read the library the 0.12 test produced and asked for four things
 - Tests: 33 pass, with new assertions for the written names, the key list and the count of sources that qualify a principle.
 - Compatibility: a principle file written under 0.12.0 or 0.12.1 gets its evidence headings rewritten with names on the next `kf_check`. A topic page section already called "Source keys" would be replaced by the generated one.
 - Not shown: no reader has ingested under these guides yet.
-- Documentation: the format, ingest and use guides, architecture and the north star.
+- Documentation: the format, ingest and use guides, architecture and the north star. The README's "Where it's at" still described 0.6 and said transcription had never run against a live provider; it now describes 0.12 and what has been shown for it, and the README names the video path and the optional tools.
 
 ### 2026-11-24 - 0.12.1: what the first real run of the new layout found
 
